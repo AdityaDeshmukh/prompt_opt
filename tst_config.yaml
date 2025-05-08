@@ -1,0 +1,74 @@
+# Text Style Transfer Config
+defaults:
+  - _self_
+# Device
+device: "cuda"
+# Data
+dataset: "yelp"
+dataset_seed: null
+direction: "0_to_1"
+base_path: "./data"
+max_size: null
+max_length: null
+max_length_tokenizer: null
+# LM Adaptor Model
+policy_lm: "distilgpt2" # Name of the backbone pretrained LM
+hidden_size: 2048 # Dimension for the hidden state of the enclosed adaptor MLP
+logit_bias: -10.0 # Added to all prompt token logits. Set negative value to encourage exploration.
+fluent: false # if True, constrain tokens to be from those with top-k probability under a GPT-2 model
+fluent_top_k: 20 # k for top-k probability above
+eos_token_id: null # The end-of-sentence token id, set to None for fixed-length prompts
+explore: false
+# Score Loss Module
+top_k: 15
+top_p: 1.0
+num_beams: 1
+score_scaler: 1
+# Trainer
+train_batch_size: 10
+max_train_steps: 12000
+train_shuffle: false
+train_drop_last: true
+num_train_epochs: 1
+random_lmbda: true
+update_steps: 300
+# Optimizer params
+learning_rate: 1e-4
+gradient_clip: true
+gradient_clip_norm: 5.0
+# Eval params
+do_eval: true
+eval_batch_size: 1
+eval_steps: 5
+# Save params
+do_save: true
+save_dir: "./outputs"
+save_steps: 300
+# Checkpoint params
+checkpoint_path: null
+# Random seed
+random_seed: null
+# Wandb reporting
+report_to_wandb: true
+project_name: "multi-objective-prompt-opt"
+run_name: null
+# Prompted Text Style Transfer Score (tst_helpers.py)
+task_lm: "gpt2-xl"
+task_top_k: 10  # Top-k sampling for text generation
+style_classifier: "???"
+# style_tokenizer: null
+style_tokenizer: "bert-base-uncased"
+style_batch_size: 32
+pad_token: "<|endoftext|>"
+num_repeats: 15  # Num of repetitions for each example
+num_samples: 20  # Num of samples from which to take the output
+num_bootstraps: 1  # Num of bootstraps to reduce score randomness
+lower_outputs: true  # Whether to convert all outputs to lower case
+control_output_length: true  # Control output length for speedup
+template: '{prompt} "{sentence_1}" "'  # Template for prompt generation
+end_punct: '"'  # End punctuation to cut off after generation
+# Single Prompt Model
+input_conditioning: true
+prompt_length: 5 # Max output token length of the LM model
+prompt_infer_batch_size: 16
+source_str: "<|endoftext|>"
