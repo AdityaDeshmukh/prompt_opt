@@ -1,8 +1,9 @@
 # Text Style Transfer Config
 defaults:
   - _self_
-# Device
-device: "cuda"
+# Devices
+device: "cuda:0"
+device_scorer: "cuda:1"
 # Data
 dataset: "yelp"
 dataset_seed: null
@@ -19,31 +20,32 @@ fluent: false # if True, constrain tokens to be from those with top-k probabilit
 fluent_top_k: 20 # k for top-k probability above
 eos_token_id: null # The end-of-sentence token id, set to None for fixed-length prompts
 explore: false
+mix_eps: 0.2
 # Score Loss Module
-top_k: 15
+algo : "???"
+top_k: 200
 top_p: 1.0
 num_beams: 1
-score_scaler: 1
 # Trainer
-train_batch_size: 10
+train_batch_size: 15
 max_train_steps: 12000
 train_shuffle: false
 train_drop_last: true
 num_train_epochs: 1
 random_lmbda: true
-update_steps: 300
+update_steps: 150
 # Optimizer params
 learning_rate: 1e-4
 gradient_clip: true
-gradient_clip_norm: 5.0
+gradient_clip_norm: 10.0
 # Eval params
 do_eval: true
-eval_batch_size: 1
-eval_steps: 5
+eval_batch_size: 10
+eval_steps: 50
 # Save params
 do_save: true
 save_dir: "./outputs"
-save_steps: 300
+save_steps: 150
 # Checkpoint params
 checkpoint_path: null
 # Random seed

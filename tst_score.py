@@ -18,8 +18,8 @@ class PromptedTextStyleTransferScore(BaseScore):
         config: "DictConfig"
     ):
         
-        generator_device = torch.device(config.device if torch.cuda.is_available() else 'cpu')  # TODO
-        score_device = torch.device(config.device if torch.cuda.is_available() else 'cpu')  # TODO
+        generator_device = torch.device(config.device_scorer if torch.cuda.is_available() else 'cpu')  # TODO
+        score_device = torch.device(config.device_scorer if torch.cuda.is_available() else 'cpu')  # TODO
         task_lm = config.task_lm
         style_classifier = config.style_classifier
         # Loading generator model
@@ -97,7 +97,7 @@ class PromptedTextStyleTransferScore(BaseScore):
 
             lmbda_ = lmbda.clone().detach().cpu()*100
             
-            scores = torch.where(content_scores >= lmbda_, style_scores, 0.001*(content_scores-lmbda_))
+            scores = torch.where(content_scores >= lmbda_, style_scores, 0.01*(content_scores-lmbda_))
             
             # w_scores, content_scores, style_scores = \
             #     self.objectives.compute_sample_scores(lmbda, src, hypos, label)

@@ -76,11 +76,11 @@ def load_text_style_transfer_dataset(
 
 
 def preprocess_input(text):
-    text = re.sub('\s{2,}', ' ', text)
-    text = re.sub('(.*?)( )([\.,!?\'])', r'\1\3', text)
-    text = re.sub('([a-z])( )(n\'t)', r'\1\3', text)
-    text = re.sub('\$ \_', r'$_', text)
-    text = re.sub('(\( )(.*?)( \))', r'(\2)', text)
-    text = re.sub('(``)( )*(.*?)', r"``\3", text)
-    text = re.sub('(.*?)( )*(\'\')', r"\1''", text)
+    text = re.sub(r'\s{2,}', ' ', text)
+    text = re.sub(r'(.*?)( )([\.,!?\'])', r'\1\3', text)
+    text = re.sub(r'([a-z])( )(n\'t)', r'\1\3', text)
+    text = re.sub(r'\$ \_', r'$_', text)
+    text = re.sub(r'(\( )(.*?)( \))', r'(\2)', text)
+    text = re.sub(r'(``)( )*(.*?)', r"``\3", text)
+    text = re.sub(r'(.*?)( )*(\'\')', r"\1''", text)
     return text

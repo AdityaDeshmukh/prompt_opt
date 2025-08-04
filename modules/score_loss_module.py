@@ -6,10 +6,20 @@ from models import BaseModel
 from modules import BaseScoreModule
 from scores import BaseScore
 from utils import utils
-from losses import dpo_score_loss, kl_div_loss
+from losses import *
 
 
-
+ALGOS = {
+            "plgo": plgo_loss,
+            "plgo_b": plgo_b_loss,
+            "grpo": grpo_loss,
+            "drgo": drgo_loss,
+            "drgo_new": drgo_new_loss,
+            "drgo_regularized": drgo_regularized_loss,
+            "kl": kl_ub_loss,
+            "drgo_cauchy": drgo_cauchy_loss,
+            "l1": drgo_l1_loss
+        }
 class ScoreLossModule(BaseScoreModule):
     def __init__(
         self,
@@ -35,7 +45,8 @@ class ScoreLossModule(BaseScoreModule):
         self._num_beams: int = config.num_beams
         self.num_repeats: int = config.num_repeats
         self.update_steps: int = config.update_steps
-        self.score_scaler: float = config.score_scaler
+        self.algo: str = config.algo
+        
         
     def _pre_steps(self, step: int) -> None:
         if step % self.update_steps == 0:
@@ -72,8 +83,8 @@ class ScoreLossModule(BaseScoreModule):
         self.compute_scores(lmbda = lmbda, batch=batch, 
                                 output_tokens=output_tokens,
                                 mode="train")
-        
-        loss, loss_log = kl_div_loss(
+        loss_func = ALGOS[self.algo]
+        loss, loss_log = loss_func(
             lmbda = lmbda,
             logits=logits,
             logits_=logits_,
@@ -81,8 +92,7 @@ class ScoreLossModule(BaseScoreModule):
             scores_tensor = score_tensor,
             content_tensor = content_tensor,
             style_tensor = style_tensor,
-            num_src=len(batch['source_texts']),
-            score_scaler = self.score_scaler)
+            num_src=len(batch['source_texts']))
 
         utils.add_prefix_to_dict_keys_inplace(
             scores_log, prefix="scores/")

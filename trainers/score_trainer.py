@@ -94,9 +94,15 @@ class ScoreTrainer:
             lmbda = torch.rand(n).to(device)
         else:
             lmbda = torch.tensor([0.5]).repeat(n).to(device)
-        loss, batch_log = model(lmbda, batch)
 
-        loss.backward()
+        k = 0
+        max_loss = 1000
+        loss = torch.tensor([max_loss+1]).to(device)
+        while loss.item() > 1000 and k < 10:
+            loss, batch_log = model(lmbda, batch)
+            loss.backward()
+            k += 1
+
         self.train_op()
 
         return batch_log
@@ -144,7 +150,7 @@ class ScoreTrainer:
 
         print(f"Length of train dataloader: {len(train_dataloader)}")
         # print(eval_by_steps, save_by_steps)
-        total_steps = 0
+        total_steps = max(0, self.saved_steps)
         for epoch in range(total_train_epochs):
             for step, batch in enumerate(train_dataloader, 1):
                 if step > self.saved_steps:
@@ -233,9 +239,9 @@ class ScoreTrainer:
                        'mean_styles': mean_styles},
                       open(output_save_path, 'w'))
         
-        mean_score = torch.Tensor(mean_scores).mean().item()
-        mean_content = torch.Tensor(mean_contents).mean().item()
-        mean_style = torch.Tensor(mean_styles).mean().item()
+        mean_score = torch.Tensor(mean_scores).mean(dim=-1).mean().item()
+        mean_content = torch.Tensor(mean_contents).mean(dim=-1).mean().item()
+        mean_style = torch.Tensor(mean_styles).mean(dim=-1).mean().item()
 
         score_log = {
             "mean_score": mean_score,

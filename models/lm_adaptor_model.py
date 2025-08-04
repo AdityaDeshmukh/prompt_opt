@@ -1,12 +1,14 @@
 import torch
 from torch import nn
+import torch.distributions as D
+
 import numpy as np
 from typing import Optional, List, Dict, Union
 
 from transformers import pipeline, AutoTokenizer
 
 from .base_model import BaseModel
-from .model_utils import _top_k_logits, _top_p_logits
+from .model_utils import _top_k_logits, _top_p_logits, _top_km_logits
 from omegaconf import DictConfig
 
 SUPPORTED_LMS = ['distilgpt2', 'gpt2', 'gpt2-medium',
@@ -53,8 +55,12 @@ class LMAdaptorModel(BaseModel):
         self.max_decoding_length: int = config.prompt_length
         self.eos_token_id: Optional[int] = config.eos_token_id
         self.num_repeats: int = config.num_repeats
+        self.train_batch_size: int = config.train_batch_size
         self.explore: bool = config.explore
-
+        self.mix_eps: float = config.mix_eps
+        self.top_p: Optional[float] = config.top_p
+        self.top_k: Optional[int] = config.top_k
+        
         model_dim = LM_HIDDEN_SIZES[model]
         self.mlp = _build_hyper_mlp(in_dim=model_dim,
                                     out_dim=model_dim,
@@ -93,7 +99,7 @@ class LMAdaptorModel(BaseModel):
         sample_logits = []
         for i in range(sample_ids.shape[-1]):
             logits = self._mlp_forward(lmbda, state)
-            logits = logits + self.logit_bias
+            # logits = logits + self.logit_bias
 
             actions = sample_ids[:, i]
             tokens = [self.generator.tokenizer.convert_ids_to_tokens([a])[0]
@@ -127,39 +133,27 @@ class LMAdaptorModel(BaseModel):
         state, past_key_values = self._get_generation_cache(source_texts)
         sample_tokens = [[] for _ in source_texts]
         sample_ids, sample_logits = [], []
+        if self.explore:
+            skip = torch.zeros(max_new_tokens, dtype=torch.int)
+            mix_probs = torch.ones(self.train_batch_size, dtype=torch.float)*self.mix_eps
+            mix_probs = torch.stack([1-mix_probs, mix_probs], dim=-1).to(self.device)
+            mix = D.Categorical(probs = mix_probs) # exploration: (1-eps)*p + eps*uniform
         for i in range(max_new_tokens):
             logits = self._mlp_forward(lmbda, state)  # [batch_size, vocab_size]
-            # logits = logits + self.logit_bias
-            # print(logits[:, 4:].min().item(), logits.max().item())
-
-            # if top_k is not None:
-            #     sampling_logits = _top_k_logits(logits, k=top_k)
-            # elif top_p is not None:
-            #     sampling_logits = _top_p_logits(logits, p=top_p)
-            # else:
-            #     sampling_logits = logits
-            
-            # if torch.rand(1).item() < 0.2:
-            #     # sampling_logits = torch.where(sampling_logits == float('-inf'), logits, float('-inf')
-            #     sampling_logits = torch.where(_top_k_logits(logits, k=500) > float('-inf'), 0, float('-inf'))
-
-            # sampling_logits = torch.where(_top_k_logits(logits, k=500) > float('-inf'), 0, float('-inf'))
-
-            actions = torch.zeros(logits.shape[0], dtype=torch.int)
-            for i in range(self.num_repeats):
-                sampling_logits = _top_k_logits(logits[i::self.num_repeats], k=(i+1)**2*top_k) + (i+1)*self.logit_bias
-                if self.explore and i > self.num_repeats // 2:
-                    # n = i - self.num_repeats // 2
-                    # m = (torch.topk(sampling_logits, k=1)[0]).min().item()
-                    # sampling_logits = torch.where(sampling_logits < sampling_logits.max().item(), sampling_logits, float('-inf'))
-                    _, max_indices = sampling_logits.max(dim=-1)
-                    rows = torch.arange(sampling_logits.size(0))
-                    sampling_logits[rows, max_indices] = float('-inf')
-                    # sampling_logits[sampling_logits.argmax()] = float('-inf')
-                actions[i::self.num_repeats] = (torch.distributions.categorical
-                                .Categorical(logits=sampling_logits)
-                                .sample())  # [num_repeats]
-            
+            actions = torch.zeros(logits.size(0), dtype=torch.int)
+            for j in range(self.num_repeats):
+                if self.explore:
+                    # skip[0], skip[1] = j//4, j%4
+                    skip = torch.randint(0, j//4+1, (self.train_batch_size,))
+                    sampling_logits = _top_km_logits(logits[j::self.num_repeats], k=self.top_k, m=skip)
+                    # sampling_logits = _top_k_logits(logits[j::self.num_repeats], k=self.top_k)
+                    comp_logits = torch.stack([sampling_logits, torch.where(sampling_logits==float('-inf'), float('-inf'), 0.).to(self.device)], dim=1)
+                    comp = D.Categorical(logits = comp_logits)
+                    mix_dist = D.MixtureSameFamily(mix, comp)
+                    actions[j::self.num_repeats] = mix_dist.sample()
+                else:
+                    sampling_logits = _top_k_logits(logits[j::self.num_repeats], k=self.top_k)
+                    actions[j::self.num_repeats] = D.Categorical(logits=sampling_logits).sample()
             
             tokens = [self.generator.tokenizer.convert_ids_to_tokens([a])[0]
                       for a in actions.tolist()]
@@ -204,18 +198,14 @@ class LMAdaptorModel(BaseModel):
         sample_ids, sample_logits = [], []
         for i in range(max_new_tokens):
             logits = self._mlp_forward(lmbda,state)
-            logits = logits + self.logit_bias
+            # logits = logits + self.logit_bias
             # print(logits[:, 4:].min().item(), logits.max().item())
-            sampling_logits = _top_k_logits(logits, k=1)
+            sampling_logits = _top_k_logits(logits, k=3)
 
             # actions = logits.argmax(dim=-1)  # [batch_size]
-            actions = (torch.distributions.categorical
-                            .Categorical(logits=sampling_logits)
-                            .sample())
-            tokens = [self.generator.tokenizer.convert_ids_to_tokens([a])[0]
-                      for a in actions.tolist()]
-            token_strs = [self.generator.tokenizer.convert_tokens_to_string([t])
-                          for t in tokens]
+            actions = D.Categorical(logits=sampling_logits).sample()
+            tokens = [self.generator.tokenizer.convert_ids_to_tokens([a])[0] for a in actions.tolist()]
+            token_strs = [self.generator.tokenizer.convert_tokens_to_string([t]) for t in tokens]
 
             for s, t in zip(sample_tokens, tokens): 
                 s.append(t)
@@ -301,51 +291,27 @@ class HyperNet(nn.Module):
         self.out_dim = out_dim
         self.hidden_size = hidden_size
         self.layer1 = nn.Linear(in_dim, hidden_size)
-        # self.layer2 = nn.Linear(hidden_size//2, hidden_size)
         self.layer2 = nn.Linear(hidden_size, out_dim)
-        # self.softplus = nn.Softplus()
         self.gelu = nn.GELU()
-
-        # self.lmbda_w1 = nn.Linear(1, hidden_size*hidden_size//4)
-        # self.lmbda_b1 = nn.Linear(1, hidden_size//2)
-
-        # self.lmbda_w2 = nn.Linear(1, hidden_size*hidden_size)
-        # self.lmbda_b2 = nn.Linear(1, hidden_size)
-
-        # self.lmbda_u3 = nn.Linear(1, self.r*out_dim)
-        # self.lmbda_v3 = nn.Linear(1, self.r*out_dim)
-        # self.lmbda_b3 = nn.Linear(1, out_dim)
         
         self.lmbda_w1 = nn.Linear(1, in_dim*hidden_size)
         self.lmbda_b1 = nn.Linear(1, hidden_size)
-
-        # self.lmbda_w2 = nn.Linear(1, hidden_size*out_dim)
-        # self.lmbda_b2 = nn.Linear(1, out_dim)
         
         self.lmbda_t1 = nn.Linear(in_dim, out_dim)
         self.lmbda_t2 = nn.Linear(hidden_size, out_dim)
-        # self.lambda_t3 = nn.Linear(out_dim, out_dim)
+        self.lambda_t3 = nn.Linear(out_dim, out_dim)
 
         self.lmbda_u3 = nn.Linear(self.r, out_dim)
         self.lmbda_v3 = nn.Linear(hidden_size, self.r)
         self.lmbda_b3 = nn.Linear(1, out_dim)
 
     def forward(self, lmbda: torch.tensor, x: torch.Tensor) -> torch.Tensor:
-        # x = self.layer1(state)
-        # x = state
         w1 = self.lmbda_w1(lmbda)
-        # w1 = self.softplus(w1)
         w1 = w1.contiguous().view(-1, self.hidden_size, self.in_dim)
         b1 = self.lmbda_b1(lmbda)
         x = torch.matmul(w1, x.unsqueeze(-1)).squeeze(-1) + b1 + self.layer1(x)
         x = self.gelu(x)
         
-        # x = self.layer2(x)
-        # hidden_size = x.shape[-1]
-        # w2 = self.lmbda_w2(lmbda)
-        # w2 = self.softplus(w2)
-
-        # w2 = w2.contiguous().view(-1, self.out_dim, self.hidden_size)
         w1 = self.gelu(w1)
         b1 = self.gelu(b1)
         w2 = self.lmbda_t1(w1)
@@ -354,22 +320,16 @@ class HyperNet(nn.Module):
         x = torch.matmul(w2, x.unsqueeze(-1)).squeeze(-1) + b2 + self.layer2(x)
         x = self.gelu(x)
 
-        # x = self.layer3(x)
-        # out_dim = x.shape[-1]
         w2 = self.gelu(w2)
         v3 = self.lmbda_v3(w2)
-        # u3 = self.lmbda_u3(lmbda).contiguous().view(-1, self.out_dim, self.r)
-        # v3 = self.lmbda_v3(lmbda).contiguous().view(-1, self.r, self.out_dim)
         v3 = self.gelu(v3)
         u3 = self.lmbda_u3(v3).contiguous().view(-1, self.out_dim, self.r)
         v3 = v3.contiguous().view(-1, self.r, self.out_dim)
-        # w3 = torch.matmul(u3,v3)
-        # w3 = self.softplus(w3)
         y = torch.matmul(v3,x.unsqueeze(-1))
         y = self.gelu(y)
-        # b2 = self.gelu(b2)
-        # x = x + torch.matmul(u3,y).squeeze(-1) + self.lambda_t3(b2)
-        x = x + torch.matmul(u3,y).squeeze(-1) + self.lmbda_b3(lmbda)
+        b2 = self.gelu(b2)
+        x = x + torch.matmul(u3,y).squeeze(-1) + self.lambda_t3(b2)
+        # x = x + torch.matmul(u3,y).squeeze(-1) + self.lmbda_b3(lmbda)
         return x
     
 
