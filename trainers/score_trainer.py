@@ -194,14 +194,13 @@ class ScoreTrainer:
 
     def _get_eval_dataloader(self, eval_dataset: Dataset) -> DataLoader:
         return DataLoader(eval_dataset,
-                          batch_size=self.eval_batch_size)
+                          batch_size=self.eval_batch_size, drop_last=False)
 
     def evaluate(
         self,
-        lmbda: torch.Tensor = -1,
+        lmbda: torch.Tensor = torch.tensor(-1),
         eval_dataset: Optional[Dataset] = None,
-        output_save_path: Optional[str] = None,
-        compute_scores: bool = True
+        output_save_path: Optional[str] = None
     ) -> Dict[str, np.number]:
         if eval_dataset is None:
             eval_dataset = self.eval_dataset
@@ -215,6 +214,7 @@ class ScoreTrainer:
         mean_scores = []
         mean_contents= []
         mean_styles = []
+        json_lmbdas = []
         print('------------------------------Start Eval--------------------------------')
         for batch in eval_dataloader:
             for lmbda in lmbdas:
@@ -230,10 +230,11 @@ class ScoreTrainer:
                 mean_scores.append(score_log['mean_score'].tolist())
                 mean_contents.append(score_log['mean_content'].tolist())
                 mean_styles.append(score_log['mean_style'].tolist())
+                json_lmbdas.append(lmbda.tolist())
             break
         if output_save_path is not None:
             json.dump({'output_tokens': hypos,
-                       'lmbdas': lmbdas.tolist(),
+                       'lmbdas': json_lmbdas,
                        'mean_scores': mean_scores,
                        'mean_contents': mean_contents,
                        'mean_styles': mean_styles},

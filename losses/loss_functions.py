@@ -186,7 +186,7 @@ def drgo_l1_loss(
     h = beta*h.contiguous().view(num_src, -1)
 
     scores_tensor = scores_tensor.contiguous().view(num_src, -1)
-    scores_tensor = score_scaler_fnc(lmbda_)*scores_tensor
+    scores_tensor = 0.1*score_scaler_fnc(lmbda_)*scores_tensor
     # scores_tensor /= scores_tensor.std(dim=-1, keepdim=True)
 
     loss = F.l1_loss(input=get_pairwise_diff(h), target=get_pairwise_diff(scores_tensor))

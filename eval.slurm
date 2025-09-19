@@ -2,7 +2,7 @@
 
 ###############################################################################
 #
-#SBATCH --gres=gpu:L40S:2                # GPU
+#SBATCH --gres=gpu:L40S:1                # GPU
 #SBATCH --time=7-00:00:00                # Job run time (hh:mm:ss)
 #SBATCH --nodes=1                        # Number of nodes
 #SBATCH --ntasks-per-node=32             # Number of task (cores/ppn) per node
@@ -18,12 +18,10 @@
 conda activate base
 conda activate prompt_opt
 python run_tst_multi_obj.py \
+        wandb=False \
+        device_scorer=cuda:0\
         algo=l1 \
-        train_batch_size=15 \
-        num_repeats=16 \
         num_samples=50 \
-        explore=True \
-        mix_eps=0.25 \
         save_dir=/u/ad11/prompt_opt/new_l1_scaled \
         checkpoint_path=/u/ad11/prompt_opt/new_l1_scaled/ckpt/ckpt.step.11700.pth \
 

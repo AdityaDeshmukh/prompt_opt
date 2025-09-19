@@ -11,7 +11,7 @@ def make_text_style_transfer_datasets(
     for split in ['train', 'dev', 'test']: 
         # Hack - Only use 16 examples for Yelp validation to save time
         if config.dataset == "yelp" and split == 'dev': 
-            max_size = 16
+            max_size = 10
         else: 
             max_size = config.max_size
 

@@ -40,7 +40,7 @@ gradient_clip: true
 gradient_clip_norm: 10.0
 # Eval params
 do_eval: true
-eval_batch_size: 10
+eval_batch_size: 50
 eval_steps: 50
 # Save params
 do_save: true
