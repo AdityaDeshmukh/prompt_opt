@@ -9,8 +9,8 @@ import click
 
 from modules import BaseScoreModule
 from utils import utils
-from .trainer_utils import get_default_train_op, set_random_seed
-from omegaconf import DictConfig
+from .trainer_utils import create_optimizer, step_optimizer, set_random_seed
+from omegaconf import DictConfig, OmegaConf
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 class ScoreTrainer:
@@ -47,10 +47,16 @@ class ScoreTrainer:
         self.save_steps = config.save_steps
         self.saved_steps: int = -1
 
-        self.train_op = get_default_train_op(self.module._model,
-                                             config.learning_rate,
-                                             config.gradient_clip,
-                                             config.gradient_clip_norm)
+        self.learning_rate = config.learning_rate
+        self.gradient_clip = config.gradient_clip
+        self.gradient_clip_norm = config.gradient_clip_norm
+        self.optimizer = create_optimizer(self.module._model, config.learning_rate)
+
+        self.use_amp = bool(config.use_amp)
+        self.amp_dtype = config.amp_dtype
+        self.grad_scaler = torch.cuda.amp.GradScaler(
+            enabled=self.use_amp and torch.cuda.is_available()
+        )
 
         if config.checkpoint_path is not None:
             self._load_checkpoint(config.checkpoint_path)
@@ -63,6 +69,19 @@ class ScoreTrainer:
         self.run_name = config.run_name
 
         self.random_lmbda = config.random_lmbda
+        self.log_every_steps = config.log_every_steps
+
+        self.dataloader_num_workers = config.dataloader_num_workers
+        self.dataloader_pin_memory = (
+            config.dataloader_pin_memory and torch.cuda.is_available()
+        )
+        self.dataloader_prefetch_factor = config.dataloader_prefetch_factor
+        self.dataloader_persistent_workers = (
+            config.dataloader_persistent_workers
+        )
+
+        self.max_loss_threshold = config.max_loss_threshold
+        self.max_loss_retries = config.max_loss_retries
 
     def _load_checkpoint(self, checkpoint_path: str) -> None:
         checkpoint = torch.load(checkpoint_path, map_location='cpu')
@@ -70,11 +89,36 @@ class ScoreTrainer:
         self.saved_steps = checkpoint["steps"]
         print(click.style(f"Loaded module from {checkpoint_path}", fg="green"))
 
+    def _get_dataloader_kwargs(self) -> Dict[str, Any]:
+        kwargs = {
+            "num_workers": self.dataloader_num_workers,
+            "pin_memory": self.dataloader_pin_memory,
+            "persistent_workers": (
+                self.dataloader_persistent_workers
+                if self.dataloader_num_workers > 0
+                else False
+            ),
+        }
+        if self.dataloader_num_workers > 0:
+            kwargs["prefetch_factor"] = self.dataloader_prefetch_factor
+        return kwargs
+
     def _get_train_dataloader(self) -> DataLoader:
-        return DataLoader(self.train_dataset,
-                          shuffle=self.train_shuffle,
-                          batch_size=self.train_batch_size,
-                          drop_last=self.train_drop_last)
+        return DataLoader(
+            self.train_dataset,
+            shuffle=self.train_shuffle,
+            batch_size=self.train_batch_size,
+            drop_last=self.train_drop_last,
+            **self._get_dataloader_kwargs(),
+        )
+
+    def _autocast_context(self):
+        if not (self.use_amp and torch.cuda.is_available()):
+            return torch.autocast(device_type="cpu", enabled=False)
+        dtype = torch.float16
+        if self.amp_dtype == "bfloat16":
+            dtype = torch.bfloat16
+        return torch.autocast(device_type="cuda", dtype=dtype)
 
     # @torch.no_grad
     def _train_step(
@@ -84,8 +128,9 @@ class ScoreTrainer:
     ) -> Dict[str, Any]:
         model = self.module.train()
         
-        print('----------------------------------------------')
-        print("Step:", step)
+        if self.log_every_steps and step % self.log_every_steps == 0:
+            print('----------------------------------------------')
+            print("Step:", step)
 
         n = len(batch['source_texts'])
         model._pre_steps(step)
@@ -95,15 +140,37 @@ class ScoreTrainer:
         else:
             lmbda = torch.tensor([0.5]).repeat(n).to(device)
 
-        k = 0
-        max_loss = 1000
-        loss = torch.tensor([max_loss+1]).to(device)
-        while loss.item() > 1000 and k < 10:
-            loss, batch_log = model(lmbda, batch)
-            loss.backward()
-            k += 1
+        self.optimizer.zero_grad(set_to_none=True)
+        loss = None
+        batch_log: Dict[str, Any] = {}
+        for _ in range(self.max_loss_retries):
+            with self._autocast_context():
+                loss, batch_log = model(lmbda, batch)
+            if loss.item() <= self.max_loss_threshold:
+                break
 
-        self.train_op()
+        if loss is None:
+            raise RuntimeError("Training step failed to produce a loss.")
+        if loss.item() > self.max_loss_threshold:
+            batch_log["train/skip_step"] = 1
+            return batch_log
+        if self.use_amp and torch.cuda.is_available():
+            self.grad_scaler.scale(loss).backward()
+            if self.gradient_clip:
+                self.grad_scaler.unscale_(self.optimizer)
+                torch.nn.utils.clip_grad_norm_(
+                    self.module._model.parameters(), self.gradient_clip_norm
+                )
+            self.grad_scaler.step(self.optimizer)
+            self.grad_scaler.update()
+        else:
+            loss.backward()
+            step_optimizer(
+                self.optimizer,
+                self.module._model,
+                self.gradient_clip,
+                self.gradient_clip_norm,
+            )
 
         return batch_log
 
@@ -119,8 +186,8 @@ class ScoreTrainer:
             project_name = self.project_name
         if run_name is None: 
             run_name = self.run_name
-        if config is not None: 
-            config = eval(str(config))
+        if config is not None:
+            config = OmegaConf.to_container(config, resolve=True)
         if report_to_wandb:
             wandb.init(project=project_name, name=run_name, config=config)
             wandb.watch(self.module, log=None)
@@ -193,8 +260,12 @@ class ScoreTrainer:
                                         f"ckpt.epoch.{epoch+1}.pth"))
 
     def _get_eval_dataloader(self, eval_dataset: Dataset) -> DataLoader:
-        return DataLoader(eval_dataset,
-                          batch_size=self.eval_batch_size, drop_last=False)
+        return DataLoader(
+            eval_dataset,
+            batch_size=self.eval_batch_size,
+            drop_last=False,
+            **self._get_dataloader_kwargs(),
+        )
 
     def evaluate(
         self,
@@ -202,43 +273,44 @@ class ScoreTrainer:
         eval_dataset: Optional[Dataset] = None,
         output_save_path: Optional[str] = None
     ) -> Dict[str, np.number]:
-        if eval_dataset is None:
-            eval_dataset = self.eval_dataset
-        eval_dataloader = self._get_eval_dataloader(eval_dataset)
-        if lmbda == -1:
-            lmbdas = torch.arange(0, 1, 0.1)
-        else:
-            lmbdas = [lmbda]
-        model = self.module.eval()
-        hypos = []
-        mean_scores = []
-        mean_contents= []
-        mean_styles = []
-        json_lmbdas = []
-        print('------------------------------Start Eval--------------------------------')
-        for batch in eval_dataloader:
-            for lmbda in lmbdas:
-                infer_outputs: Dict[str, Union[torch.Tensor, List[List[str]]]]
-                lmbda = lmbda.repeat_interleave(len(batch['source_texts'])).to(device)
-                infer_outputs = model.infer(lmbda,batch)
-                hypos += infer_outputs['sample_tokens']
+        with torch.inference_mode():
+            if eval_dataset is None:
+                eval_dataset = self.eval_dataset
+            eval_dataloader = self._get_eval_dataloader(eval_dataset)
+            if lmbda == -1:
+                lmbdas = torch.arange(0, 1, 0.1)
+            else:
+                lmbdas = [lmbda]
+            model = self.module.eval()
+            hypos = []
+            mean_scores = []
+            mean_contents= []
+            mean_styles = []
+            json_lmbdas = []
+            print('------------------------------Start Eval--------------------------------')
+            for batch in eval_dataloader:
+                for lmbda in lmbdas:
+                    infer_outputs: Dict[str, Union[torch.Tensor, List[List[str]]]]
+                    lmbda_values = lmbda.repeat_interleave(len(batch['source_texts'])).to(device)
+                    infer_outputs = model.infer(lmbda_values, batch)
+                    hypos += infer_outputs['sample_tokens']
 
-                scores_tensor, content_tensor, style_tensor, score_log = model.compute_scores(
-                    lmbda=lmbda,
-                    batch=batch,
-                    output_tokens=infer_outputs['sample_tokens'])
-                mean_scores.append(score_log['mean_score'].tolist())
-                mean_contents.append(score_log['mean_content'].tolist())
-                mean_styles.append(score_log['mean_style'].tolist())
-                json_lmbdas.append(lmbda.tolist())
-            break
-        if output_save_path is not None:
-            json.dump({'output_tokens': hypos,
-                       'lmbdas': json_lmbdas,
-                       'mean_scores': mean_scores,
-                       'mean_contents': mean_contents,
-                       'mean_styles': mean_styles},
-                      open(output_save_path, 'w'))
+                    scores_tensor, content_tensor, style_tensor, score_log = model.compute_scores(
+                        lmbda=lmbda_values,
+                        batch=batch,
+                        output_tokens=infer_outputs['sample_tokens'])
+                    mean_scores.append(score_log['mean_score'].tolist())
+                    mean_contents.append(score_log['mean_content'].tolist())
+                    mean_styles.append(score_log['mean_style'].tolist())
+                    json_lmbdas.append(lmbda_values.tolist())
+                break
+            if output_save_path is not None:
+                json.dump({'output_tokens': hypos,
+                           'lmbdas': json_lmbdas,
+                           'mean_scores': mean_scores,
+                           'mean_contents': mean_contents,
+                           'mean_styles': mean_styles},
+                          open(output_save_path, 'w'))
         
         mean_score = torch.Tensor(mean_scores).mean(dim=-1).mean().item()
         mean_content = torch.Tensor(mean_contents).mean(dim=-1).mean().item()

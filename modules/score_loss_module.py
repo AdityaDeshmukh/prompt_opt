@@ -161,7 +161,10 @@ class ScoreLossModule(BaseScoreModule):
         batch_ = {k: v for k, v in batch.items()}
         batch_.update(outputs)
 
-        outputs_ = self._ref_model.teacher_forcing(lmbda=lmbda, **batch_, num_repeats=self.num_repeats)
+        with torch.inference_mode():
+            outputs_ = self._ref_model.teacher_forcing(
+                lmbda=lmbda, **batch_, num_repeats=self.num_repeats
+            )
 
         return (outputs['sample_logits'].contiguous(),
                 outputs_['sample_logits'].contiguous(),
