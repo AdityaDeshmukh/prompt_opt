@@ -34,6 +34,17 @@ train_drop_last: true
 num_train_epochs: 1
 random_lmbda: true
 update_steps: 150
+log_every_steps: 10
+max_loss_threshold: 1000
+max_loss_retries: 10
+# DataLoader
+dataloader_num_workers: 0
+dataloader_pin_memory: true
+dataloader_prefetch_factor: 2
+dataloader_persistent_workers: true
+# Mixed precision
+use_amp: false
+amp_dtype: "float16"
 # Optimizer params
 learning_rate: 1e-4
 gradient_clip: true
@@ -58,6 +69,7 @@ run_name: null
 task_lm: "gpt2-xl"
 task_top_k: 10  # Top-k sampling for text generation
 style_classifier: "???"
+generator_backend: "transformers" # or "vllm" if installed
 # style_tokenizer: null
 style_tokenizer: "bert-base-uncased"
 style_batch_size: 32

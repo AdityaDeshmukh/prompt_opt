@@ -28,7 +28,8 @@ class PromptedTextStyleTransferScore(BaseScore):
         self.tokenizer = AutoTokenizer.from_pretrained(task_lm)
         self.generator = PromptedGenerator(task_lm, config.template, config.end_punct,
                                            config.pad_token, generator_device,
-                                           config.lower_outputs, config.control_output_length)
+                                           config.lower_outputs, config.control_output_length,
+                                           backend=config.generator_backend)
         self.top_k = config.task_top_k
         self.top_p = 1.0
         self.num_samples = config.num_samples

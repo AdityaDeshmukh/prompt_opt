@@ -1,7 +1,5 @@
 from transformers import AutoTokenizer, pipeline
-from torch.utils.data import Dataset
 from tqdm import tqdm
-import json
 from typing import Optional, List
 
 
@@ -14,14 +12,27 @@ class PromptedGenerator:
         pad_token: str,
         device_id: int,
         lower_outputs: bool,
-        control_output_length: bool
+        control_output_length: bool,
+        backend: str = "transformers"
     ):
         self.tokenizer = AutoTokenizer.from_pretrained(model,
                                                        pad_token=pad_token)
-        self.generator = pipeline("text-generation",
-                                  model=model,
-                                  tokenizer=self.tokenizer,
-                                  device=device_id)
+        self.backend = backend
+        self.generator = None
+        self.vllm_model = None
+        if backend == "vllm":
+            try:
+                from vllm import LLM  # type: ignore
+            except ImportError:
+                print("vLLM not installed; falling back to transformers pipeline.")
+                self.backend = "transformers"
+            else:
+                self.vllm_model = LLM(model=model)
+        if self.backend == "transformers":
+            self.generator = pipeline("text-generation",
+                                      model=model,
+                                      tokenizer=self.tokenizer,
+                                      device=device_id)
         
         self.template = template
         self.end_punct = end_punct
@@ -61,6 +72,15 @@ class PromptedGenerator:
             src_len, control_output_length=control_output_length)
         pad_token_id = self.tokenizer.pad_token_id
 
+        if self.backend == "vllm":
+            return self._sample_generate_vllm(
+                formatted_template,
+                num_samples,
+                top_k,
+                top_p,
+                max_new_tokens,
+            )
+
         sample_outputs = self.generator(formatted_template,
                                         pad_token_id=pad_token_id,
                                         do_sample=True,
@@ -89,6 +109,32 @@ class PromptedGenerator:
         **kwargs
     ) -> List[List[str]]:
         all_generated_texts = []
+        if self.backend == "vllm":
+            formatted_prompts = [
+                self.template.format(prompt=prompt, sentence_1=source_text)
+                for source_text in source_texts
+            ]
+            src_lengths = [
+                len(self.tokenizer(source_text)['input_ids'])
+                for source_text in source_texts
+            ]
+            max_new_tokens = [
+                self._get_max_new_tokens(
+                    src_len, control_output_length=control_output_length
+                )
+                for src_len in src_lengths
+            ]
+            max_new_tokens = max(
+                [token_count for token_count in max_new_tokens if token_count],
+                default=None,
+            )
+            return self._sample_generate_vllm_batch(
+                formatted_prompts,
+                num_samples,
+                top_k,
+                top_p,
+                max_new_tokens,
+            )
         for i, source_text in tqdm(enumerate(source_texts),
                                    total=len(source_texts)):
             generated_texts = self.sample_generate(
@@ -96,6 +142,56 @@ class PromptedGenerator:
                 lower_outputs=lower_outputs,
                 control_output_length=control_output_length)
             all_generated_texts.append(generated_texts)
+        return all_generated_texts
+
+    def _sample_generate_vllm(
+        self,
+        formatted_prompt: str,
+        num_samples: int,
+        top_k: Optional[int],
+        top_p: float,
+        max_new_tokens: Optional[int],
+    ) -> List[str]:
+        if self.vllm_model is None:
+            raise RuntimeError("vLLM backend requested but not initialized.")
+        from vllm import SamplingParams  # type: ignore
+
+        params = SamplingParams(
+            n=num_samples,
+            top_k=top_k if top_k is not None else -1,
+            top_p=top_p,
+            max_tokens=max_new_tokens,
+        )
+        outputs = self.vllm_model.generate([formatted_prompt], params)
+        generated_texts = []
+        for output in outputs[0].outputs:
+            generated_texts.append(self.postprocess_output(output.text))
+        return generated_texts
+
+    def _sample_generate_vllm_batch(
+        self,
+        formatted_prompts: List[str],
+        num_samples: int,
+        top_k: Optional[int],
+        top_p: float,
+        max_new_tokens: Optional[int],
+    ) -> List[List[str]]:
+        if self.vllm_model is None:
+            raise RuntimeError("vLLM backend requested but not initialized.")
+        from vllm import SamplingParams  # type: ignore
+
+        params = SamplingParams(
+            n=num_samples,
+            top_k=top_k if top_k is not None else -1,
+            top_p=top_p,
+            max_tokens=max_new_tokens,
+        )
+        outputs = self.vllm_model.generate(formatted_prompts, params)
+        all_generated_texts = []
+        for output in outputs:
+            all_generated_texts.append(
+                [self.postprocess_output(sample.text) for sample in output.outputs]
+            )
         return all_generated_texts
 
     def postprocess_output(

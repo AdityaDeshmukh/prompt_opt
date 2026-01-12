@@ -1,25 +1,24 @@
 import torch
-from torch import optim, nn
+from torch import nn, optim
 import numpy as np
 import random
-from typing import Callable
+from typing import Optional
 
-def get_default_train_op(model: nn.Module,
-                         learning_rate: float,
-                         gradient_clip: bool,
-                         gradient_clip_norm: float) -> Callable[[], None]: 
-    optimizer = optim.Adam(model.parameters(),
-                           lr=learning_rate)
+def create_optimizer(model: nn.Module, learning_rate: float) -> optim.Optimizer:
+    return optim.Adam(model.parameters(), lr=learning_rate)
 
-    def _train_op(): 
-        if gradient_clip: 
-            nn.utils.clip_grad_norm_(model.parameters(), gradient_clip_norm)
-        optimizer.step()
-        optimizer.zero_grad()
+def step_optimizer(
+    optimizer: optim.Optimizer,
+    model: nn.Module,
+    gradient_clip: bool,
+    gradient_clip_norm: float
+) -> None:
+    if gradient_clip:
+        nn.utils.clip_grad_norm_(model.parameters(), gradient_clip_norm)
+    optimizer.step()
+    optimizer.zero_grad(set_to_none=True)
 
-    return _train_op
-
-def set_random_seed(seed):
+def set_random_seed(seed: Optional[int]) -> None:
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
