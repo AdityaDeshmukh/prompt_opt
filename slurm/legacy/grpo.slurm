@@ -2,14 +2,14 @@
 
 ###############################################################################
 #
-#SBATCH --gres=gpu:L40S:1                # GPU
+#SBATCH --gres=gpu:L40S:2                  # GPU
 #SBATCH --time=7-00:00:00                # Job run time (hh:mm:ss)
 #SBATCH --nodes=1                        # Number of nodes
 #SBATCH --ntasks-per-node=32             # Number of task (cores/ppn) per node
-#SBATCH --job-name=new_l1_scaled         # Name of batch job
+#SBATCH --job-name=grpo              # Name of batch job
 #SBATCH --partition=csl                  # Partition (queue)
-#SBATCH --output=%x%j.output             # Name of batch job output file
-#SBATCH --error=%x%j.error               # Name of batch job error file
+#SBATCH --output=grpo.output%j             # Name of batch job output file
+#SBATCH --error=grpo.error%j              # Name of batch job error file
 #SBATCH --mail-user=ad11@illinois.edu    # Send email notifications
 #SBATCH --mail-type=BEGIN,END            # Type of email notifications to send
 #
@@ -18,12 +18,12 @@
 conda activate base
 conda activate prompt_opt
 python run_tst_multi_obj.py \
-        wandb=False \
-        device_scorer=cuda:0\
-        algo=l1 \
+        algo=grpo \
+        train_batch_size=15 \
+        num_repeats=16 \
         num_samples=50 \
-        save_dir=/u/ad11/prompt_opt/new_l1_scaled \
-        checkpoint_path=/u/ad11/prompt_opt/new_l1_scaled/ckpt/ckpt.step.11700.pth \
+        save_dir=/u/ad11/prompt_opt/grpo_new \
+        # checkpoint_path=/u/ad11/prompt_opt/grpo/ckpt/ckpt.step.3900.pth \
 
 # python run_tst_mo.py \
 #         dataset=yelp \

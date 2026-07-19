@@ -7,28 +7,30 @@ from tst_modules import PromptedGenerator, TextStyleTransferObjectives
 from omegaconf import DictConfig
 from scores import BaseScore
 
-# Magic variable
-SUPPORTED_LMS = ['distilgpt2', 'gpt2', 'gpt2-medium',
-                 'gpt2-large', 'gpt2-xl']
-
 
 class PromptedTextStyleTransferScore(BaseScore):
     def __init__(
         self,
         config: "DictConfig"
     ):
-        
+
         generator_device = torch.device(config.device_scorer if torch.cuda.is_available() else 'cpu')  # TODO
         score_device = torch.device(config.device_scorer if torch.cuda.is_available() else 'cpu')  # TODO
         task_lm = config.task_lm
         style_classifier = config.style_classifier
         # Loading generator model
-        assert task_lm in SUPPORTED_LMS
         print('Task LM:', task_lm)
-        self.tokenizer = AutoTokenizer.from_pretrained(task_lm)
-        self.generator = PromptedGenerator(task_lm, config.template, config.end_punct,
-                                           config.pad_token, generator_device,
-                                           config.lower_outputs, config.control_output_length)
+        self.tokenizer = AutoTokenizer.from_pretrained(config.policy_lm)
+        self.generator = PromptedGenerator(
+            task_lm, config.template, config.end_punct,
+            config.pad_token, generator_device,
+            config.lower_outputs, config.control_output_length,
+            dtype=config.get('task_lm_dtype', 'bfloat16'),
+            max_gen_batch_size=config.get('max_gen_batch_size', 400),
+            backend=config.get('task_lm_backend', 'hf'),
+            vllm_gpu_memory_utilization=config.get(
+                'vllm_gpu_memory_utilization', 0.35),
+            vllm_seed=config.get('vllm_seed', None))
         self.top_k = config.task_top_k
         self.top_p = 1.0
         self.num_samples = config.num_samples
@@ -36,17 +38,23 @@ class PromptedTextStyleTransferScore(BaseScore):
 
         style_tokenizer = config.style_tokenizer
         # Loading reward models
-        if style_tokenizer is None: 
+        if style_tokenizer is None:
             style_tokenizer = style_classifier
-        self.objectives = TextStyleTransferObjectives(style_classifier,
-                                                        style_tokenizer,
-                                                        config.style_batch_size,
-                                                        score_device)
+        self.objectives = TextStyleTransferObjectives(
+            style_classifier,
+            style_tokenizer,
+            config.style_batch_size,
+            score_device,
+            scorer_dtype=config.get('scorer_dtype', 'float16'))
 
         # Misc. training details
         self.num_repeats = config.num_repeats
         self._counter = 0
         self.tokens_explored = set()
+        # limit per-step console output (the old per-prompt print produced
+        # ~240 lines/step -> 300+ MB logs per run)
+        self.print_every = config.get('print_every', 50)
+        self.print_examples = config.get('print_examples', 3)
 
     def forward(
         self,
@@ -70,105 +78,74 @@ class PromptedTextStyleTransferScore(BaseScore):
 
         prompt_tokens = output_tokens
         prompt_strs = self._convert_tokens_to_string(prompt_tokens)
-        # print(prompt_strs)
-        # print(source_strs)
-        
         assert len(prompt_strs) == len(source_strs)
 
+        n_rows = len(prompt_strs)
         n_score = self.num_samples
         k_score = self.num_bootstraps
         N = n_score * k_score
 
-        content_scores_list: List[torch.Tensor] = []
-        style_scores_list: List[torch.Tensor] = []
-        scores_list: List[torch.Tensor] = []
-        # input_scores: Dict[str, List[float]] = defaultdict(list)
+        # 1) generate all hypotheses in batched calls: [n_rows][N]
+        hypos_nested = self.generator.sample_generate_grouped(
+            prompt_strs, source_strs, N, self.top_k, self.top_p)
+
+        # 2) score all n_rows*N outputs in one batched pass
+        flat_srcs = [s for s in source_strs for _ in range(N)]
+        flat_labels = [l for l in target_labels for _ in range(N)]
+        flat_hypos = [h for row in hypos_nested for h in row]
+        content_flat, style_flat = self.objectives.compute_scores_flat(
+            flat_srcs, flat_hypos, flat_labels)
+        content_mat = content_flat.view(n_rows, N)   # [n_rows, N]
+        style_mat = style_flat.view(n_rows, N)
+
+        # 3) constrained reward, vectorized:
+        #    score = style           if content >= 100*lambda
+        #            0.01*(content-100*lambda)  otherwise
+        lmbda_col = (lmbdas.detach().cpu().float() * 100).view(n_rows, 1)
+        scores_mat = torch.where(content_mat >= lmbda_col, style_mat,
+                                 0.01 * (content_mat - lmbda_col))
+
+        if k_score > 1:
+            # bootstrap: split each row's N=n*k samples into k segments,
+            # take max per segment, average the maxes
+            seg = scores_mat.view(n_rows, k_score, n_score)
+            mean_scores = seg.max(dim=-1).values.mean(dim=-1)
+        else:
+            mean_scores = scores_mat.mean(dim=-1)
+
+        mean_contents = content_mat.mean(dim=-1)
+        mean_styles = style_mat.mean(dim=-1)
+
         quantities_to_log: Dict[str, List[torch.Tensor]] = defaultdict(list)
-        for i, (lmbda, prompt, src, label) in enumerate(zip(lmbdas, prompt_strs,
-                                                     source_strs,
-                                                     target_labels)):
-            hypos = self.generator.sample_generate(prompt, src, N,
-                                                   self.top_k, self.top_p)
-            content_scores, style_scores = \
-                self.objectives.compute_sample_scores(lmbda, src, hypos, label)
+        quantities_to_log['mean_content'].append(mean_contents.mean())
+        quantities_to_log['mean_style'].append(mean_styles.mean())
+        quantities_to_log['mean_score'].append(mean_scores.mean())
 
-            content_scores = torch.tensor(content_scores).float()
-            style_scores = torch.tensor(style_scores).float()
+        if mode == 'train' and self._counter % self.print_every == 0:
+            right_frac = (content_mat >= lmbda_col).float().mean(dim=-1)
+            # rows are src-major blocks of num_repeats: stride so each
+            # printed example is a different source (and lambda)
+            n_examples = min(self.print_examples,
+                             max(1, n_rows // self.num_repeats))
+            for i in range(0, n_examples * self.num_repeats,
+                           self.num_repeats):
+                masked_style = torch.where(content_mat[i] >= lmbda_col[i],
+                                           style_mat[i],
+                                           torch.zeros_like(style_mat[i]))
+                top_index = masked_style.argmax()
+                print(self._counter, '|', prompt_strs[i], '|',
+                      source_strs[i], '|', hypos_nested[i][top_index], '|',
+                      'Lambda:', round(lmbdas[i].item(), 2), '|',
+                      'Top Content:', round(content_mat[i][top_index].item(), 2), '|',
+                      'Top Style:', round(style_mat[i][top_index].item(), 2), '|',
+                      'Mean Content:', round(mean_contents[i].item(), 2), '|',
+                      'Mean Style:', round(mean_styles[i].item(), 2), '|',
+                      'Mean Score:', round(mean_scores[i].item(), 3), '|',
+                      'Right side:', round(right_frac[i].item() * 100, 1), '% |')
 
-            lmbda_ = lmbda.clone().detach().cpu()*100
-            
-            scores = torch.where(content_scores >= lmbda_, style_scores, 0.01*(content_scores-lmbda_))
-            
-            # w_scores, content_scores, style_scores = \
-            #     self.objectives.compute_sample_scores(lmbda, src, hypos, label)
-            # print('lmbda:', lmbda)
-            # print('content_scores:', content_scores)
-            # print('style_scores:', style_scores)
-            # print('------------------------------------')
-            # Bootstrap the max w_score for k times and average
-            # print('lmbda:', lmbda)
-            # print('content_scores:', content_scores)
-            # print('style_scores:', style_scores)
-            if k_score > 1:
-                bootstrap_max_scores: List[float] = \
-                    self._boostrap_max_scores_k_times(scores, k_score)
-            
-                # Average boostrap max score as the final score
-                mean_score = torch.Tensor(bootstrap_max_scores).float().mean()
-            else:
-                mean_score = scores.mean()
-
-            # Keep track of each input's max scores to compute z-score
-            # input_scores[src] += bootstrap_max_scores
-
-            # Take the max of the sub-list scores to print as example
-            # max_score = max(bootstrap_max_scores)
-            # top_index = w_scores.index(max_score)
-            
-
-            right_content_scores = torch.where(content_scores > lmbda_, content_scores, 0)
-            right_style_scores = torch.where(content_scores > lmbda_, style_scores, 0)
-            
-            top_index = right_style_scores.argmax()
-            # Log relevant quantities
-            # content = torch.tensor(content_scores).float().mean()
-            # style = torch.tensor(style_scores).float().mean()
-            # mean_score = torch.tensor(w_scores).float().mean()
-            top_content = content_scores[top_index]
-            top_style = style_scores[top_index]
-            # quantities_to_log['mean_content'].append(content)
-            # quantities_to_log['mean_style'].append(style)
-            # quantities_to_log["w_score"].append(score)
-            # quantities_to_log["mean_w_score"].append(mean_score)
-            # quantities_to_log["top_content"].append(top_content)
-            # quantities_to_log["top_style"].append(top_style)
-            # mean_score = scores.mean()
-            mean_content = content_scores.mean()
-            mean_style = style_scores.mean()
-            quantities_to_log['mean_content'].append(mean_content)
-            quantities_to_log['mean_style'].append(mean_style)
-            quantities_to_log['mean_score'].append(mean_score)
-
-            print(self._counter, '|', prompt_tokens[i], '|',
-                  prompt, '|', src, '|', hypos[top_index], '|',
-                  'Lambda:', round(lmbda.item(), 2), '|',
-                  'Top Content:', round(top_content.item(), 2), '|',
-                  'Top Style:', round(top_style.item(), 2), '|',
-                  'Mean Content:', round(mean_content.item(), 2), '|',
-                  'Mean Style:', round(mean_style.item(), 2), '|',
-                #   'Top Weighted Score:', round(max_score.item(), 2), '|',
-                  'Mean Score:', round(mean_score.item(), 3), '|',
-                  'Percentage on right side:', round(right_content_scores.nonzero().numel()/right_content_scores.shape[0]*100, 3), '% |')
-
-            # scores.append(score)
-            scores_list.append(mean_score)
-            content_scores_list.append(mean_content)
-            style_scores_list.append(mean_style)
-
-
-        scores_tensor = torch.stack(scores_list)
-        content_tensor = torch.stack(content_scores_list)
-        style_tensor = torch.stack(style_scores_list)
+        scores_tensor = mean_scores
+        content_tensor = mean_contents
+        style_tensor = mean_styles
         self.tokens_explored = \
             self.tokens_explored.union(*[set(p) for p in prompt_tokens])
         quantities_to_log['num_tokens_explored'].append(
@@ -177,34 +154,11 @@ class PromptedTextStyleTransferScore(BaseScore):
         scores_log = dict(
             (score_key, torch.stack(score_vals, dim=0).mean())
             for score_key, score_vals in quantities_to_log.items())
-        # score_log = quantities_to_log
 
         if to_tensor is True:
             return scores_tensor, content_tensor, style_tensor, scores_log
         else:
             return scores_tensor.tolist(), content_tensor.tolist(), style_tensor.tolist(), scores_log
-
-    def _boostrap_max_scores_k_times(
-        self,
-        scores: List[float],
-        k: int
-    ) -> List[float]:
-        # Segment list rewards into k equal sub-lists
-        l = len(scores)
-        assert l % k == 0, f'l={l}, k={k}'
-        segmented_scores = [scores.tolist()[i*l//k:(i+1)*l//k]
-                             for i in range(k)]  # [k, l/k]
-        # We use different rewards for each bootstrap for now
-        bootstrap_scores = segmented_scores
-
-        # For each sub-list, take the max as the sub-reward
-        values, indices = (torch.tensor(bootstrap_scores)
-                           .float().max(axis=1))
-        # Take numbers from the original list to avoid numerical issues
-        bootstrap_max_scores = [bootstrap_scores[i][index]
-                                 for i, index in enumerate(indices)]
-
-        return bootstrap_max_scores
 
     def _repeat_texts(
         self,

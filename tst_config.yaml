@@ -1,9 +1,9 @@
 # Text Style Transfer Config
 defaults:
   - _self_
-# Devices
+# Devices (single-GPU by default: everything fits one L40S in bf16)
 device: "cuda:0"
-device_scorer: "cuda:1"
+device_scorer: "cuda:0"
 # Data
 dataset: "yelp"
 dataset_seed: null
@@ -14,6 +14,7 @@ max_length: null
 max_length_tokenizer: null
 # LM Adaptor Model
 policy_lm: "distilgpt2" # Name of the backbone pretrained LM
+adaptor_type: "mlp" # 'mlp' (HyperNet head) or 'hyperlora' (lambda-conditioned LoRA)
 hidden_size: 2048 # Dimension for the hidden state of the enclosed adaptor MLP
 logit_bias: -10.0 # Added to all prompt token logits. Set negative value to encourage exploration.
 fluent: false # if True, constrain tokens to be from those with top-k probability under a GPT-2 model
@@ -21,8 +22,18 @@ fluent_top_k: 20 # k for top-k probability above
 eos_token_id: null # The end-of-sentence token id, set to None for fixed-length prompts
 explore: false
 mix_eps: 0.2
+# HyperLoRA adaptor (used when adaptor_type == 'hyperlora')
+lora_rank: 4
+lora_alpha: 8.0
+lora_embed_dim: 32
+lora_targets: ["attn.c_attn"] # module-name suffixes to wrap (GPT-2: attn.c_attn / attn.c_proj)
 # Score Loss Module
 algo : "???"
+beta: 0.5 # KL/regression coefficient for the rrebel family
+grpo_beta: 0.0 # KL coefficient for grpo (0 = standard KL-free GRPO; skips the ref pass)
+score_scale: 0.1 # shared reward scaling applied identically in every rrebel variant
+ent_coef: 0.01 # entropy bonus coefficient (only used by *_ent algos)
+huber_delta: 1.0
 top_k: 200
 top_p: 1.0
 num_beams: 1
@@ -56,19 +67,27 @@ project_name: "multi-objective-prompt-opt"
 run_name: null
 # Prompted Text Style Transfer Score (tst_helpers.py)
 task_lm: "gpt2-xl"
+task_lm_dtype: "bfloat16" # dtype for the (frozen, inference-only) task LM
+task_lm_backend: "vllm" # 'vllm' (fast; falls back to hf if not installed) or 'hf'
+vllm_gpu_memory_utilization: 0.35 # fraction of GPU memory the vLLM engine may use
+vllm_seed: null # int for reproducible task-LM sampling (eval); null = nondeterministic
+max_gen_batch_size: 400 # rows per batched generate call (hf backend only)
 task_top_k: 10  # Top-k sampling for text generation
 style_classifier: "???"
 # style_tokenizer: null
 style_tokenizer: "bert-base-uncased"
-style_batch_size: 32
+style_batch_size: 256
+scorer_dtype: "float16" # dtype for BERTScore + style classifier ('float32' to disable)
 pad_token: "<|endoftext|>"
-num_repeats: 15  # Num of repetitions for each example
-num_samples: 20  # Num of samples from which to take the output
+num_repeats: 16  # Num of repetitions for each example (group size G)
+num_samples: 50  # Num of samples from which to take the output
 num_bootstraps: 1  # Num of bootstraps to reduce score randomness
 lower_outputs: true  # Whether to convert all outputs to lower case
 control_output_length: true  # Control output length for speedup
 template: '{prompt} "{sentence_1}" "'  # Template for prompt generation
 end_punct: '"'  # End punctuation to cut off after generation
+print_every: 50  # print example generations every N steps
+print_examples: 3  # how many examples to print
 # Single Prompt Model
 input_conditioning: true
 prompt_length: 5 # Max output token length of the LM model

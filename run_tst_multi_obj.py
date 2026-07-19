@@ -4,7 +4,7 @@ from omegaconf import DictConfig, OmegaConf
 
 from trainers import ScoreTrainer
 from modules import ScoreLossModule
-from models import (LMAdaptorModel, SinglePromptModel)
+from models import build_policy_model, SinglePromptModel
 from utils.utils import (colorful_print, get_hydra_output_dir)
 from tst_helpers import (make_text_style_transfer_datasets, get_style_classifier)
 
@@ -22,7 +22,7 @@ def main(config: "DictConfig"):
     print('Val Size', len(val_dataset))
     print('Examples:', val_dataset[:5])
 
-    policy_model = LMAdaptorModel(config)
+    policy_model = build_policy_model(config)
     prompt_model = SinglePromptModel(policy_model, config)
     config.style_classifier = get_style_classifier('train', config)
     score_module = PromptedTextStyleTransferScore(config)

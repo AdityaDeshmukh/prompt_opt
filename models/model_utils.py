@@ -51,6 +51,25 @@ def _top_km_logits(
             torch.logical_or(logits < min_values, logits > max_values),
             torch.full_like(logits, float('-inf')), logits)
 
+def _top_km_logits_vec(
+    logits: torch.Tensor,
+    k: int,
+    m: torch.Tensor
+) -> torch.Tensor:
+    r"""Vectorized _top_km_logits with a per-row m tensor: for row i, keep the
+    tokens ranked [m_i, m_i + k) (i.e. exclude the top-m_i), mask the rest."""
+    if k == 0 or k >= logits.shape[-1]:
+        return logits
+    B = logits.shape[0]
+    m_max = int(m.max().item())
+    values, _ = torch.topk(logits, k=min(k + m_max, logits.shape[-1]))
+    rows = torch.arange(B, device=logits.device)
+    min_values = values[rows, (k + m - 1).clamp(max=values.shape[-1] - 1)].unsqueeze(-1)
+    max_values = values[rows, m].unsqueeze(-1)
+    return torch.where(
+        torch.logical_or(logits < min_values, logits > max_values),
+        torch.full_like(logits, float('-inf')), logits)
+
 def _top_p_logits(
     logits: torch.Tensor,
     p: float

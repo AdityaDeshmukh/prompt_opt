@@ -1,3 +1,4 @@
+import os
 import torch
 import copy
 from typing import Optional, List, Dict, Any, Union, Tuple
@@ -8,17 +9,42 @@ from scores import BaseScore
 from utils import utils
 from losses import *
 
+_MEM_DEBUG = os.environ.get('MEM_DEBUG', '0') == '1'
+
+
+def _mem_report(tag: str) -> None:
+    if not _MEM_DEBUG or not torch.cuda.is_available():
+        return
+    parts = []
+    for d in range(torch.cuda.device_count()):
+        alloc = torch.cuda.memory_allocated(d) / 1e9
+        peak = torch.cuda.max_memory_allocated(d) / 1e9
+        parts.append(f"cuda:{d} alloc={alloc:.1f}G peak={peak:.1f}G")
+    print(f"[MEM] {tag}: " + " | ".join(parts), flush=True)
+
 
 ALGOS = {
+            # legacy losses (kept for checkpoint/back compatibility)
             "plgo": plgo_loss,
             "plgo_b": plgo_b_loss,
-            "grpo": grpo_loss,
+            "grpo_legacy": grpo_loss,
             "drgo": drgo_loss,
             "drgo_new": drgo_new_loss,
             "drgo_regularized": drgo_regularized_loss,
             "kl": kl_ub_loss,
             "drgo_cauchy": drgo_cauchy_loss,
-            "l1": drgo_l1_loss
+            "l1": drgo_l1_loss,
+            # unified family: identical reward scaling, selectable d, epsilon-
+            # guarded std scaling, optional entropy bonus (see loss_functions)
+            "grpo": grpo_v2_loss,
+            "rrebel_l2": make_rrebel_loss('l2', reward_std_scale=False,
+                                          use_entropy=False),
+            "rrebel_l1_std": make_rrebel_loss('l1', reward_std_scale=True,
+                                              use_entropy=False),
+            "rrebel_l1_ent": make_rrebel_loss('l1', reward_std_scale=True,
+                                              use_entropy=True),
+            "rrebel_huber_std": make_rrebel_loss('huber', reward_std_scale=True,
+                                                 use_entropy=False),
         }
 class ScoreLossModule(BaseScoreModule):
     def __init__(
@@ -46,10 +72,24 @@ class ScoreLossModule(BaseScoreModule):
         self.num_repeats: int = config.num_repeats
         self.update_steps: int = config.update_steps
         self.algo: str = config.algo
-        
-        
+
+        # loss hyperparameters (shared across the unified family)
+        self.beta: float = float(config.get('beta', 0.5))
+        self.score_scale: float = float(config.get('score_scale', 0.1))
+        self.ent_coef: float = float(config.get('ent_coef', 0.01))
+        self.huber_delta: float = float(config.get('huber_delta', 1.0))
+        grpo_beta = float(config.get('grpo_beta', 0.0))
+        if self.algo == 'grpo':
+            self.beta = grpo_beta
+            print("NOTE: algo=grpo now runs the corrected grpo_v2_loss "
+                  "(eps-guarded std, beta from config, ref pass skipped when "
+                  "grpo_beta=0). Use algo=grpo_legacy for the pre-2026-07 "
+                  "behavior.")
+        # ref teacher-forcing is skipped when the loss never reads logits_
+        self._needs_ref = not (self.algo == 'grpo' and grpo_beta == 0.0)
+
     def _pre_steps(self, step: int) -> None:
-        if step % self.update_steps == 0:
+        if step % self.update_steps == 0 and self._needs_ref:
             self._ref_model = copy.deepcopy(self._model)
             for param in self._ref_model.parameters():
                 param.requires_grad = False
@@ -78,21 +118,30 @@ class ScoreLossModule(BaseScoreModule):
 
         (logits, logits_, output_tokens, output_ids, sequence_lengths) = \
                 self._decode_sampling(lmbda=lmbda, batch=batch)
-        
+        _mem_report("after policy rollout (graph retained)")
+
         score_tensor, content_tensor, style_tensor, scores_log = \
-        self.compute_scores(lmbda = lmbda, batch=batch, 
+        self.compute_scores(lmbda = lmbda, batch=batch,
                                 output_tokens=output_tokens,
                                 mode="train")
+        _mem_report("after task-LM generation + scoring")
         loss_func = ALGOS[self.algo]
-        loss, loss_log = loss_func(
-            lmbda = lmbda,
+        loss_kwargs = dict(
+            lmbda=lmbda,
             logits=logits,
             logits_=logits_,
             actions=output_ids,
-            scores_tensor = score_tensor,
-            content_tensor = content_tensor,
-            style_tensor = style_tensor,
+            scores_tensor=score_tensor,
+            content_tensor=content_tensor,
+            style_tensor=style_tensor,
             num_src=len(batch['source_texts']))
+        if self.algo in ('grpo', 'rrebel_l2', 'rrebel_l1_std',
+                         'rrebel_l1_ent', 'rrebel_huber_std'):
+            loss_kwargs.update(beta=self.beta,
+                               score_scale=self.score_scale,
+                               ent_coef=self.ent_coef,
+                               huber_delta=self.huber_delta)
+        loss, loss_log = loss_func(**loss_kwargs)
 
         utils.add_prefix_to_dict_keys_inplace(
             scores_log, prefix="scores/")
@@ -158,13 +207,17 @@ class ScoreLossModule(BaseScoreModule):
                                        num_beams=self._num_beams,
                                        num_repeats = self.num_repeats)
 
-        batch_ = {k: v for k, v in batch.items()}
-        batch_.update(outputs)
-
-        outputs_ = self._ref_model.teacher_forcing(lmbda=lmbda, **batch_, num_repeats=self.num_repeats)
+        if self._needs_ref:
+            batch_ = {k: v for k, v in batch.items()}
+            batch_.update(outputs)
+            outputs_ = self._ref_model.teacher_forcing(
+                lmbda=lmbda, **batch_, num_repeats=self.num_repeats)
+            ref_logits = outputs_['sample_logits'].contiguous()
+        else:
+            ref_logits = outputs['sample_logits'].detach()
 
         return (outputs['sample_logits'].contiguous(),
-                outputs_['sample_logits'].contiguous(),
+                ref_logits,
                 outputs['sample_tokens'],
                 outputs['sample_ids'].contiguous(),
                 outputs['sample_lengths'].contiguous())

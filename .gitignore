@@ -1,0 +1,24 @@
+# experiment outputs / checkpoints / models — never push
+# (no trailing slash: `outputs` is a symlink to /scratch)
+outputs
+outputs.local_backup/
+wandb/
+logs/
+*.pth
+*.ckpt
+
+# hydra run dirs
+multirun/
+.hydra/
+
+# data & model caches
+data/
+style_classifiers/
+__pycache__/
+*.pyc
+.cache/
+
+# misc
+STOP_CAMPAIGN
+*.log
+nohup.out

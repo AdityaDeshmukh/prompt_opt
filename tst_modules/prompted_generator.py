@@ -1,8 +1,16 @@
-from transformers import AutoTokenizer, pipeline
-from torch.utils.data import Dataset
-from tqdm import tqdm
-import json
+"""Prompted task-LM generation: templating, length control, postprocessing.
+
+The actual token generation is delegated to a backend (vLLM or transformers,
+see task_lm.py); this class owns everything benchmark-specific — the prompt
+template, per-source output-length budgets, and output truncation rules.
+"""
+import math
 from typing import Optional, List
+
+import torch
+from transformers import AutoConfig, AutoTokenizer
+
+from .task_lm import build_task_lm
 
 
 class PromptedGenerator:
@@ -12,21 +20,32 @@ class PromptedGenerator:
         template: str,
         end_punct: str,
         pad_token: str,
-        device_id: int,
+        device_id,
         lower_outputs: bool,
-        control_output_length: bool
+        control_output_length: bool,
+        dtype: str = 'bfloat16',
+        max_gen_batch_size: int = 400,
+        backend: str = 'hf',
+        vllm_gpu_memory_utilization: float = 0.35,
+        vllm_seed: Optional[int] = None,
     ):
+        self.device = torch.device(device_id) if not isinstance(device_id, torch.device) \
+            else device_id
+        # tokenizer only for source-length budgets; the backend owns decoding
         self.tokenizer = AutoTokenizer.from_pretrained(model,
                                                        pad_token=pad_token)
-        self.generator = pipeline("text-generation",
-                                  model=model,
-                                  tokenizer=self.tokenizer,
-                                  device=device_id)
-        
+        self.n_positions = AutoConfig.from_pretrained(model).max_position_embeddings
+
         self.template = template
         self.end_punct = end_punct
         self.lower_outputs = lower_outputs
         self.control_output_length = control_output_length
+
+        self.task_lm = build_task_lm(
+            backend, model, dtype=dtype, device=self.device,
+            pad_token=pad_token, max_gen_batch_size=max_gen_batch_size,
+            vllm_gpu_memory_utilization=vllm_gpu_memory_utilization,
+            vllm_seed=vllm_seed)
 
     def _get_max_new_tokens(
         self,
@@ -41,6 +60,43 @@ class PromptedGenerator:
         else:
             return None
 
+    def sample_generate_grouped(
+        self,
+        prompts: List[str],
+        source_texts: List[str],
+        num_samples: int,
+        top_k: Optional[int],
+        top_p: float,
+        lower_outputs: Optional[bool] = None,
+        control_output_length: Optional[bool] = None,
+    ) -> List[List[str]]:
+        """Generate num_samples continuations for every (prompt, source) row.
+
+        Each row gets its own max_new_tokens budget from its source length
+        (ceil for exact parity with the historical float cap: a cap of e.g.
+        13.5 effectively allowed 14 tokens).
+        """
+        assert len(prompts) == len(source_texts)
+
+        templates = [self.template.format(prompt=p, sentence_1=s)
+                     for p, s in zip(prompts, source_texts)]
+        src_lens = [len(self.tokenizer(s)['input_ids']) for s in source_texts]
+        max_new = [self._get_max_new_tokens(l, control_output_length)
+                   for l in src_lens]
+        if any(m is None for m in max_new):
+            # no length control: cap by what actually fits the context after
+            # the full formatted template (not just the source sentence)
+            tmpl_lens = [len(self.tokenizer(t)['input_ids']) for t in templates]
+            max_new = [max(1, min(self.n_positions // 2,
+                                  self.n_positions - l - 1))
+                       for l in tmpl_lens]
+        max_new = [int(math.ceil(m)) for m in max_new]
+
+        raw = self.task_lm.generate(templates, max_new, num_samples,
+                                    top_k, top_p)
+        return [[self.postprocess_output(t, lower_outputs=lower_outputs)
+                 for t in row] for row in raw]
+
     def sample_generate(
         self,
         prompt: str,
@@ -52,30 +108,10 @@ class PromptedGenerator:
         control_output_length: Optional[bool] = None,
         **kwargs
     ) -> List[str]:
-        # Used for controlling output length
-        formatted_template = self.template.format(prompt=prompt,
-                                                  sentence_1=source_text)
-
-        src_len = len(self.tokenizer(source_text)['input_ids'])
-        max_new_tokens = self._get_max_new_tokens(
-            src_len, control_output_length=control_output_length)
-        pad_token_id = self.tokenizer.pad_token_id
-
-        sample_outputs = self.generator(formatted_template,
-                                        pad_token_id=pad_token_id,
-                                        do_sample=True,
-                                        max_new_tokens=max_new_tokens,
-                                        top_k=top_k,
-                                        top_p=top_p,
-                                        num_return_sequences=num_samples,
-                                        # Only return generated text, without the prompt
-                                        return_full_text=False,
-                                        **kwargs)
-        generated_texts = []
-        for output in sample_outputs:
-            text = output["generated_text"]
-            generated_texts.append(self.postprocess_output(text))
-        return generated_texts
+        return self.sample_generate_grouped(
+            [prompt], [source_text], num_samples, top_k, top_p,
+            lower_outputs=lower_outputs,
+            control_output_length=control_output_length)[0]
 
     def sample_generate_batch(
         self,
@@ -88,15 +124,10 @@ class PromptedGenerator:
         control_output_length: Optional[bool] = None,
         **kwargs
     ) -> List[List[str]]:
-        all_generated_texts = []
-        for i, source_text in tqdm(enumerate(source_texts),
-                                   total=len(source_texts)):
-            generated_texts = self.sample_generate(
-                prompt, source_text, num_samples, top_k, top_p,
-                lower_outputs=lower_outputs,
-                control_output_length=control_output_length)
-            all_generated_texts.append(generated_texts)
-        return all_generated_texts
+        return self.sample_generate_grouped(
+            [prompt] * len(source_texts), source_texts, num_samples,
+            top_k, top_p, lower_outputs=lower_outputs,
+            control_output_length=control_output_length)
 
     def postprocess_output(
         self,

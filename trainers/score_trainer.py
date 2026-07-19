@@ -8,9 +8,10 @@ import json
 import click
 
 from modules import BaseScoreModule
+from modules.score_loss_module import _mem_report, _MEM_DEBUG
 from utils import utils
 from .trainer_utils import get_default_train_op, set_random_seed
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 class ScoreTrainer:
@@ -47,10 +48,11 @@ class ScoreTrainer:
         self.save_steps = config.save_steps
         self.saved_steps: int = -1
 
-        self.train_op = get_default_train_op(self.module._model,
-                                             config.learning_rate,
-                                             config.gradient_clip,
-                                             config.gradient_clip_norm)
+        self.train_op, self.zero_grad_op = get_default_train_op(
+            self.module._model,
+            config.learning_rate,
+            config.gradient_clip,
+            config.gradient_clip_norm)
 
         if config.checkpoint_path is not None:
             self._load_checkpoint(config.checkpoint_path)
@@ -69,6 +71,15 @@ class ScoreTrainer:
         self.module.load_state_dict(checkpoint["model_state_dict"])
         self.saved_steps = checkpoint["steps"]
         print(click.style(f"Loaded module from {checkpoint_path}", fg="green"))
+
+    def _save_checkpoint(self, total_steps: int, ckpt_path: str) -> None:
+        # atomic write: a SIGTERM/SIGKILL (timeout, preemption, quota kill)
+        # mid-save must never leave a truncated file as the latest
+        # checkpoint, or resume would crash and end the chain
+        tmp_path = ckpt_path + ".tmp"
+        torch.save({"steps": total_steps,
+                    "model_state_dict": self.module.state_dict()}, tmp_path)
+        os.replace(tmp_path, ckpt_path)
 
     def _get_train_dataloader(self) -> DataLoader:
         return DataLoader(self.train_dataset,
@@ -95,15 +106,21 @@ class ScoreTrainer:
         else:
             lmbda = torch.tensor([0.5]).repeat(n).to(device)
 
-        k = 0
-        max_loss = 1000
-        loss = torch.tensor([max_loss+1]).to(device)
-        while loss.item() > 1000 and k < 10:
-            loss, batch_log = model(lmbda, batch)
-            loss.backward()
-            k += 1
-
+        # One rollout, one gradient step for every algorithm (the previous
+        # retry-until-loss<1000 loop re-rolled up to 10x, accumulating the
+        # rejected gradients without zero_grad, and let NaN losses through).
+        loss, batch_log = model(lmbda, batch)
+        if not torch.isfinite(loss):
+            print(f"WARNING: non-finite loss at step {step}; skipping update")
+            self.zero_grad_op()
+            batch_log['skipped_step'] = 1.0
+            return batch_log
+        loss.backward()
         self.train_op()
+        _mem_report("after backward + optimizer step")
+        if _MEM_DEBUG and torch.cuda.is_available():
+            for d in range(torch.cuda.device_count()):
+                torch.cuda.reset_peak_memory_stats(d)
 
         return batch_log
 
@@ -119,10 +136,13 @@ class ScoreTrainer:
             project_name = self.project_name
         if run_name is None: 
             run_name = self.run_name
-        if config is not None: 
-            config = eval(str(config))
+        if config is not None:
+            config = OmegaConf.to_container(config, resolve=True)
         if report_to_wandb:
-            wandb.init(project=project_name, name=run_name, config=config)
+            # deterministic id + resume so SLURM requeues continue the same
+            # wandb series instead of creating duplicate runs
+            wandb.init(project=project_name, name=run_name, config=config,
+                       id=run_name, resume='allow' if run_name else None)
             wandb.watch(self.module, log=None)
 
         # Create saving path
@@ -149,15 +169,18 @@ class ScoreTrainer:
         save_by_steps = self.save_steps > 0
 
         print(f"Length of train dataloader: {len(train_dataloader)}")
-        # print(eval_by_steps, save_by_steps)
+        # global_step counts batches across epochs so that checkpoint resume
+        # (saved_steps = total steps) works past the first epoch
+        global_step = 0
         total_steps = max(0, self.saved_steps)
         for epoch in range(total_train_epochs):
-            for step, batch in enumerate(train_dataloader, 1):
-                if step > self.saved_steps:
-                    batch_log = self._train_step(step, batch)
+            for batch in train_dataloader:
+                global_step += 1
+                if global_step > self.saved_steps:
+                    batch_log = self._train_step(global_step, batch)
                     if report_to_wandb:
                         wandb.log(batch_log)
-                    total_steps += 1
+                    total_steps = global_step
 
                     if self.do_eval and eval_by_steps \
                             and total_steps % self.eval_steps == 0:
@@ -171,10 +194,10 @@ class ScoreTrainer:
 
                     if self.do_save and save_by_steps \
                             and total_steps % self.save_steps == 0:
-                        torch.save({"steps": total_steps,
-                                    "model_state_dict": self.module.state_dict()},
-                                os.path.join(ckpt_save_dir,
-                                                f"ckpt.step.{total_steps}.pth"))
+                        self._save_checkpoint(
+                            total_steps,
+                            os.path.join(ckpt_save_dir,
+                                         f"ckpt.step.{total_steps}.pth"))
 
                     if total_steps == self.max_train_steps:
                         break
@@ -187,10 +210,9 @@ class ScoreTrainer:
                 wandb.log(eval_log)
 
             if self.do_save and not save_by_steps:
-                torch.save({"steps": total_steps,
-                            "model_state_dict": self.module.state_dict()},
-                           os.path.join(ckpt_save_dir,
-                                        f"ckpt.epoch.{epoch+1}.pth"))
+                self._save_checkpoint(
+                    total_steps,
+                    os.path.join(ckpt_save_dir, f"ckpt.epoch.{epoch+1}.pth"))
 
     def _get_eval_dataloader(self, eval_dataset: Dataset) -> DataLoader:
         return DataLoader(eval_dataset,
@@ -230,8 +252,7 @@ class ScoreTrainer:
                 mean_scores.append(score_log['mean_score'].tolist())
                 mean_contents.append(score_log['mean_content'].tolist())
                 mean_styles.append(score_log['mean_style'].tolist())
-                json_lmbdas.append(lmbda.tolist())
-            break
+                json_lmbdas.append(lmbda.tolist()[0])
         if output_save_path is not None:
             json.dump({'output_tokens': hypos,
                        'lmbdas': json_lmbdas,
