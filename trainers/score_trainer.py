@@ -143,6 +143,11 @@ class ScoreTrainer:
             # wandb series instead of creating duplicate runs
             wandb.init(project=project_name, name=run_name, config=config,
                        id=run_name, resume='allow' if run_name else None)
+            # pin the x-axis to the true training step so resumed cycles line
+            # up exactly (wandb's default auto-step is a log-call counter that
+            # differs from the training step and is inflated by eval logs)
+            wandb.define_metric("train/global_step")
+            wandb.define_metric("*", step_metric="train/global_step")
             wandb.watch(self.module, log=None)
 
         # Create saving path
@@ -179,6 +184,7 @@ class ScoreTrainer:
                 if global_step > self.saved_steps:
                     batch_log = self._train_step(global_step, batch)
                     if report_to_wandb:
+                        batch_log['train/global_step'] = global_step
                         wandb.log(batch_log)
                     total_steps = global_step
 
@@ -190,6 +196,7 @@ class ScoreTrainer:
                         with torch.no_grad():
                             eval_log = self.evaluate(output_save_path=output_save_path)
                         if report_to_wandb:
+                            eval_log['train/global_step'] = total_steps
                             wandb.log(eval_log)
 
                     if self.do_save and save_by_steps \
@@ -207,7 +214,9 @@ class ScoreTrainer:
                 output_save_path = os.path.join(eval_save_dir,
                                                 f'outputs.epoch.{epoch+1}.json')
                 eval_log = self.evaluate(output_save_path=output_save_path)
-                wandb.log(eval_log)
+                if report_to_wandb:
+                    eval_log['train/global_step'] = total_steps
+                    wandb.log(eval_log)
 
             if self.do_save and not save_by_steps:
                 self._save_checkpoint(

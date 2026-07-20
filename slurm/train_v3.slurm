@@ -47,6 +47,12 @@ T=$SLURM_ARRAY_TASK_ID
 ALGO=${ALGOS[$((T % 4))]}
 SEED=$((T / 4))
 RUN=v3_${ALGO}_seed${SEED}
+# GRPO needs a KL anchor to a reference or it entropy-collapses to one
+# lambda-independent prompt (KL-free single-update GRPO has no trust region:
+# ratio==1 makes the clip inert). 0.04 = DeepSeekMath standard. The rrebel
+# family uses `beta`, not grpo_beta, so this arg is a no-op for them.
+ALGO_ARGS=""
+[ "$ALGO" = "grpo" ] && ALGO_ARGS="grpo_beta=0.04"
 OUT_ROOT=/scratch/ad11/prompt_opt/outputs/v3
 RUN_DIR=${OUT_ROOT}/${RUN}
 CKPT_DIR=${RUN_DIR}/ckpt
@@ -120,6 +126,7 @@ timeout 13200 $PY run_tst_multi_obj.py \
         eval_steps=500 \
         run_name=${RUN} \
         save_dir=${RUN_DIR} \
+        ${ALGO_ARGS} \
         ${CKPT_ARG}
 rc=$?
 # 124 = timeout ended a still-training cycle: expected, not a failure.
