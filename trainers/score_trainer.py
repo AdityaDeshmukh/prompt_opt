@@ -140,15 +140,24 @@ class ScoreTrainer:
             config = OmegaConf.to_container(config, resolve=True)
         if report_to_wandb:
             # deterministic id + resume so SLURM requeues continue the same
-            # wandb series instead of creating duplicate runs
-            wandb.init(project=project_name, name=run_name, config=config,
-                       id=run_name, resume='allow' if run_name else None)
-            # pin the x-axis to the true training step so resumed cycles line
-            # up exactly (wandb's default auto-step is a log-call counter that
-            # differs from the training step and is inflated by eval logs)
-            wandb.define_metric("train/global_step")
-            wandb.define_metric("*", step_metric="train/global_step")
-            wandb.watch(self.module, log=None)
+            # wandb series instead of creating duplicate runs. Wrapped so a
+            # wandb outage/slow node can NEVER kill a training cycle (that
+            # would also burn the no-progress retry budget); we just train
+            # this cycle without logging and try again next resubmit.
+            try:
+                wandb.init(project=project_name, name=run_name, config=config,
+                           id=run_name, resume='allow' if run_name else None,
+                           settings=wandb.Settings(init_timeout=300))
+                # pin the x-axis to the true training step so resumed cycles
+                # line up exactly (wandb's default auto-step is a log-call
+                # counter that differs from the step and is inflated by evals)
+                wandb.define_metric("train/global_step")
+                wandb.define_metric("*", step_metric="train/global_step")
+                wandb.watch(self.module, log=None)
+            except Exception as e:
+                print(f"WARNING: wandb.init failed ({type(e).__name__}: {e}); "
+                      f"training this cycle WITHOUT wandb logging", flush=True)
+                report_to_wandb = False
 
         # Create saving path
         eval_save_dir = os.path.join(self.save_dir, "eval")
