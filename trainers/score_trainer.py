@@ -148,11 +148,13 @@ class ScoreTrainer:
                 wandb.init(project=project_name, name=run_name, config=config,
                            id=run_name, resume='allow' if run_name else None,
                            settings=wandb.Settings(init_timeout=300))
-                # pin the x-axis to the true training step so resumed cycles
-                # line up exactly (wandb's default auto-step is a log-call
-                # counter that differs from the step and is inflated by evals)
-                wandb.define_metric("train/global_step")
-                wandb.define_metric("*", step_metric="train/global_step")
+                # Keep wandb's native _step as the x-axis: it is present on
+                # every row and monotonic across resubmits, so plots form one
+                # continuous line. (A custom step_metric fragments the plot,
+                # because history from cycles before the metric existed has no
+                # such field.) This explicit reset also un-sticks any prior
+                # step_metric on resumed runs.
+                wandb.define_metric("*", step_metric="_step")
                 wandb.watch(self.module, log=None)
             except Exception as e:
                 print(f"WARNING: wandb.init failed ({type(e).__name__}: {e}); "
@@ -193,7 +195,6 @@ class ScoreTrainer:
                 if global_step > self.saved_steps:
                     batch_log = self._train_step(global_step, batch)
                     if report_to_wandb:
-                        batch_log['train/global_step'] = global_step
                         wandb.log(batch_log)
                     total_steps = global_step
 
@@ -205,7 +206,6 @@ class ScoreTrainer:
                         with torch.no_grad():
                             eval_log = self.evaluate(output_save_path=output_save_path)
                         if report_to_wandb:
-                            eval_log['train/global_step'] = total_steps
                             wandb.log(eval_log)
 
                     if self.do_save and save_by_steps \
@@ -224,7 +224,6 @@ class ScoreTrainer:
                                                 f'outputs.epoch.{epoch+1}.json')
                 eval_log = self.evaluate(output_save_path=output_save_path)
                 if report_to_wandb:
-                    eval_log['train/global_step'] = total_steps
                     wandb.log(eval_log)
 
             if self.do_save and not save_by_steps:
