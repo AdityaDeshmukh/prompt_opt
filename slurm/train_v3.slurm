@@ -53,6 +53,12 @@ RUN=v3_${ALGO}_seed${SEED}
 # family uses `beta`, not grpo_beta, so this arg is a no-op for them.
 ALGO_ARGS=""
 [ "$ALGO" = "grpo" ] && ALGO_ARGS="grpo_beta=0.04"
+# wandb run id (decoupled from the checkpoint dir below). grpo's original ids
+# (v3_grpo_seed*) were deleted earlier; resuming a DELETED id hangs
+# wandb.init (times out), so grpo logs under a fresh id. Checkpoints still
+# resume from RUN_DIR, so training continuity is unaffected.
+WANDB_NAME=${RUN}
+[ "$ALGO" = "grpo" ] && WANDB_NAME=${RUN}_kl
 OUT_ROOT=/scratch/ad11/prompt_opt/outputs/v3
 RUN_DIR=${OUT_ROOT}/${RUN}
 CKPT_DIR=${RUN_DIR}/ckpt
@@ -124,7 +130,7 @@ timeout 13200 $PY run_tst_multi_obj.py \
         device=cuda:0 device_scorer=cuda:0 \
         task_lm_backend=vllm \
         eval_steps=500 \
-        run_name=${RUN} \
+        run_name=${WANDB_NAME} \
         save_dir=${RUN_DIR} \
         ${ALGO_ARGS} \
         ${CKPT_ARG}
