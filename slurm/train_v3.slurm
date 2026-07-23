@@ -22,7 +22,11 @@
 #SBATCH --ntasks-per-node=16
 #SBATCH --job-name=tst_v3
 #SBATCH --partition=secondary
-#SBATCH --constraint="A100|H100|h100|A40|RTXA6000"
+# node-select via --exclude (not a feature --constraint): a secondary,csl
+# multi-partition job can't whitelist features valid in both partitions, so we
+# instead drop slow/small cards (V100/T4 = emulated bf16; A30 = 24GB, too small
+# for mgbs). Leaves A40/A100/H100/RTXA6000 (secondary) + L40S (csl), all >=40GB.
+#SBATCH --exclude=ccc0215,ccc0286,ccc0287,ccc0478
 # explicit no-requeue: the EXIT trap owns chain continuation. With requeue,
 # preemption would BOTH requeue the job AND let the trap resubmit -> two
 # concurrent chains for one run corrupting each other's checkpoints.
@@ -47,6 +51,14 @@ T=$SLURM_ARRAY_TASK_ID
 ALGO=${ALGOS[$((T % 4))]}
 SEED=$((T / 4))
 RUN=v3_${ALGO}_seed${SEED}
+# csl access, capped at 4 concurrent: exactly 4 tasks are csl-eligible
+# (partition secondary,csl); all others stay secondary-only. One GPU per task,
+# so at most 4 of our jobs can ever sit on csl -- a structural cap, no live
+# guard. The 4 most queue-starved get it: grpo seeds (0,4,8) + huber_std seed2
+# (11). csl-eligible tasks still prefer whichever partition frees first.
+CSL_TASKS=" 0 4 8 11 "
+PART=secondary
+[[ "$CSL_TASKS" == *" $T "* ]] && PART="secondary,csl"
 # GRPO needs a KL anchor to a reference or it entropy-collapses to one
 # lambda-independent prompt (KL-free single-update GRPO has no trust region:
 # ratio==1 makes the clip inert). 0.04 = DeepSeekMath standard. The rrebel
@@ -84,7 +96,7 @@ START_STEP=$(latest_step)
 resubmit() {  # sbatch with retries: a transient scheduler error must not kill the chain
     local k
     for k in 1 2 3; do
-        sbatch --array=${T} /u/ad11/prompt_opt/slurm/train_v3.slurm && return 0
+        sbatch --partition="$PART" --array=${T} /u/ad11/prompt_opt/slurm/train_v3.slurm && return 0
         echo "[$(date)] ${RUN}: sbatch attempt ${k}/3 failed, retrying in 30s"
         sleep 30
     done
