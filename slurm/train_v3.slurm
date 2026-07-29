@@ -106,13 +106,26 @@ latest_step() {  # highest checkpoint step, or 0
 START_STEP=$(latest_step)
 
 resubmit() {  # sbatch with retries: a transient scheduler error must not kill the chain
-    local k
-    for k in 1 2 3; do
+    # 2026-07-29: the old budget was 3 attempts x 30s = 90s, which cannot ride
+    # out a slurmctld outage. Two chains died exactly this way and went
+    # unnoticed for days: task 2 (NODE_FAIL, 07-23) and task 10 (controller
+    # unreachable ~40min, 07-29). Now a time-bounded loop with backoff.
+    # Budget must stay inside the slack between `timeout 13200` (3h40m) and
+    # the 4h wall limit (~20min), or the allocation ends mid-retry.
+    local deadline=$(( $(date +%s) + 900 ))   # 15 min
+    local wait=30 k=0
+    while [ "$(date +%s)" -lt "$deadline" ]; do
+        k=$((k + 1))
         sbatch --partition="$PART" --array=${T} /u/ad11/prompt_opt/slurm/train_v3.slurm && return 0
-        echo "[$(date)] ${RUN}: sbatch attempt ${k}/3 failed, retrying in 30s"
-        sleep 30
+        echo "[$(date)] ${RUN}: sbatch attempt ${k} failed, retrying in ${wait}s"
+        sleep "$wait"
+        wait=$(( wait * 2 )); [ "$wait" -gt 120 ] && wait=120
     done
-    echo "[$(date)] ${RUN}: ALL sbatch attempts failed - chain ends here (investigate!)"
+    echo "[$(date)] ${RUN}: ALL sbatch attempts failed over 15min - chain ends here"
+    # breadcrumb so a dead chain is found in seconds instead of days;
+    # slurm/revive_chains.sh sweeps for these and for silently-absent tasks.
+    date +"%Y-%m-%dT%H:%M:%S%z chain died: sbatch unreachable for 15min" \
+        > "${RUN_DIR}/.chain_died"
     return 1
 }
 

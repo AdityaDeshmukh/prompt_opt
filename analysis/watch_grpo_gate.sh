@@ -1,32 +1,40 @@
 #!/bin/bash
-# Waits for the first step-500 eval from the fixed-anchor GRPO relaunch, then
-# runs the collapse gate. Exits as soon as there is an actionable signal, so
-# an early failure is caught without waiting for all three seeds.
+# Waits until a GRPO seed has enough eval points to judge the TREND, then runs
+# the health gate. Step 500 alone was not decisive: the fixed anchor scored
+# 34.1 there (above R-REBEL's 30.1-33.1 band) but with only 6/100 distinct
+# prompts, so the open question is whether it keeps climbing like R-REBEL
+# (33 -> 40 by step 6000) or plateaus around 34.
+TARGET=${1:-1500}          # need evals at 500/1000/1500 for a 3-point trend
 PY=/u/ad11/miniconda3/envs/prompt_opt_v3/bin/python
 V3=/scratch/ad11/prompt_opt/outputs/v3
-DEADLINE=$(( $(date +%s) + 24*3600 ))
+CAP_HOURS=${2:-36}
+DEADLINE=$(( $(date +%s) + CAP_HOURS*3600 ))
 
-echo "[$(date)] watching for step-500 evals from v3_grpo_seed{0,1,2} (24h cap)"
+echo "[$(date)] waiting for a GRPO seed to reach step ${TARGET} (${CAP_HOURS}h cap)"
 while [ "$(date +%s)" -lt "$DEADLINE" ]; do
-    n=0
+    hit=""
     for s in 0 1 2; do
-        [ -f "${V3}/v3_grpo_seed${s}/eval/outputs.step.500.json" ] && n=$((n+1))
+        [ -f "${V3}/v3_grpo_seed${s}/eval/outputs.step.${TARGET}.json" ] \
+            && hit="${hit}${s} "
     done
-    if [ "$n" -gt 0 ]; then
-        echo "[$(date)] ${n}/3 seed(s) reached step 500 - running gate"
-        cd /u/ad11/prompt_opt && $PY analysis/gate_grpo_500.py 500
+    if [ -n "$hit" ]; then
+        echo "[$(date)] seed(s) ${hit}reached step ${TARGET} - running gate"
+        cd /u/ad11/prompt_opt && $PY analysis/gate_grpo.py "$TARGET"
         rc=$?
-        echo "[$(date)] gate exit=${rc} (0=pass, 1=collapse/escalate)"
-        # also show whether the KL is actually binding now
-        echo "--- newest grpo cycle log (KL/anchor sanity) ---"
-        lg=$(ls -t /u/ad11/prompt_opt/logs/tst_v3_*_[048].out 2>/dev/null | head -1)
-        [ -n "$lg" ] && grep -E "NOTE: algo=grpo|ref_sync_steps" "$lg" | head -2
+        echo "[$(date)] gate exit=${rc} (0=ok, 1=pathological, 2=no data)"
+        echo "--- chain census ---"
+        bash /u/ad11/prompt_opt/slurm/revive_chains.sh | tail -14
         exit $rc
     fi
-    # progress heartbeat so a stalled queue is visible
-    running=$(squeue -u ad11 -h -o "%i %T" | grep -c RUNNING)
-    echo "[$(date)] no step-500 eval yet | jobs running=${running}"
-    sleep 600
+    steps=""
+    for s in 0 1 2; do
+        last=$(ls "${V3}/v3_grpo_seed${s}/eval" 2>/dev/null \
+               | sed 's/[^0-9]*//g' | sort -n | tail -1)
+        steps="${steps}s${s}=${last:-0} "
+    done
+    echo "[$(date)] ${steps}| $(squeue -u ad11 -h -o '%T' 2>/dev/null \
+          | grep -c RUNNING) running"
+    sleep 900
 done
-echo "[$(date)] 24h cap reached with no step-500 eval - investigate queue"
+echo "[$(date)] ${CAP_HOURS}h cap reached without hitting step ${TARGET}"
 exit 2
