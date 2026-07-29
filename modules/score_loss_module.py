@@ -79,17 +79,43 @@ class ScoreLossModule(BaseScoreModule):
         self.ent_coef: float = float(config.get('ent_coef', 0.01))
         self.huber_delta: float = float(config.get('huber_delta', 1.0))
         grpo_beta = float(config.get('grpo_beta', 0.0))
+        # How often the KL reference is re-anchored to the current policy.
+        # R-REBEL *requires* a short-lag ref -- that is REBEL's construction
+        # (it regresses the logratio against reward differences w.r.t. the
+        # recent policy), so it keeps update_steps.
+        # GRPO does NOT. Sharing update_steps=150 made GRPO's trust region
+        # inert: a hard deepcopy zeroes the KL *and its gradient* at every
+        # refresh, so with ~80 refreshes over a 12k run the policy/ref drift
+        # stayed ~1% while total drift from init was unbounded -> entropy
+        # collapse inside 500 steps (2-19 distinct prompts vs R-REBEL's ~97).
+        # Reference practice: TRL GRPOTrainer defaults sync_ref_model=False
+        # (fixed anchor) and, when enabled, syncs every 512 steps with a SOFT
+        # TR-DPO mixup rather than a hard copy; verl and OpenRLHF keep the ref
+        # frozen; DeepSeekMath Alg.1 re-anchors once per OUTER iteration
+        # (~2x per run), not per inner step. 0 = never re-anchor (default).
+        self.ref_sync_steps: int = self.update_steps
         if self.algo == 'grpo':
             self.beta = grpo_beta
-            print("NOTE: algo=grpo now runs the corrected grpo_v2_loss "
-                  "(eps-guarded std, beta from config, ref pass skipped when "
-                  "grpo_beta=0). Use algo=grpo_legacy for the pre-2026-07 "
-                  "behavior.")
+            self.ref_sync_steps = int(config.get('grpo_ref_sync_steps', 0))
+            # entropy bonus is opt-in for grpo and defaults OFF, so the
+            # baseline stays plain GRPO; ent_coef (0.01) belongs to the
+            # rrebel *_ent variant and must not leak in implicitly.
+            self.ent_coef = float(config.get('grpo_ent_coef', 0.0))
+            print(f"NOTE: algo=grpo -> grpo_v2_loss (eps-guarded std, "
+                  f"beta={self.beta}, ent_coef={self.ent_coef}, "
+                  f"ref_sync_steps={self.ref_sync_steps} "
+                  f"[0=fixed anchor]). Use algo=grpo_legacy for pre-2026-07.")
         # ref teacher-forcing is skipped when the loss never reads logits_
         self._needs_ref = not (self.algo == 'grpo' and grpo_beta == 0.0)
 
     def _pre_steps(self, step: int) -> None:
-        if step % self.update_steps == 0 and self._needs_ref:
+        # ref_sync_steps <= 0 => fixed anchor: keep the reference captured at
+        # __init__ (or restored from the checkpoint, since _ref_model is a
+        # registered submodule and round-trips through state_dict, so the
+        # anchor survives the 4h resubmit chain).
+        if not self._needs_ref or self.ref_sync_steps <= 0:
+            return None
+        if step % self.ref_sync_steps == 0:
             self._ref_model = copy.deepcopy(self._model)
             for param in self._ref_model.parameters():
                 param.requires_grad = False

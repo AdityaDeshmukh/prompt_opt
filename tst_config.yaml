@@ -31,6 +31,12 @@ lora_targets: ["attn.c_attn"] # module-name suffixes to wrap (GPT-2: attn.c_attn
 algo : "???"
 beta: 0.5 # KL/regression coefficient for the rrebel family
 grpo_beta: 0.0 # KL coefficient for grpo (0 = standard KL-free GRPO; skips the ref pass)
+# How often grpo re-anchors its KL reference to the current policy.
+# 0 = never (fixed anchor, matches TRL's sync_ref_model=False default and
+# verl/OpenRLHF's frozen ref). The rrebel family ignores this and keeps
+# update_steps, which its lagged-ref construction requires.
+grpo_ref_sync_steps: 0
+grpo_ent_coef: 0.0 # entropy bonus for grpo (opt-in; 0 = plain GRPO baseline)
 score_scale: 0.1 # shared reward scaling applied identically in every rrebel variant
 ent_coef: 0.01 # entropy bonus coefficient (only used by *_ent algos)
 huber_delta: 1.0

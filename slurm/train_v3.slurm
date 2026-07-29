@@ -59,18 +59,30 @@ RUN=v3_${ALGO}_seed${SEED}
 CSL_TASKS=" 0 4 8 11 "
 PART=secondary
 [[ "$CSL_TASKS" == *" $T "* ]] && PART="secondary,csl"
-# GRPO needs a KL anchor to a reference or it entropy-collapses to one
-# lambda-independent prompt (KL-free single-update GRPO has no trust region:
-# ratio==1 makes the clip inert). 0.04 = DeepSeekMath standard. The rrebel
-# family uses `beta`, not grpo_beta, so this arg is a no-op for them.
+# GRPO needs a KL anchor or it entropy-collapses to one lambda-independent
+# prompt (single-update GRPO has ratio==1, so the PPO clip is inert and the
+# KL is the ONLY regularizer). 0.04 = DeepSeekMath standard.
+#
+# 2026-07-29: beta=0.04 alone was NOT enough, because the anchor was being
+# re-deepcopied every update_steps=150 (~80x per run) -- a hard copy zeroes
+# the KL and its gradient at each refresh, so measured policy/ref drift was
+# ~1% while drift from init was unbounded. Result: collapse to 2-19 distinct
+# prompts by step 500 (R-REBEL: ~97) and a flat eval curve for the next 11k
+# steps. grpo_ref_sync_steps=0 pins the anchor for the whole run (TRL default
+# / verl / OpenRLHF behaviour). The rrebel family keeps update_steps, which
+# REBEL's lagged-ref construction genuinely requires.
+# Escalation if the step-500 gate still fails: grpo_beta=0.1, then
+# grpo_ent_coef=0.01 (entropy bonus, same lever rrebel_l1_ent already has).
 ALGO_ARGS=""
-[ "$ALGO" = "grpo" ] && ALGO_ARGS="grpo_beta=0.04"
+[ "$ALGO" = "grpo" ] && ALGO_ARGS="grpo_beta=0.04 grpo_ref_sync_steps=0 grpo_ent_coef=0.0"
 # wandb run id (decoupled from the checkpoint dir below). grpo's original ids
 # (v3_grpo_seed*) were deleted earlier; resuming a DELETED id hangs
 # wandb.init (times out), so grpo logs under a fresh id. Checkpoints still
 # resume from RUN_DIR, so training continuity is unaffected.
+# _fixref = the 2026-07-29 fixed-KL-anchor relaunch. Kept distinct from the
+# _kl ids so the collapsed rolling-anchor history is not appended to.
 WANDB_NAME=${RUN}
-[ "$ALGO" = "grpo" ] && WANDB_NAME=${RUN}_kl
+[ "$ALGO" = "grpo" ] && WANDB_NAME=${RUN}_fixref
 OUT_ROOT=/scratch/ad11/prompt_opt/outputs/v3
 RUN_DIR=${OUT_ROOT}/${RUN}
 CKPT_DIR=${RUN_DIR}/ckpt

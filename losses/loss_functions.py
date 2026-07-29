@@ -133,7 +133,17 @@ def grpo_v2_loss(
     """GRPO with (i) epsilon-guarded per-group advantage normalization and
     (ii) beta taken from config (0 keeps the standard KL-free GRPO). The
     single-update ratio==1 construction is canonical; its gradient equals
-    REINFORCE with group-normalized advantage."""
+    REINFORCE with group-normalized advantage.
+
+    NOTE on the trust region: because this pipeline does ONE update per
+    rollout, ratio == 1 identically and the PPO clip is provably inert. The
+    KL term is therefore the *only* regularizer in this loss -- unlike TRL
+    (beta=0 default) or verl (kl_loss_coef=1e-3), which can run weak/no KL
+    because they take multiple epochs per rollout with a live clip. Keep the
+    reference anchor long-lived (see ScoreLossModule.ref_sync_steps) or this
+    objective has nothing at all opposing entropy collapse: its unconstrained
+    optimum is a deterministic policy.
+    """
     num_repeats = scores_tensor.shape[0]//num_src
     scores = scores_tensor.contiguous().view(num_src, num_repeats)
     advantage = (scores - scores.mean(dim=-1, keepdim=True)) \
@@ -146,16 +156,29 @@ def grpo_v2_loss(
     term_2 = ratio.clamp(1 - 0.2, 1 + 0.2) * advantage
     loss = -torch.min(term_1, term_2)
 
+    loss_log: Dict[str, Any] = {"advantage_abs": advantage.abs().mean()}
     if beta > 0:
         per_token_log_p_ref = get_per_token_log_prob(logits=logits_,
                                                      actions=actions)
         log_ratio = per_token_log_p_ref - per_token_log_p
         kl_penalty = log_ratio.exp() - log_ratio - 1
         loss = loss + beta*kl_penalty
+        # diagnostic: if kl stays ~0 the anchor is being reset too often and
+        # the trust region is inert (the pre-2026-07-29 failure mode).
+        loss_log["kl"] = kl_penalty.mean().detach()
 
     # fixed-length prompts: token-mean then member/group mean
     loss = loss.mean()
-    loss_log = {"loss": loss, "advantage_abs": advantage.abs().mean()}
+
+    # opt-in entropy bonus (grpo_ent_coef; OFF by default so the baseline is
+    # plain GRPO). Mirrors the rrebel *_ent variant so the anti-collapse
+    # lever is available to both families on equal terms.
+    if ent_coef > 0:
+        entropy = _entropy_from_logits(logits)
+        loss = loss - ent_coef*entropy
+        loss_log["entropy"] = entropy
+
+    loss_log["loss"] = loss
     return loss, loss_log
 
 
