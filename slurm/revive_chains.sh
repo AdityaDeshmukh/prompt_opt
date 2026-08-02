@@ -21,7 +21,14 @@ MAX_STEPS=12000
 OUT_ROOT=/scratch/ad11/prompt_opt/outputs/v3
 STOP_FILE=/u/ad11/prompt_opt/STOP_CAMPAIGN
 ALGOS=(grpo rrebel_l1_ent rrebel_l1_std rrebel_huber_std)
-CSL_TASKS=" 0 4 8 11 "
+CSL_TASKS=" 0 4 8 11 12 13 14 "
+MAX_TASK=14   # 0-11 = original matrix, 12-14 = grpo_ent arm (2026-08-02)
+
+run_name() {  # task id -> run directory name (mirrors train_v3.slurm)
+    local t=$1
+    if [ "$t" -ge 12 ]; then echo "v3_grpo_ent_seed$((t - 12))"
+    else echo "v3_${ALGOS[$((t % 4))]}_seed$((t / 4))"; fi
+}
 FIX=0
 [ "$1" = "--fix" ] && FIX=1
 
@@ -30,15 +37,25 @@ if [ -f "$STOP_FILE" ]; then
     exit 0
 fi
 
-# tasks currently in the queue, expanding array specs like 9705999_[4,8]
+# Tasks currently in the queue. Array specs come in several shapes and ALL of
+# them must be expanded, or a live chain is misread as dead and "revived" into
+# a duplicate -- two chains sharing one checkpoint dir, which is exactly the
+# corruption --no-requeue exists to prevent. Handled:
+#   9740643_0          single
+#   9705999_[0,4,8]    comma list
+#   9741220_[12-14]    range      <- missed by the pre-2026-08-02 version
+#   9741220_[12-14%2]  range with throttle suffix
 live=$(squeue -u ad11 -h -o "%i" \
-       | sed -E 's/.*_\[?//; s/\]?$//' | tr ',' '\n' | sed 's/%.*//' \
-       | grep -E '^[0-9]+$' | sort -un | tr '\n' ' ')
+       | sed -E 's/.*_//; s/[][]//g; s/%.*//' \
+       | tr ',' '\n' \
+       | awk -F- '/^[0-9]+$/ {print $1}
+                  /^[0-9]+-[0-9]+$/ {for (i=$1; i<=$2; i++) print i}' \
+       | sort -un | tr '\n' ' ')
 echo "live tasks: ${live:-none}"
 
 dead=()
-for T in $(seq 0 11); do
-    RUN=v3_${ALGOS[$((T % 4))]}_seed$((T / 4))
+for T in $(seq 0 $MAX_TASK); do
+    RUN=$(run_name "$T")
     CKPT_DIR=${OUT_ROOT}/${RUN}/ckpt
     step=$(ls -1v ${CKPT_DIR}/ckpt.step.*.pth 2>/dev/null | tail -1 \
            | sed -E 's/.*ckpt\.step\.([0-9]+)\.pth/\1/')
@@ -67,7 +84,7 @@ if [ "$FIX" -ne 1 ]; then
 fi
 
 for T in "${dead[@]}"; do
-    RUN=v3_${ALGOS[$((T % 4))]}_seed$((T / 4))
+    RUN=$(run_name "$T")
     PART=secondary
     [[ "$CSL_TASKS" == *" $T "* ]] && PART="secondary,csl"
     if sbatch --partition="$PART" --array=${T} \

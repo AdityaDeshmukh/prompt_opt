@@ -50,13 +50,28 @@ ALGOS=(grpo rrebel_l1_ent rrebel_l1_std rrebel_huber_std)
 T=$SLURM_ARRAY_TASK_ID
 ALGO=${ALGOS[$((T % 4))]}
 SEED=$((T / 4))
-RUN=v3_${ALGO}_seed${SEED}
-# csl access, capped at 4 concurrent: exactly 4 tasks are csl-eligible
-# (partition secondary,csl); all others stay secondary-only. One GPU per task,
-# so at most 4 of our jobs can ever sit on csl -- a structural cap, no live
-# guard. The 4 most queue-starved get it: grpo seeds (0,4,8) + huber_std seed2
-# (11). csl-eligible tasks still prefer whichever partition frees first.
-CSL_TASKS=" 0 4 8 11 "
+ARM=${ALGO}
+# tasks 12-14: the grpo entropy-bonus arm (added 2026-08-02), seeds 0-2.
+# Same loss as `grpo`, only grpo_ent_coef differs, so ALGO stays `grpo` and
+# only the run/arm name changes. Purpose: the fixed KL anchor lifted grpo from
+# 26.97 -> 31.30 at matched step 4500 but it still trails R-REBEL by ~7.8, and
+# the mechanism is under-exploration (distinct prompts pinned at 4-7 for the
+# whole run vs R-REBEL annealing 97 -> ~10). ent_coef is the lever
+# rrebel_l1_ent already has; giving grpo the same one closes the last fairness
+# gap in the comparison.
+if [ "$T" -ge 12 ]; then
+    ALGO=grpo
+    SEED=$((T - 12))
+    ARM=grpo_ent
+fi
+RUN=v3_${ARM}_seed${SEED}
+# csl access: csl-eligible tasks get partition "secondary,csl" and take
+# whichever frees first; the rest stay secondary-only. Originally capped at 4
+# eligible tasks to keep our csl footprint small. The grpo_ent arm (12-14) is
+# eligible too, per request to try both partitions -- note this does NOT raise
+# the worst case above the old cap, because csl is physically a 2-node
+# partition, so at most 2 of our jobs can ever sit there concurrently.
+CSL_TASKS=" 0 4 8 11 12 13 14 "
 PART=secondary
 [[ "$CSL_TASKS" == *" $T "* ]] && PART="secondary,csl"
 # GRPO needs a KL anchor or it entropy-collapses to one lambda-independent
@@ -74,15 +89,19 @@ PART=secondary
 # Escalation if the step-500 gate still fails: grpo_beta=0.1, then
 # grpo_ent_coef=0.01 (entropy bonus, same lever rrebel_l1_ent already has).
 ALGO_ARGS=""
-[ "$ALGO" = "grpo" ] && ALGO_ARGS="grpo_beta=0.04 grpo_ref_sync_steps=0 grpo_ent_coef=0.0"
+[ "$ARM" = "grpo" ]     && ALGO_ARGS="grpo_beta=0.04 grpo_ref_sync_steps=0 grpo_ent_coef=0.0"
+[ "$ARM" = "grpo_ent" ] && ALGO_ARGS="grpo_beta=0.04 grpo_ref_sync_steps=0 grpo_ent_coef=0.01"
 # wandb run id (decoupled from the checkpoint dir below). grpo's original ids
 # (v3_grpo_seed*) were deleted earlier; resuming a DELETED id hangs
 # wandb.init (times out), so grpo logs under a fresh id. Checkpoints still
 # resume from RUN_DIR, so training continuity is unaffected.
 # _fixref = the 2026-07-29 fixed-KL-anchor relaunch. Kept distinct from the
 # _kl ids so the collapsed rolling-anchor history is not appended to.
+# only the original grpo arm needs the _fixref suffix (its plain ids were
+# deleted and its _kl ids hold collapsed history). grpo_ent is a brand-new
+# name with no id collision, so it logs under RUN directly.
 WANDB_NAME=${RUN}
-[ "$ALGO" = "grpo" ] && WANDB_NAME=${RUN}_fixref
+[ "$ARM" = "grpo" ] && WANDB_NAME=${RUN}_fixref
 OUT_ROOT=/scratch/ad11/prompt_opt/outputs/v3
 RUN_DIR=${OUT_ROOT}/${RUN}
 CKPT_DIR=${RUN_DIR}/ckpt

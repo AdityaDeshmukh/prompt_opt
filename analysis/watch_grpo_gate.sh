@@ -5,16 +5,17 @@
 # prompts, so the open question is whether it keeps climbing like R-REBEL
 # (33 -> 40 by step 6000) or plateaus around 34.
 TARGET=${1:-1500}          # need evals at 500/1000/1500 for a 3-point trend
+CAP_HOURS=${2:-36}
+ARM=${3:-grpo_ent}         # which grpo arm to wait on
 PY=/u/ad11/miniconda3/envs/prompt_opt_v3/bin/python
 V3=/scratch/ad11/prompt_opt/outputs/v3
-CAP_HOURS=${2:-36}
 DEADLINE=$(( $(date +%s) + CAP_HOURS*3600 ))
 
-echo "[$(date)] waiting for a GRPO seed to reach step ${TARGET} (${CAP_HOURS}h cap)"
+echo "[$(date)] waiting for a ${ARM} seed to reach step ${TARGET} (${CAP_HOURS}h cap)"
 while [ "$(date +%s)" -lt "$DEADLINE" ]; do
     hit=""
     for s in 0 1 2; do
-        [ -f "${V3}/v3_grpo_seed${s}/eval/outputs.step.${TARGET}.json" ] \
+        [ -f "${V3}/v3_${ARM}_seed${s}/eval/outputs.step.${TARGET}.json" ] \
             && hit="${hit}${s} "
     done
     if [ -n "$hit" ]; then
@@ -23,12 +24,12 @@ while [ "$(date +%s)" -lt "$DEADLINE" ]; do
         rc=$?
         echo "[$(date)] gate exit=${rc} (0=ok, 1=pathological, 2=no data)"
         echo "--- chain census ---"
-        bash /u/ad11/prompt_opt/slurm/revive_chains.sh | tail -14
+        bash /u/ad11/prompt_opt/slurm/revive_chains.sh | tail -17
         exit $rc
     fi
     steps=""
     for s in 0 1 2; do
-        last=$(ls "${V3}/v3_grpo_seed${s}/eval" 2>/dev/null \
+        last=$(ls "${V3}/v3_${ARM}_seed${s}/eval" 2>/dev/null \
                | sed 's/[^0-9]*//g' | sort -n | tail -1)
         steps="${steps}s${s}=${last:-0} "
     done

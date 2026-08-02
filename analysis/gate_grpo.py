@@ -23,6 +23,11 @@ from collections import defaultdict
 
 V3 = "/scratch/ad11/prompt_opt/outputs/v3"
 SEEDS = (0, 1, 2)
+# grpo      = fixed KL anchor, no entropy bonus (2026-07-29 relaunch)
+# grpo_ent  = same + grpo_ent_coef=0.01 (2026-08-02 arm). grpo reached 31.30 at
+#             matched step 4500 vs R-REBEL ~39.1, with distinct prompts pinned
+#             at 4-7 all run -- under-exploration, which ent_coef targets.
+ARMS = ("grpo", "grpo_ent")
 # how far below the R-REBEL band GRPO may sit before we call it a problem
 SCORE_TOLERANCE = 4.0
 # score gain over the last MIN_TRAJ evals that counts as "still climbing"
@@ -65,7 +70,9 @@ def main():
     want = int(sys.argv[1]) if len(sys.argv) > 1 else None
     runs = sorted(os.listdir(V3))
     rr = {r: curve(r) for r in runs if "rrebel" in r}
-    gr = {f"v3_grpo_seed{s}": curve(f"v3_grpo_seed{s}") for s in SEEDS}
+    gr = {f"v3_{a}_seed{s}": curve(f"v3_{a}_seed{s}")
+          for a in ARMS for s in SEEDS}
+    gr = {k: v for k, v in gr.items() if v}   # drop arms with no evals yet
 
     have = [max(c) for c in gr.values() if c]
     if not have:
