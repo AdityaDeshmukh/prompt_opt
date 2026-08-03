@@ -20,7 +20,7 @@ while [ "$(date +%s)" -lt "$DEADLINE" ]; do
     done
     if [ -n "$hit" ]; then
         echo "[$(date)] seed(s) ${hit}reached step ${TARGET} - running gate"
-        cd /u/ad11/prompt_opt && $PY analysis/gate_grpo.py "$TARGET"
+        cd /u/ad11/prompt_opt && $PY analysis/gate_grpo.py "$TARGET" "$ARM"
         rc=$?
         echo "[$(date)] gate exit=${rc} (0=ok, 1=pathological, 2=no data)"
         echo "--- chain census ---"

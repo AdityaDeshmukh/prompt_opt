@@ -12,7 +12,13 @@ only 6/100 distinct prompts. Distinct count conflates two different states --
 one that actually matters: is GRPO's score near R-REBEL's at the matched step,
 and if not, is it still climbing? Distinct count is kept as a diagnostic.
 
-Usage: python analysis/gate_grpo.py [step]     (default: latest common step)
+Usage: python analysis/gate_grpo.py [step] [arm]
+  step : eval step to judge (default: latest step common to the arms)
+  arm  : scope the EXIT CODE to one arm (e.g. grpo_ent). All arms are still
+         displayed. Without this the exit code mixes arms, so a known-bad arm
+         keeps tripping the alert for a healthy one -- which happened three
+         times while watching grpo_ent, since plain grpo is legitimately
+         pathological and always returns 1.
 Exit 0 = pass/watch, 1 = pathological, 2 = not enough data yet.
 """
 import glob
@@ -68,6 +74,7 @@ def curve(run):
 
 def main():
     want = int(sys.argv[1]) if len(sys.argv) > 1 else None
+    scope = sys.argv[2] if len(sys.argv) > 2 else None
     runs = sorted(os.listdir(V3))
     rr = {r: curve(r) for r in runs if "rrebel" in r}
     gr = {f"v3_{a}_seed{s}": curve(f"v3_{a}_seed{s}")
@@ -117,7 +124,10 @@ def main():
         elif climbing:
             verdict = "WATCH"
         else:
-            verdict = "FAIL"; worst = 1
+            verdict = "FAIL"
+            # only count against the exit code if this run is in scope
+            if scope is None or run.startswith(f"v3_{scope}_"):
+                worst = 1
 
         print(f"  {run}: {verdict:5s} score={s['score']:5.1f}  "
               f"style@0={s['style_lo']:5.1f}  "
