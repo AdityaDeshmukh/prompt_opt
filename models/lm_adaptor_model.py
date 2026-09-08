@@ -94,8 +94,21 @@ class LMAdaptorModel(BaseModel):
         self._mlp_weights = None
 
     def _adapted_logits(self, lmbda: torch.tensor, state: torch.Tensor) -> torch.Tensor:
-        mlp_output = self.mlp.apply_weights(self._mlp_weights, state)
-        logits = self.lm_head(mlp_output)
+        # bypass_adaptor: emit the UNADAPTED backbone distribution, i.e. the
+        # pretrained LM's own next-token logits with the trained MLP skipped.
+        # Only ever set on a KL *reference* copy (see ScoreLossModule's
+        # grpo_ref_mode=base_lm). Rationale: the default reference is the policy
+        # at initialization, and this head is initialized with xavier gain 1e-4
+        # so its logits are ~0 -- i.e. the reference is the UNIFORM distribution
+        # over the 50257-token vocab (measured entropy at step 0 = 10.824904 vs
+        # ln(50257) = 10.824905). A KL toward uniform is an entropy bonus, not a
+        # trust region. Anchoring on the backbone instead gives a genuine,
+        # competent reference, which is the analogue of RLHF's KL-to-SFT.
+        if getattr(self, 'bypass_adaptor', False):
+            logits = self.lm_head(state)
+        else:
+            mlp_output = self.mlp.apply_weights(self._mlp_weights, state)
+            logits = self.lm_head(mlp_output)
 
         if self.fluent:
             lm_logits = self.lm_head(state)

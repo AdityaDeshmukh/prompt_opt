@@ -35,7 +35,7 @@ TEXDIR = os.path.join(ROOT, "paper", "tables")
 NOISE = 1.0
 
 ARM_ORDER = ["rrebel_l1_std", "rrebel_huber_std", "rrebel_l1_ent",
-             "grpo", "grpo_ent"]
+             "grpo", "grpo_ent", "grpo_baseref"]
 LABEL = {
     "rrebel_l1_std":    r"R-REBEL ($\ell_1$-std)",
     "rrebel_huber_std": r"R-REBEL (Huber-std)",
@@ -43,6 +43,9 @@ LABEL = {
     "grpo":             "GRPO",
     "grpo_ent":         "GRPO + entropy",
     "grpo_rollingref":  "GRPO (rolling anchor, buggy)",
+    # v4 only: pinned anchor = the unadapted backbone LM, so beta*KL is a real
+    # trust region rather than the entropy bonus the v3 arms actually had
+    "grpo_baseref":     "GRPO (base-LM reference)",
 }
 PLAIN = {k: (v.replace(r"$\ell_1$", "l1").replace("-std", "-std")
              .replace("R-REBEL", "R-REBEL")) for k, v in LABEL.items()}
@@ -60,6 +63,7 @@ STYLE = {  # arm -> (color, linestyle, marker)
     "grpo":             (ORANGE, "-",  "D"),
     "grpo_ent":         (ORANGE, "--", "v"),
     "grpo_rollingref":  (MUTED,  "-.", "x"),
+    "grpo_baseref":     (AQUA,   "-",  "P"),
 }
 
 
@@ -85,7 +89,11 @@ def mean(xs):
 def table_at(data, step, arms=ARM_ORDER):
     rows = []
     for arm in arms:
-        got = at_step(data["arms"][arm], step)
+        # ARM_ORDER spans v3 and v4 arms; skip any the export lacks
+        runs = data["arms"].get(arm)
+        if not runs:
+            continue
+        got = at_step(runs, step)
         if not got:
             continue
         rows.append({
@@ -281,7 +289,10 @@ def fig_tradeoff(data, plt, balanced_step):
         ax.legend(loc="upper right", fontsize=7.5)
     else:
         for arm in ARM_ORDER:
-            got = at_step(data["arms"][arm], balanced_step)
+            runs = data["arms"].get(arm)
+            if not runs:
+                continue
+            got = at_step(runs, balanced_step)
             if not got:
                 continue
             col, _, mk = STYLE[arm]
@@ -378,6 +389,8 @@ def fig_learning(data, plt):
     """Reward vs step, mean over seeds with a min-max band."""
     fig, ax = plt.subplots(figsize=(5.0, 3.4))
     for arm in ARM_ORDER:
+        if not data["arms"].get(arm):
+            continue
         steps, mu, lo, hi, _ = trajectory(data["arms"][arm])
         col, ls, _ = STYLE[arm]
         ax.fill_between(steps, lo, hi, color=col, alpha=0.10, linewidth=0)
@@ -405,6 +418,8 @@ def fig_components(data, plt):
     for key, ax, name in (("content", axes[0], "Content score"),
                           ("style", axes[1], "Sentiment score")):
         for arm in ARM_ORDER:
+            if not data["arms"].get(arm):
+                continue
             steps, mu, _, _, _ = trajectory(data["arms"][arm], key)
             col, ls, _ = STYLE[arm]
             ax.plot(steps, mu, ls, color=col, label=LABEL[arm])

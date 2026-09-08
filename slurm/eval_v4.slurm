@@ -14,8 +14,8 @@
 #
 # Auto-submitted per-arm by train_v4.slurm's EXIT trap when a run reaches
 # 12000. Also runnable by hand for whatever has finished:
-#   sbatch slurm/eval_v4.slurm            (all 5 arms; skips unfinished)
-#   sbatch --array=3 slurm/eval_v4.slurm  (one arm)
+#   sbatch slurm/eval_v4.slurm            (all 3 arms; skips unfinished)
+#   sbatch --array=2 slurm/eval_v4.slurm  (one arm)
 ###############################################################################
 #SBATCH --gres=gpu:1
 #SBATCH --time=04:00:00
@@ -25,7 +25,7 @@
 #SBATCH --partition=secondary,csl
 #SBATCH --exclude=ccc0215,ccc0286,ccc0287,ccc0478
 #SBATCH --no-requeue
-#SBATCH --array=0-4
+#SBATCH --array=0-2
 #SBATCH --output=/u/ad11/prompt_opt/logs/%x_%A_%a.out
 #SBATCH --error=/u/ad11/prompt_opt/logs/%x_%A_%a.err
 #SBATCH --mail-user=ad11@illinois.edu
@@ -40,7 +40,7 @@ export VLLM_USE_FLASHINFER_SAMPLER=0
 
 STEP=12000
 SEED=0
-ARMS=(rrebel_l1_std rrebel_huber_std rrebel_l1_ent grpo grpo_ent)
+ARMS=(rrebel_l1_std grpo_ent grpo_baseref)
 T=$SLURM_ARRAY_TASK_ID
 ARM=${ARMS[$T]}
 ALGO=$ARM
@@ -48,12 +48,12 @@ ALGO_ARGS=""
 # The loss/flags must match training, because ScoreLossModule is constructed
 # from them even for a pure eval (a mismatched algo can change what gets built
 # and, for the grpo arms, whether a ref pass is set up at all).
-if [ "$ARM" = "grpo" ]; then
-    ALGO=grpo
-    ALGO_ARGS="grpo_beta=0.04 grpo_ref_sync_steps=0 grpo_ent_coef=0.0"
-elif [ "$ARM" = "grpo_ent" ]; then
+if [ "$ARM" = "grpo_ent" ]; then
     ALGO=grpo
     ALGO_ARGS="grpo_beta=0.04 grpo_ref_sync_steps=0 grpo_ent_coef=0.01"
+elif [ "$ARM" = "grpo_baseref" ]; then
+    ALGO=grpo
+    ALGO_ARGS="grpo_beta=0.04 grpo_ref_sync_steps=0 grpo_ent_coef=0.0 grpo_ref_mode=base_lm"
 fi
 RUN=v4_${ARM}_seed${SEED}
 RUN_DIR=/scratch/ad11/prompt_opt/outputs/v4/${RUN}

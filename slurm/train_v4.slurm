@@ -1,6 +1,6 @@
 #!/bin/bash
 ###############################################################################
-# v4 frontier regeneration: 5 arms x seed 0 = 5 single-GPU runs, 12000 steps.
+# v4 frontier regeneration: 3 arms x seed 0 = 3 single-GPU runs, 12000 steps.
 #
 # WHY THIS EXISTS
 # The v3 campaign completed (all 15 runs, 12000 steps) but /scratch was purged
@@ -25,7 +25,7 @@
 #     the root cause of the v3 data loss -- scratch is purgeable, so nothing
 #     that a paper depends on may live only there.
 #
-# Usage: sbatch slurm/train_v4.slurm             (all 5)
+# Usage: sbatch slurm/train_v4.slurm             (all 3)
 #        sbatch --array=2 slurm/train_v4.slurm   (one run)
 #        touch /u/ad11/prompt_opt/STOP_V4        (stop all chains at cycle end)
 ###############################################################################
@@ -42,7 +42,7 @@
 # the EXIT trap owns chain continuation; requeue would create a second
 # concurrent chain for the same run and corrupt its checkpoints.
 #SBATCH --no-requeue
-#SBATCH --array=0-4
+#SBATCH --array=0-2
 #SBATCH --output=/u/ad11/prompt_opt/logs/%x_%A_%a.out
 #SBATCH --error=/u/ad11/prompt_opt/logs/%x_%A_%a.err
 #SBATCH --mail-user=ad11@illinois.edu
@@ -58,30 +58,44 @@ export VLLM_USE_FLASHINFER_SAMPLER=0  # native torch sampler; flashinfer needs n
 MAX_STEPS=12000
 MAX_NOPROGRESS_RETRIES=3
 SEED=0
-# arm -> (algo, algo_args). grpo_ent is the same loss as grpo with the entropy
-# bonus enabled, so ALGO stays `grpo` and only the arm name differs.
-ARMS=(rrebel_l1_std rrebel_huber_std rrebel_l1_ent grpo grpo_ent)
+# 3 arms (trimmed from 5 on 2026-09-08 so the array schedules -- both partitions
+# were saturated and a 5-GPU array was estimated >1 day out):
+#   rrebel_l1_std  the best R-REBEL variant (tied with huber_std within noise)
+#   grpo_ent       the DEFENSIBLE GRPO baseline. Plain `grpo` is dropped because
+#                  the audit showed it never learns: arm mean 30.38 @500 ->
+#                  30.19 @11500, KL pinned at the k3 ceiling, median 5 distinct
+#                  tokens per cycle = one frozen 5-token prompt. See AUDIT.md.
+#   grpo_baseref   NEW, and the experiment the audit says was missing. Plain
+#                  GRPO but with grpo_ref_mode=base_lm, so the pinned KL anchor
+#                  is the unadapted backbone LM instead of the initial policy.
+#                  The v3 anchor was numerically UNIFORM (measured entropy
+#                  10.824907 vs ln(50257)=10.824905), which makes beta*KL an
+#                  entropy bonus rather than a trust region; base_lm measures
+#                  7.672 nats, so the anchor finally exerts real force. This is
+#                  the arm that answers "was your baseline actually GRPO?".
+ARMS=(rrebel_l1_std grpo_ent grpo_baseref)
 T=$SLURM_ARRAY_TASK_ID
 ARM=${ARMS[$T]}
 ALGO=$ARM
 ALGO_ARGS=""
-if [ "$ARM" = "grpo" ]; then
+if [ "$ARM" = "grpo_ent" ]; then
     ALGO=grpo
-    # 0.04 = DeepSeekMath standard. grpo_ref_sync_steps=0 pins the KL anchor
-    # for the whole run (TRL/verl/OpenRLHF behaviour); the v3 bug was
-    # re-deepcopying it every update_steps=150, which zeroes the KL and its
-    # gradient at each refresh so the anchor exerts no restoring force.
-    ALGO_ARGS="grpo_beta=0.04 grpo_ref_sync_steps=0 grpo_ent_coef=0.0"
-elif [ "$ARM" = "grpo_ent" ]; then
-    ALGO=grpo
+    # 0.04 = DeepSeekMath standard. grpo_ref_sync_steps=0 pins the anchor for
+    # the whole run (TRL/verl/OpenRLHF behaviour); the v3 bug was re-deepcopying
+    # it every update_steps=150, which zeroes the KL and its gradient at each
+    # refresh so the anchor exerts no restoring force.
     ALGO_ARGS="grpo_beta=0.04 grpo_ref_sync_steps=0 grpo_ent_coef=0.01"
+elif [ "$ARM" = "grpo_baseref" ]; then
+    ALGO=grpo
+    ALGO_ARGS="grpo_beta=0.04 grpo_ref_sync_steps=0 grpo_ent_coef=0.0 grpo_ref_mode=base_lm"
 fi
 RUN=v4_${ARM}_seed${SEED}
 WANDB_NAME=${RUN}
-# csl is physically 2 nodes, so at most 2 of our jobs can sit there at once.
-# Give the two GRPO arms csl eligibility as well as secondary -- they were the
-# most queue-starved arms in v3.
-CSL_TASKS=" 0 3 4 "
+# csl is physically 2 nodes, so at most 2 of our jobs can ever sit there. With
+# only 3 arms all of them are eligible for both partitions; note this PART only
+# takes effect on RESUBMISSION -- the initial sbatch uses the #SBATCH default,
+# so pass --partition on the command line for the first submission.
+CSL_TASKS=" 0 1 2 "  # all 3 arms may take csl or secondary, whichever frees first
 PART=secondary
 [[ "$CSL_TASKS" == *" $T "* ]] && PART="secondary,csl"
 

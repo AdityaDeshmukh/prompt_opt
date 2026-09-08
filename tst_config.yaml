@@ -37,6 +37,13 @@ grpo_beta: 0.0 # KL coefficient for grpo (0 = standard KL-free GRPO; skips the r
 # update_steps, which its lagged-ref construction requires.
 grpo_ref_sync_steps: 0
 grpo_ent_coef: 0.0 # entropy bonus for grpo (opt-in; 0 = plain GRPO baseline)
+# What the pinned KL anchor IS. 'init' (v3 behaviour) = the policy at init,
+# which with xavier gain 1e-4 is numerically UNIFORM over the 50257-token vocab
+# (entropy at step 0 = 10.824904 = ln(50257)), so beta*KL is an entropy bonus,
+# not a trust region. 'base_lm' = the unadapted pretrained backbone's own
+# next-token distribution: a competent, non-uniform anchor (RLHF's KL-to-SFT
+# analogue). Only meaningful when grpo_beta > 0.
+grpo_ref_mode: "init"
 score_scale: 0.1 # shared reward scaling applied identically in every rrebel variant
 ent_coef: 0.01 # entropy bonus coefficient (only used by *_ent algos)
 huber_delta: 1.0

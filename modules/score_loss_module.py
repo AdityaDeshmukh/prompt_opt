@@ -108,6 +108,40 @@ class ScoreLossModule(BaseScoreModule):
         # ref teacher-forcing is skipped when the loss never reads logits_
         self._needs_ref = not (self.algo == 'grpo' and grpo_beta == 0.0)
 
+        # grpo_ref_mode: what the pinned KL anchor actually IS.
+        #   'init'    (default, and what the v3 campaign ran) = the policy at
+        #             initialization. Because the adaptor head is initialized
+        #             with xavier gain 1e-4, its logits are ~0, so this anchor
+        #             is the UNIFORM distribution over the 50257-token vocab
+        #             (measured: loss/entropy at step 0 = 10.824904 vs
+        #             ln(50257) = 10.824905). beta*KL(pi || Unif) =
+        #             beta*(log V - H(pi)), i.e. an entropy bonus up to a
+        #             constant -- NOT a trust region. This is why the v3 `grpo`
+        #             arm is REINFORCE + entropy rather than GRPO proper.
+        #   'base_lm' = the unadapted pretrained backbone's own next-token
+        #             distribution (the MLP is skipped on the reference copy
+        #             only). A genuine, competent, non-uniform reference, and
+        #             the analogue of RLHF's KL-to-SFT.
+        self.ref_mode: str = str(config.get('grpo_ref_mode', 'init'))
+        if self.ref_mode not in ('init', 'base_lm'):
+            raise ValueError(
+                f"grpo_ref_mode must be 'init' or 'base_lm', got {self.ref_mode!r}")
+        if self.ref_mode == 'base_lm':
+            if not self._needs_ref:
+                raise ValueError(
+                    "grpo_ref_mode=base_lm is meaningless without a KL term; "
+                    "set grpo_beta > 0")
+            # reach the LMAdaptorModel inside the SinglePromptModel wrapper
+            inner = getattr(self._ref_model, '_model', self._ref_model)
+            if not hasattr(inner, '_adapted_logits'):
+                raise ValueError(
+                    "grpo_ref_mode=base_lm: could not find the adaptor model "
+                    f"on the reference (got {type(inner).__name__})")
+            inner.bypass_adaptor = True
+            print("NOTE: grpo_ref_mode=base_lm -> KL anchor is the UNADAPTED "
+                  "backbone LM (a real trust region), not the uniform "
+                  "init policy.")
+
     def _pre_steps(self, step: int) -> None:
         # ref_sync_steps <= 0 => fixed anchor: keep the reference captured at
         # __init__ (or restored from the checkpoint, since _ref_model is a
