@@ -22,3 +22,11 @@ __pycache__/
 STOP_CAMPAIGN
 *.log
 nohup.out
+
+# paper build artifacts (regenerable: `cd paper && make`)
+paper/main.pdf
+paper/*.aux
+paper/*.out
+paper/sections/*.aux
+# v4 kill-switch (see slurm/train_v4.slurm)
+STOP_V4

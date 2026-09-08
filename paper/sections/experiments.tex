@@ -1,0 +1,63 @@
+\section{Experimental setup}
+\label{sec:setup-exp}
+
+\paragraph{Task and data.}
+Yelp sentiment transfer in the negative-to-positive direction
+(\texttt{direction} $= 0\!\to\!1$), with the standard train/dev/test splits.
+Content is measured by BERTScore against the source; sentiment by a
+\texttt{bert-base-uncased} classifier fine-tuned on Yelp. Reported numbers are
+on the test split.
+
+\paragraph{Models.}
+The policy is a \texttt{distilgpt2} backbone with a trained MLP adaptor head
+(hidden width $2048$) that emits a fixed-length $L=5$ token prompt; a
+$\lmb$-conditioning input is supplied to the head, and a logit bias of $-10$ is
+added to all prompt-token logits at initialization to encourage early
+exploration. The task model is \texttt{gpt2-xl}, \textbf{frozen} and
+inference-only in \texttt{bfloat16}, served through vLLM with top-$k=10$
+sampling. Only the adaptor is trained.
+
+\paragraph{Training.}
+$12{,}000$ steps; batch of $B=15$ sources per step with $\Ggrp=16$ prompts per
+source ($240$ scored prompt-source rows per step, each scored with $N=50$
+task-model samples); Adam at learning rate $10^{-4}$ with gradient-norm
+clipping at $10$; $\lmb \sim \mathcal{U}[0,1]$ redrawn per source per step.
+\rrebel{} uses $\beta = 0.5$ and refreshes its reference every $150$ steps;
+GRPO uses $\beta_{\mathrm{KL}} = 0.04$ with a pinned reference. Note the two
+$\beta$s are not comparable quantities --- one is a regression scale in
+Eq.~\eqref{eq:logratio}, the other a KL coefficient in Eq.~\eqref{eq:grpo}.
+
+\paragraph{Arms and seeds.}
+Five arms $\times$ three seeds $=15$ runs:
+three \rrebel{} variants ($\ell_1$-std, Huber-std, $\ell_1$-ent) and two GRPO
+arms (plain, and with an entropy bonus $\alpha_H = 0.01$). A sixth,
+\emph{superseded} GRPO configuration --- the rolling reference anchor described
+in Section~\ref{sec:grpo} --- is reported separately in
+Section~\ref{sec:baseline-defense} as the pre-fix baseline.
+
+\paragraph{Evaluation protocol.}
+Every $500$ steps the policy is evaluated on the test split over the
+$\lmb$ grid $\{0, 0.1, \dots, 0.9\}$, with a batch size of $50$. The headline
+metric is \emph{mean reward}: the reward of Eq.~\eqref{eq:reward} averaged over
+the test set and then over the ten $\lmb$ values. We also report content and
+sentiment averaged the same way. Because the frozen task model samples
+stochastically (\texttt{vllm\_seed} unset during the campaign), evaluation is
+noisy: re-running a single evaluation moved its score by $1.1$ points. We
+therefore treat $\mathbf{1.0}$ \textbf{point as a noise floor} and report
+differences below it as ties rather than rankings.
+
+\paragraph{Compute.}
+Each run occupies one GPU ($\ge\!40$\,GB, natively bf16 --- L40S, A40, A100 or
+H100) at roughly $25$\,s/step, and is executed as a chain of $4$-hour scheduler
+cycles that resume from the most recent checkpoint. Generation by the frozen
+task model accounts for $97.6\%$ of step time; content and sentiment scoring
+together account for $2.3\%$, and the policy update for under $0.4\%$.
+
+\paragraph{Matched-step comparison.}
+Because the arms were launched at different times and restarted different
+numbers of times, we compare at a matched step rather than at wall-clock
+completion. Step $11{,}500$ is the largest step at which \emph{all fifteen} runs
+have an evaluation, and it is the point used for the headline table; results at
+step $12{,}000$ are reported alongside it with their reduced seed counts stated
+explicitly (Section~\ref{sec:provenance} explains why three runs lack a
+$12{,}000$ evaluation).

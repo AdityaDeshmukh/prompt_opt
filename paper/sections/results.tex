@@ -1,0 +1,236 @@
+\section{Results}
+\label{sec:results}
+
+\subsection{Headline comparison}
+
+Table~\ref{tab:main} reports the matched-step comparison at step $11{,}500$,
+where all fifteen runs are present.
+
+\begin{table}[t]
+\centering
+\input{tables/main_results}
+\caption{Mean reward, content, and sentiment at matched step $11{,}500$ ---
+the largest step at which every arm has all three seeds. Reward is averaged
+over the test set and then over the $\lmb$ grid $\{0,\dots,0.9\}$. All
+quantities are on a $0$--$100$ scale.}
+\label{tab:main}
+\end{table}
+
+Three observations, in decreasing order of robustness.
+
+\paragraph{1. The family gap is large and unambiguous.}
+The best \rrebel{} variant scores $39.34$ against $33.36$ for the best GRPO arm:
+a gap of $\mathbf{5.98}$ points, or six times the $1.0$-point noise floor. The
+separation survives at the level of individual runs, which is the strongest form
+the claim can take: the \emph{worst} \rrebel{} seed ($36.82$) beats the
+\emph{best} GRPO seed ($34.65$) by $2.16$ points. There is no overlap between
+the two families' seed distributions, so the ordering does not depend on seed
+selection or on averaging. Averaged over the second half of training
+(steps $\ge 6000$), the same picture holds: $39.37$ and $39.44$ for
+$\ell_1$-std and Huber-std versus $31.11$ and $33.17$ for the two GRPO arms.
+
+\paragraph{2. The top two \rrebel{} variants are tied.}
+$\ell_1$-std ($39.34$) and Huber-std ($39.27$) differ by $0.07$ points, far
+inside the noise floor, and their per-seed ranges overlap almost completely
+($39.0$--$39.9$ versus $38.7$--$40.0$). We therefore report them as tied and
+draw no conclusion about which robust discrepancy is preferable.
+$\ell_1$-ent, at $37.49$, is a genuine $1.85$ points behind --- adding an
+entropy bonus to $\ell_1$-std \emph{hurt}, which is consistent with the claim in
+Section~\ref{sec:rrebel} that \rrebel{} does not need an explicit exploration
+term because its fixed point is already a distribution.
+
+\paragraph{3. GRPO's deficit is in sentiment, not content.}
+The component columns of Table~\ref{tab:main} locate the failure.
+Plain GRPO's content score ($55.92$) is competitive with $\ell_1$-std's
+($56.25$), but its sentiment score is $43.03$ against $53.70$ --- a $10.7$-point
+shortfall that accounts for essentially the entire reward gap. Adding an entropy
+bonus moves GRPO's sentiment up to $50.57$ but at the cost of content, which
+falls to $53.57$, the lowest of any arm. In other words the GRPO arms can
+purchase one objective or the other but cannot hold both at once, which is
+precisely the pathology a $\lmb$-conditioned policy must avoid.
+Figure~\ref{fig:components} shows this as a training-time trajectory: the
+content panels are tightly bunched across all five arms, while the sentiment
+panel separates the families cleanly.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.82\textwidth]{learning_curves.pdf}
+\caption{Mean reward against training step, averaged over three seeds, with the
+band spanning the seed minimum to maximum. The two families separate by step
+$\sim\!2000$ and never re-cross. Blue denotes \rrebel{} variants, orange the
+GRPO arms.}
+\label{fig:learning}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{components.pdf}
+\caption{The reward gap decomposed. Content (left) is comparable across all
+arms; sentiment (right) is where plain GRPO falls away. Both panels share a
+$y$-scale, so the difference in spread between them is directly comparable.}
+\label{fig:components}
+\end{figure}
+
+\subsection{Learning dynamics}
+
+Figure~\ref{fig:learning} shows that the outcome is not a late-training
+artifact. All arms improve rapidly over the first $\sim\!1500$ steps; the two
+families have separated by step $2000$ and never cross again. The \rrebel{}
+variants continue to climb to roughly $39$--$40$ and then plateau, whereas both
+GRPO arms flatten early --- plain GRPO at $\sim\!31$ and GRPO-plus-entropy at
+$\sim\!33$ --- and stay flat for the remaining $10{,}000$ steps. The seed bands
+are also informative: GRPO's band is markedly wider (its seeds at step $11{,}500$
+span $26.33$ to $34.65$, a $8.3$-point spread, versus $36.82$--$40.00$, a
+$3.2$-point spread, across all nine \rrebel{} seeds), so the baseline is both
+worse on average and less reliable.
+
+\subsection{The baseline was debugged and tuned, and still trails}
+\label{sec:baseline-defense}
+
+The most likely objection to a result of this shape is that the baseline was
+misconfigured. It was, initially --- and fixing it is part of the result. We
+report the full sequence in Figure~\ref{fig:baseline}, all at matched step
+$4500$:
+
+\begin{center}
+\begin{tabular}{lrl}
+\toprule
+GRPO configuration & Mean reward & Change \\
+\midrule
+Rolling reference anchor (defective) & $27.16$ & --- \\
+Pinned reference anchor (Section~\ref{sec:grpo}) & $31.30$ & $+4.14$ \\
+\quad + entropy bonus $\alpha_H = 0.01$ & $33.10$ & $+1.80$ \\
+\midrule
+\rrebel{} (all variants, same step) & $39.26$ & $+6.16$ remaining \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The first row is the defect described in Section~\ref{sec:grpo}: the KL
+reference was being re-copied from the live policy every $150$ steps, roughly
+eighty times over a run, which zeroed the penalty and its gradient at every
+refresh. Under that configuration GRPO's reward curve was flat from step $500$
+onward, consistent with the entropy collapse that Section~\ref{sec:grpo}
+predicts when the only regularizer is inert. Pinning the anchor is worth
+$+4.14$ points. Giving GRPO the same entropy-bonus lever that $\ell_1$-ent has
+is worth a further $+1.80$.
+
+Both interventions behave as designed, which is evidence that they were
+implemented correctly rather than merely tried. The entropy bonus in particular
+starts \emph{worse} than plain GRPO and only overtakes it from step
+$\sim\!1500$ onward --- the signature of a term that buys exploration at the
+cost of early exploitation. Yet it evidently delays commitment rather than
+preventing it, since the arm still plateaus. After both fixes, two
+independently-configured GRPO arms converge on the same $\sim\!31$--$33$
+ceiling, $6$ points below \rrebel{}.
+
+\todo{the direct collapse evidence --- per-checkpoint counts of distinct emitted
+prompts, which during the campaign read $2$--$19$ for defective GRPO against
+$\sim\!97$ for \rrebel{} --- came from the per-$\lmb$ evaluation files and did
+not survive the purge (Section~\ref{sec:provenance}). It is deliberately not
+quoted as a measured result here. The surviving tracker metric
+(\texttt{num\_tokens\_explored}) cannot substitute: it is a per-process
+cumulative set that restarts on every $4$-hour resubmit, so its peak is
+dominated by early-training exploration and does not measure steady-state
+collapse. The rerun regenerates the original statistic; restore this paragraph's
+numbers from it.}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.82\textwidth]{baseline_debug.pdf}
+\caption{The baseline-defense figure. The defective rolling-anchor GRPO (grey)
+is flat at $\sim\!27$; pinning the anchor lifts it to $\sim\!31$ (solid orange);
+adding an entropy bonus reaches $\sim\!33$ (dashed orange). The blue band is the
+envelope over all three \rrebel{} variants and all their seeds. The rolling-anchor
+runs were terminated once the defect was identified, hence their shorter extent.}
+\label{fig:baseline}
+\end{figure}
+
+\subsection{The content--sentiment tradeoff curve}
+\label{sec:tradeoff}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.6\textwidth]{tradeoff.pdf}
+\caption{Content against sentiment at step $11{,}500$. Hollow markers are
+individual seeds, filled markers each arm's mean. \textbf{These are
+$\lmb$-averaged operating points, not a frontier}: each marker collapses the
+whole $\lmb$ grid to one point. The per-$\lmb$ curve is pending
+(Section~\ref{sec:provenance}). Even so, the \rrebel{} points sit up and to the
+right of the GRPO points, i.e.\ better on both objectives simultaneously.}
+\label{fig:tradeoff}
+\end{figure}
+
+The intended headline figure of this paper is the \emph{per-$\lmb$} curve: for
+each arm, the locus of (content, sentiment) pairs obtained as $\lmb$ sweeps
+$0 \to 0.9$, which shows not just that \rrebel{} scores higher but that it
+commands a strictly better frontier. That figure cannot yet be drawn --- the
+per-$\lmb$ evaluation arrays for the completed campaign were lost, as
+Section~\ref{sec:provenance} details, and regenerating them requires
+checkpoints, which are being retrained.
+
+Figure~\ref{fig:tradeoff} therefore shows what the surviving data does support:
+each run's single $\lmb$-averaged operating point. This is deliberately
+\emph{not} presented as a frontier. It still carries a real claim --- the
+\rrebel{} points lie up and to the right of the GRPO points, so \rrebel{}
+dominates on both objectives at once rather than trading one for the other ---
+but the shape of each arm's curve, and in particular whether GRPO's curve is
+uniformly dominated or only dominated in the interior of the $\lmb$ range,
+remains open until the rerun completes.
+\todo{replace Figure~\ref{fig:tradeoff} with the true per-$\lmb$ frontier once
+\texttt{slurm/eval\_v4.slurm} has produced
+\texttt{results/v4/*/test/output*.json}; \texttt{analysis/paper\_results.py}
+switches the figure over automatically and reports which version it drew.}
+
+\subsection{Results at step 12{,}000}
+
+\begin{table}[t]
+\centering
+\input{tables/results_12000}
+\caption{The same quantities at step $12{,}000$, the nominal end of training.
+Three runs have no evaluation at this step (Section~\ref{sec:provenance}), so
+the seed counts differ by arm; the ordering and the size of the family gap are
+unchanged from Table~\ref{tab:main}.}
+\label{tab:12000}
+\end{table}
+
+Table~\ref{tab:12000} reports the nominal end of training. The conclusions do
+not change: $\ell_1$-std ($39.47$) and Huber-std ($39.30$) remain tied within
+noise, $\ell_1$-ent trails at $37.80$, and the GRPO arms sit at $32.68$ and
+$30.91$. Because three runs are missing their $12{,}000$ evaluation, this table
+is seed-unbalanced across arms and Table~\ref{tab:main} is the comparison we
+rely on.
+
+\subsection{Data provenance, and what is missing}
+\label{sec:provenance}
+
+Reporting this honestly requires a note on provenance, because it also bounds
+what can currently be reproduced.
+
+The campaign ran to completion, but its artifacts were subsequently destroyed:
+the scratch filesystem holding all checkpoints and all per-$\lmb$ evaluation
+files was purged, leaving zero checkpoints and zero evaluation files. Every
+number in this paper was therefore recovered from the experiment tracker's
+retained scalar history, by a reconstruction that is validated three ways per
+run and refuses to emit data if any check fails: surviving true-step markers
+must agree with the reconstructed step, the distinct-step count must be
+consistent with the final step, and the reconstructed step grid must be
+perfectly regular. All fifteen runs pass. Two consequences:
+
+\begin{enumerate}\itemsep2pt
+  \item \textbf{The per-$\lmb$ arrays are gone and are not recoverable from the
+        tracker}, because the evaluation routine averages over the $\lmb$ grid
+        \emph{before} logging. This is why Section~\ref{sec:tradeoff} shows
+        operating points rather than a frontier. One seed per arm is being
+        retrained specifically to regenerate them.
+  \item \textbf{Three runs lack a step-$12{,}000$ evaluation.} Their final
+        training cycle ran while the tracker was unreachable; the trainer's
+        fallback keeps training without logging, so that cycle's evaluations
+        were written only to the since-purged disk copies. This is why step
+        $11{,}500$, not $12{,}000$, is the balanced comparison point.
+\end{enumerate}
+
+Two process changes follow, and are already in place: evaluation artifacts are
+now copied off the purgeable filesystem after every training cycle, and the
+recovery-and-validation script is committed alongside the exported data so that
+every table in this paper can be regenerated from a single command.

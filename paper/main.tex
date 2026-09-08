@@ -1,0 +1,96 @@
+% Multi-Objective Prompt Optimization: R-REBEL vs GRPO
+%
+% Draft scope (2026-09-08): algorithms + results only, per request. Intro is
+% deliberately thin and related work is a stub -- see paper/README.md.
+%
+% Build:  make        (in paper/)   -- pdflatex x2 + bibtex
+% Toolchain note: this cluster has pdflatex + bibtex but NO latexmk, and no
+% algorithm2e/algpseudocode/pgfplots. The preamble therefore uses
+% algorithm+algorithmic, and every figure is a pre-rendered PDF from
+% analysis/paper_results.py rather than pgfplots.
+\documentclass[11pt]{article}
+
+\usepackage[letterpaper,margin=1in]{geometry}
+\usepackage{amsmath,amssymb,bm}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage{microtype}
+\usepackage{xcolor}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage[colorlinks=true,linkcolor=blue!55!black,citecolor=blue!55!black,
+            urlcolor=blue!55!black]{hyperref}
+
+\graphicspath{{figures/}}
+
+% ---- notation ------------------------------------------------------------
+\newcommand{\pol}{\pi_\theta}
+\newcommand{\polref}{\pi_{\mathrm{ref}}}
+\newcommand{\lm}{p_{\mathrm{LM}}}
+\newcommand{\lmb}{\lambda}
+\newcommand{\Rlam}{r_{\lmb}}
+\newcommand{\logratio}{\ell_\theta}
+\newcommand{\Ggrp}{G}
+\newcommand{\rrebel}{\mbox{R-REBEL}}          % prose (unbreakable)
+\newcommand{\rrmath}{\text{R-REBEL}}          % math superscripts (scales)
+% flags an open item; remove before submission
+\newcommand{\todo}[1]{\textcolor{red!70!black}{[\textbf{TODO:} #1]}}
+
+\title{Multi-Objective Prompt Optimization with a $\lambda$-Conditioned Policy:\\
+       Robust Pairwise Regression Beats Group-Relative Policy Optimization}
+\author{Aditya Deshmukh \and Lav R. Varshney}
+\date{Draft --- \today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We study prompt optimization for a multi-objective text task, where a single
+policy must trace an entire tradeoff curve rather than reach one operating
+point. A $\lmb$-conditioned policy emits a short discrete prompt that steers a
+\emph{frozen} task language model; $\lmb$ indexes how tightly content
+preservation is required, and sweeping it traces a content-versus-sentiment
+curve. We train this policy with \rrebel{}, a family of objectives that
+regresses the $\beta$-scaled log-ratio difference of two sampled prompts onto
+their reward difference under a robust discrepancy, and we compare it against
+GRPO on a Yelp negative-to-positive rewriting benchmark. Across five arms and
+three seeds trained for $12{,}000$ steps, the best \rrebel{} variants reach
+$39.3$ mean reward against $33.4$ for the strongest GRPO arm --- a $6.0$-point
+gap, six times the $1$-point evaluation noise floor, with \emph{every} \rrebel{}
+seed above \emph{every} GRPO seed. The GRPO baseline was both debugged (a
+reference-anchor defect worth $+4.1$ points) and tuned (an entropy bonus worth a
+further $+1.8$) before this comparison was drawn, so the remaining gap is not an
+artifact of an under-configured baseline.
+\end{abstract}
+
+\input{sections/intro}
+\input{sections/setup}
+\input{sections/algorithms}
+\input{sections/experiments}
+\input{sections/results}
+\input{sections/limitations}
+
+\section{Related work}
+\todo{stub --- out of scope for this draft, which covers algorithms and results
+only. Needs: RL for discrete prompt optimization (RLPrompt and successors);
+REBEL and regression-based policy optimization; GRPO and its variants (DAPO,
+Dr.\ GRPO) with particular attention to the length-normalization and
+KL-free-versus-clip discussion; multi-objective RLHF and reward-conditioned /
+hypernetwork policies.}
+
+% Bibliography is intentionally not wired up yet. The works named in prose
+% (DeepSeekMath/GRPO, REBEL, DAPO, Dr. GRPO, TRL, verl, OpenRLHF, RLPrompt,
+% BERTScore) are referenced by name only: entering them with invented keys,
+% years or venues would be worse than leaving them uncited in a draft. Add real
+% entries to refs.bib, then uncomment the two lines below.
+\todo{populate refs.bib with verified entries and replace every by-name mention
+in the prose with a \texttt{\textbackslash citep}. Works currently named
+without citations: GRPO/DeepSeekMath, REBEL, DAPO, Dr.\ GRPO, TRL
+GRPOTrainer, verl, OpenRLHF, BERTScore, and the RLPrompt line of discrete
+prompt-optimization work.}
+% \bibliographystyle{plainnat}
+% \bibliography{refs}
+
+\end{document}

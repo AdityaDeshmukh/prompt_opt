@@ -1,0 +1,59 @@
+\section{Limitations and threats to validity}
+\label{sec:limitations}
+
+We state these plainly, because several of them bound how strongly the headline
+comparison can be read.
+
+\paragraph{The reference policy is not a competent model.}
+GRPO's pinned $\polref$ is the policy at initialization: an untrained MLP
+adaptor head with a $-10$ logit bias, i.e.\ a near-uniform, high-entropy prompt
+distribution --- not a supervised-fine-tuned model as in canonical RLHF
+pipelines. Pinning such an anchor is a genuine departure from canonical GRPO.
+It is anti-collapse, so it works in GRPO's favour here, but it also means the KL
+term pulls toward high entropy rather than toward a good policy, and a GRPO run
+starting from a competent reference might behave differently. This is the single
+most important caveat on the comparison.
+
+\paragraph{The tradeoff curve itself is not yet measured.}
+As Sections~\ref{sec:tradeoff} and~\ref{sec:provenance} explain, the per-$\lmb$
+frontier --- the figure this paper is nominally about --- is pending a rerun.
+Everything reported here is $\lmb$-averaged. It remains possible that two arms
+with similar average reward have differently-shaped curves, and the dominance
+claim of Figure~\ref{fig:tradeoff} is about averaged operating points, not about
+pointwise dominance across $\lmb$.
+
+\paragraph{The rerun is single-seed.}
+The regeneration campaign trains one seed per arm, not three. Its frontiers will
+therefore be indicative rather than seed-averaged, and given GRPO's wide seed
+spread ($26.3$--$34.7$ at step $11{,}500$) a single GRPO seed should not be read
+as that arm's typical curve.
+
+\paragraph{Evaluation noise and the number of seeds.}
+Three seeds per arm and a $1.0$-point noise floor are enough to separate the
+families ($6.0$ points) but not to rank variants within a family; we
+consequently report the top two \rrebel{} variants as tied and draw no
+conclusion between them. The noise floor is itself estimated from a single
+repeated evaluation, so it is an order-of-magnitude figure rather than a
+calibrated standard error.
+
+\paragraph{The style classifier used at evaluation.}
+The evaluation entry point requests the \emph{train}-split style classifier
+rather than the test-split one. Since the same classifier scores every arm, this
+cannot explain the family gap, but it does mean the absolute sentiment numbers
+are not directly comparable to work that evaluates with the held-out
+classifier.
+\todo{confirm whether this is intentional; if not, re-evaluate with the
+test-split classifier and update the absolute sentiment numbers. Arm ordering is
+not at risk either way.}
+
+\paragraph{Single task and single direction.}
+All results are Yelp negative-to-positive with a \texttt{gpt2-xl} task model and
+$5$-token prompts. We make no claim about other datasets, other transfer
+directions, longer prompts, or larger task models. In particular, the inert-clip
+argument of Section~\ref{sec:grpo} is a property of the single-update regime; a
+pipeline that takes multiple epochs per rollout would keep GRPO's trust region
+live and might close some of the gap.
+
+\paragraph{Scope of this draft.}
+Per its stated scope, this draft presents the algorithms and the results.
+Related work is a stub, and there is no discussion or conclusion section yet.

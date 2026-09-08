@@ -1,0 +1,51 @@
+\section{Introduction}
+\label{sec:intro}
+
+Most reinforcement learning for language models optimizes a single scalar
+reward and returns a single policy. Many real objectives are not like that. In
+attribute-controlled rewriting, a system must satisfy two objectives in tension
+--- change the attribute, preserve the meaning --- and the useful artifact is
+not one operating point but the whole tradeoff curve, so that a downstream user
+can choose where on it to sit. Training one policy per point is wasteful and
+gives no guarantee that the points are mutually consistent.
+
+We study this in the prompt-optimization setting, where the trainable object is
+a short discrete prompt that steers a \emph{frozen} task language model. Our
+policy is conditioned on a scalar $\lmb$ that indexes how tightly content
+preservation is required, so a single trained policy traces the entire
+content-versus-sentiment curve by varying its conditioning input at test time.
+This makes exploration unusually load-bearing: a policy that collapses onto one
+prompt is not merely suboptimal, it becomes $\lmb$-independent and collapses the
+curve to a point.
+
+That observation motivates the algorithm we study. GRPO, the default choice for
+this kind of problem, estimates a group-relative advantage and ascends it inside
+a clipped trust region. But in a pipeline that takes one gradient update per
+batch of rollouts --- as prompt optimization naturally does, because rollouts
+are expensive and the policy is small --- the importance ratio is identically
+one and the clip is provably inert, leaving the KL penalty as the objective's
+only regularizer, and leaving its unconstrained optimum a deterministic policy.
+\rrebel{} instead treats improvement as regression: it fits the $\beta$-scaled
+log-ratio difference of two sampled prompts to their observed reward difference,
+under a \emph{robust} discrepancy chosen because those reward differences are
+noisy Monte Carlo estimates. Its fixed point is a tempered softmax --- a
+distribution, not a point mass --- so exploration is a property of the objective
+rather than a penalty added to it.
+
+\paragraph{Contributions.}
+\begin{itemize}\itemsep2pt
+  \item A $\lmb$-conditioned prompt policy for multi-objective controlled
+        rewriting, trained against a constrained reward in which $\lmb$ sets a
+        content floor (Section~\ref{sec:setup}).
+  \item \rrebel{}, a family of robust pairwise reward-difference regression
+        objectives, and an analysis of why GRPO's trust region is inert in the
+        single-update regime while \rrebel{}'s fixed point resists collapse
+        (Section~\ref{sec:algos}).
+  \item An empirical comparison over five arms and three seeds at $12{,}000$
+        steps in which the best \rrebel{} variants reach $39.3$ mean reward
+        against $33.4$ for the strongest GRPO arm, with every \rrebel{} seed
+        above every GRPO seed --- and in which the GRPO baseline was first
+        debugged ($+4.1$ points) and then tuned ($+1.8$ points), so the
+        remaining gap cannot be attributed to an under-configured baseline
+        (Section~\ref{sec:results}).
+\end{itemize}

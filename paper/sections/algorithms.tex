@@ -1,0 +1,209 @@
+\section{Algorithms}
+\label{sec:algos}
+
+Both algorithms share the same outer loop, the same rollout mechanics, and the
+same reward. For each of the $B=15$ sources in a batch, a fresh
+$\lmb \sim \mathcal{U}[0,1]$ is drawn and $\Ggrp = 16$ prompts are sampled
+i.i.d.\ from $\pol(\cdot \mid \lmb)$, forming a \emph{group} that shares a
+source and a $\lmb$. Each prompt's reward $r_i = \hat{r}_{\lmb}(z_i, x)$ is the
+Monte Carlo average of Eq.~\eqref{eq:mcreward}. The algorithms differ only in
+how a group of $(z_i, r_i)$ pairs becomes a loss. Throughout, the policy
+log-probability of a prompt is the token sum
+\begin{equation}
+  \log \pol(z \mid \lmb) \;=\; \sum_{t=1}^{L} \log \pol(z_t \mid z_{<t}, \lmb),
+\end{equation}
+and one crucial implementation fact holds for both methods: \textbf{exactly one
+gradient update is taken per rollout}. There is no inner epoch loop.
+
+\subsection{Baseline: GRPO}
+\label{sec:grpo}
+
+GRPO replaces a learned critic with a group-relative advantage. Within each
+group, rewards are standardized,
+\begin{equation}
+  A_i \;=\; \frac{r_i - \mathrm{mean}(r_{1:\Ggrp})}
+                 {\mathrm{std}(r_{1:\Ggrp}) + \varepsilon},
+  \qquad \varepsilon = 10^{-8},
+  \label{eq:grpo-adv}
+\end{equation}
+and the policy maximizes a clipped surrogate against a KL penalty toward a
+reference policy $\polref$. With $\rho_{i,t}$ the per-token importance ratio,
+the implemented loss is
+\begin{equation}
+  \mathcal{L}^{\mathrm{GRPO}}(\theta)
+  = -\frac{1}{\Ggrp L}\sum_{i=1}^{\Ggrp}\sum_{t=1}^{L}
+      \min\!\bigl(\rho_{i,t} A_i,\;
+        \mathrm{clip}(\rho_{i,t}, 1-\epsilon_c, 1+\epsilon_c) A_i \bigr)
+    \;+\; \beta_{\mathrm{KL}}\, \widehat{\mathrm{KL}}_{i,t},
+  \label{eq:grpo}
+\end{equation}
+with $\epsilon_c = 0.2$ and the standard $k_3$ estimator, written in terms of
+$u_{i,t} = \log \polref(z_{i,t}) - \log \pol(z_{i,t})$,
+\begin{equation}
+  \widehat{\mathrm{KL}}_{i,t} \;=\; e^{u_{i,t}} - u_{i,t} - 1 \;\ge\; 0 .
+  \label{eq:k3}
+\end{equation}
+Because prompts have fixed length $L$, the token mean in Eq.~\eqref{eq:grpo}
+carries no length bias, so the length-normalization critique levelled at GRPO by
+Dr.\ GRPO does not apply in this setting. An optional entropy bonus
+$-\,\alpha_H H(\pol)$ may be added; it is off in the plain baseline.
+
+\paragraph{The clip is provably inert here, and this matters.}
+With a single update per rollout, the behaviour policy \emph{is} the current
+policy, so $\rho_{i,t} \equiv 1$ identically --- both in value and, since $1$
+lies strictly inside $[1-\epsilon_c, 1+\epsilon_c]$, in gradient. The two
+branches of the $\min$ therefore coincide, and Eq.~\eqref{eq:grpo} reduces to
+REINFORCE with a group-normalized advantage plus a KL penalty:
+\begin{equation}
+  \nabla_\theta \mathcal{L}^{\mathrm{GRPO}}
+  = -\frac{1}{\Ggrp L}\sum_{i,t} A_i \nabla_\theta \log \pol(z_{i,t})
+    \;+\; \beta_{\mathrm{KL}} \nabla_\theta \widehat{\mathrm{KL}} .
+\end{equation}
+The consequence is structural rather than cosmetic: \textbf{the KL term is the
+only thing regularizing this objective}. Its unconstrained optimum is a
+deterministic policy --- put all mass on the group's best prompt --- so with the
+trust region inactive, GRPO's fixed point in this pipeline is entropy collapse.
+Implementations that run GRPO with $\beta_{\mathrm{KL}} = 0$ (TRL's default;
+DAPO; Dr.\ GRPO) can do so because they take multiple epochs per rollout, which
+keeps the clip live. This pipeline does not, so we set
+$\beta_{\mathrm{KL}} = 0.04$, the canonical DeepSeekMath value.
+
+\paragraph{The reference anchor must be long-lived.}
+A KL penalty only regularizes if the anchor is stable. If $\polref$ is
+re-copied from the live policy every $k$ steps, then each refresh sets both the
+penalty and its gradient to zero, and for small $k$ the anchor never accumulates
+restoring force --- the policy drifts arbitrarily far from initialization while
+staying within $\sim\!1\%$ of a reference that chases it. We therefore
+\emph{pin} the anchor for the entire run ($k = 0$: no re-anchoring), matching
+TRL's \texttt{sync\_ref\_model=False} default, verl's and OpenRLHF's frozen
+reference, and DeepSeekMath's once-per-outer-iteration re-anchoring.
+Section~\ref{sec:baseline-defense} reports what this fix is worth empirically.
+
+\begin{algorithm}[t]
+\caption{GRPO as implemented (one update per rollout, pinned KL anchor)}
+\label{alg:grpo}
+\begin{algorithmic}[1]
+\STATE \textbf{input} policy $\pol$, group size $\Ggrp$, KL weight $\beta_{\mathrm{KL}}$, clip $\epsilon_c$
+\STATE $\polref \leftarrow \pol$ \COMMENT{pinned once; never re-anchored}
+\FOR{step $= 1$ \TO $T$}
+  \STATE draw a batch of sources $x^{(1..B)}$ and $\lmb^{(b)} \sim \mathcal{U}[0,1]$
+  \FOR{each source $b$}
+    \STATE sample $z_1,\dots,z_\Ggrp \sim \pol(\cdot \mid \lmb^{(b)})$
+    \STATE $r_i \leftarrow \hat{r}_{\lmb^{(b)}}(z_i, x^{(b)})$ \COMMENT{avg.\ of $N=50$ frozen-task-LM samples}
+    \STATE $A_i \leftarrow (r_i - \mathrm{mean}(r))/(\mathrm{std}(r) + \varepsilon)$
+  \ENDFOR
+  \STATE $\mathcal{L} \leftarrow$ Eq.~\eqref{eq:grpo} averaged over all groups and tokens
+  \STATE one gradient step on $\theta$ \COMMENT{$\Rightarrow \rho \equiv 1$, clip inert}
+\ENDFOR
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{\rrebel{}: robust pairwise reward-difference regression}
+\label{sec:rrebel}
+
+\rrebel{} discards the advantage-and-clip machinery entirely and treats policy
+improvement as a \emph{regression} problem. Define the $\beta$-scaled log-ratio
+of a prompt against a reference policy,
+\begin{equation}
+  \logratio(z) \;=\; \beta\Bigl(\log \pol(z \mid \lmb) - \log \polref(z \mid \lmb)\Bigr).
+  \label{eq:logratio}
+\end{equation}
+For every \emph{unordered pair} $(i,j)$, $i<j$, within a group, \rrebel{} asks
+that the model's log-ratio difference match the observed reward difference, and
+penalizes the mismatch with a discrepancy $d$:
+\begin{equation}
+  \mathcal{L}^{\rrmath}(\theta)
+  \;=\; \frac{2}{\Ggrp(\Ggrp-1)} \sum_{i<j}
+        d\Bigl(
+          \underbrace{\logratio(z_i) - \logratio(z_j)}_{\text{model}}
+          \;-\;
+          \underbrace{(\tilde{r}_i - \tilde{r}_j)}_{\text{target}}
+        \Bigr),
+  \label{eq:rrebel}
+\end{equation}
+where $\tilde{r}$ is the preprocessed reward described below. Taking
+$d(\cdot) = (\cdot)^2$ recovers REBEL, whose least-squares fixed point is the
+tempered softmax
+\begin{equation}
+  \pi^\star(z) \;\propto\; \polref(z)\,\exp\!\bigl(r(z)/\beta\bigr).
+  \label{eq:fixedpoint}
+\end{equation}
+This is the structural difference from GRPO, and the paper's central mechanistic
+claim: \textbf{\rrebel{}'s optimum is a distribution, not a point mass.}
+Exploration does not have to be bolted on by a KL penalty or an entropy bonus,
+because a policy that collapses cannot satisfy Eq.~\eqref{eq:rrebel} --- a
+deterministic policy makes every log-ratio difference infinite while the reward
+differences stay finite and bounded. Since a $\lmb$-conditioned policy must
+serve the entire curve, this matters more here than in single-objective RLHF: a
+collapsed policy is not merely suboptimal, it is $\lmb$-independent and yields a
+point instead of a frontier.
+
+\paragraph{Robust discrepancies.}
+The \emph{R} in \rrebel{} is the replacement of the squared loss by a robust
+$d$. The motivation is that $\tilde{r}_i - \tilde{r}_j$ is a Monte Carlo
+estimate: with $N=50$ stochastic task-model samples per prompt, a heavy right
+tail in the sentiment classifier produces occasional large, spurious reward
+differences, and under a squared loss a single such pair dominates the group's
+gradient. We consider
+\begin{equation}
+  d(e) \in \Bigl\{\, e^2,\quad |e|,\quad
+    \mathrm{Huber}_\delta(e),\quad
+    \log\bigl(1 + \tfrac{e^2}{2c^2}\bigr) \,\Bigr\}
+\end{equation}
+--- squared ($\ell_2$, i.e.\ REBEL), absolute ($\ell_1$),
+Huber with $\delta = 1$, and Cauchy with $c^2 = 1/2$ --- whose influence
+functions are respectively unbounded, bounded, bounded, and redescending.
+
+\paragraph{Reward preprocessing, and why it is scale-fair.}
+Rewards are scaled by a constant and a $\lmb$-dependent factor, and then
+optionally standardized within the group:
+\begin{equation}
+  \tilde{r}_i \;=\; \frac{\kappa\, g(\lmb)\, r_i}
+                         {\mathrm{std}(\kappa g(\lmb) r_{1:\Ggrp}) + \varepsilon},
+  \qquad \kappa = 0.1, \quad g(\lmb) = 2.2111 \cdot 10^{\lmb} - 2.1111 .
+  \label{eq:rewardprep}
+\end{equation}
+The group standardization in the denominator \emph{exactly cancels} any positive
+per-group scale, so for every \rrebel{} variant reported in this paper (all of
+which use it) the constants $\kappa$ and $g(\lmb)$ have no effect on the
+gradient. This is a deliberate fairness property rather than an accident: GRPO's
+advantage normalization in Eq.~\eqref{eq:grpo-adv} cancels reward scale in the
+same way, so neither family can benefit from a tuned reward scale that the other
+lacks. Both families therefore regress or ascend on a scale-normalized target.
+
+\paragraph{Reference policy.}
+Unlike GRPO's pinned anchor, \rrebel{}'s $\polref$ is refreshed every
+$150$ steps. This is not a hyperparameter choice but part of REBEL's
+construction: Eq.~\eqref{eq:rrebel} regresses the log-ratio against reward
+differences measured under the \emph{recent} policy, so the reference must lag
+by a bounded amount. The asymmetry with GRPO is intentional and is exactly the
+distinction that the earlier defect blurred (Section~\ref{sec:baseline-defense}).
+
+\paragraph{Variants evaluated.}
+We report three: $\ell_1$-std ($d = |\cdot|$, group standardization),
+Huber-std ($d = \mathrm{Huber}_1$, group standardization), and
+$\ell_1$-ent ($\ell_1$-std plus an entropy bonus $-\alpha_H H(\pol)$,
+$\alpha_H = 0.01$). Plain $\ell_2$ (REBEL) was dropped after ranking fourth and
+proving seed-unstable in an earlier campaign.
+
+\begin{algorithm}[t]
+\caption{\rrebel{} (robust pairwise reward-difference regression)}
+\label{alg:rrebel}
+\begin{algorithmic}[1]
+\STATE \textbf{input} policy $\pol$, group size $\Ggrp$, scale $\beta$, discrepancy $d$, ref lag $K = 150$
+\STATE $\polref \leftarrow \pol$
+\FOR{step $= 1$ \TO $T$}
+  \IF{step $\bmod\ K = 0$}
+    \STATE $\polref \leftarrow \pol$ \COMMENT{bounded lag, required by the construction}
+  \ENDIF
+  \STATE draw sources $x^{(1..B)}$ and $\lmb^{(b)} \sim \mathcal{U}[0,1]$
+  \FOR{each source $b$}
+    \STATE sample $z_1,\dots,z_\Ggrp \sim \pol(\cdot \mid \lmb^{(b)})$
+    \STATE $r_i \leftarrow \hat{r}_{\lmb^{(b)}}(z_i, x^{(b)})$; standardize to $\tilde{r}_i$ by Eq.~\eqref{eq:rewardprep}
+    \STATE $\logratio(z_i) \leftarrow \beta(\log \pol(z_i) - \log \polref(z_i))$
+  \ENDFOR
+  \STATE $\mathcal{L} \leftarrow$ Eq.~\eqref{eq:rrebel} over all $\binom{\Ggrp}{2}$ within-group pairs
+  \STATE one gradient step on $\theta$
+\ENDFOR
+\end{algorithmic}
+\end{algorithm}

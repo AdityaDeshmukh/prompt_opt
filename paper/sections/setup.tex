@@ -1,0 +1,75 @@
+\section{Problem setup}
+\label{sec:setup}
+
+\paragraph{Prompted style transfer with a frozen task model.}
+Let $x$ be a source sentence with an undesired attribute (here, a negative Yelp
+review). A policy $\pol(\cdot \mid \lmb)$ emits a short discrete
+\emph{prompt} $z = (z_1,\dots,z_L)$ of fixed length $L=5$ tokens. The prompt is
+inserted into a fixed template together with the source,
+\begin{equation}
+  \texttt{template}(z, x) \;=\; \texttt{\{z\}\ "\{x\}"\ "} ,
+\end{equation}
+and a \emph{frozen}, inference-only task language model $\lm$ samples a
+rewrite $y \sim \lm(\cdot \mid \texttt{template}(z,x))$. Only $\theta$ is
+trained; $\lm$ receives no gradient. This is the prompt-optimization regime: the
+action space is the discrete prompt, and the environment --- the task model plus
+the scorers --- is a black box.
+
+\paragraph{Two objectives.}
+Each rewrite is scored on two axes, both on a $0$--$100$ scale:
+\begin{itemize}\itemsep2pt
+  \item \emph{content} $c(x,y) \in [0,100]$, a BERTScore-style similarity
+        between the rewrite and its source, measuring how much of the original
+        meaning survives;
+  \item \emph{sentiment} $s(y) \in [0,100]$, the probability assigned to the
+        target attribute by a fine-tuned BERT classifier.
+\end{itemize}
+The two are in genuine tension: copying $x$ verbatim maximizes $c$ and leaves
+$s$ at the source value, while emitting a generic positive sentence maximizes
+$s$ and destroys $c$.
+
+\paragraph{A $\lmb$-indexed \emph{constrained} reward.}
+Rather than a linear scalarization, the objectives are combined as a
+constraint. For $\lmb \in [0,1]$, define
+\begin{equation}
+  \Rlam(z,x) \;=\;
+  \begin{cases}
+    s(y), & c(x,y) \;\ge\; 100\lmb, \\[2pt]
+    0.01\,\bigl(c(x,y) - 100\lmb\bigr), & \text{otherwise,}
+  \end{cases}
+  \label{eq:reward}
+\end{equation}
+so $\lmb$ sets a \emph{content floor} at $100\lmb$: reward equals the sentiment
+score wherever the floor is met, and otherwise degrades to a small negative
+penalty proportional to the shortfall. Sweeping $\lmb$ from $0$ (no content
+requirement --- pure sentiment) to $1$ (near-verbatim content required) traces
+the tradeoff curve. The penalty branch is scaled by $0.01$ so that violation is
+weakly informative rather than a flat rejection, which keeps the objective
+differentiable-in-expectation and gives the policy a gradient to climb back
+into the feasible region.
+
+Because $\lm$ is stochastic, the reward used for learning is a Monte Carlo
+average over $N = 50$ task-model samples per (prompt, source) pair,
+\begin{equation}
+  \hat{r}_{\lmb}(z,x) \;=\; \frac{1}{N}\sum_{n=1}^{N} \Rlam(z, x; y_n),
+  \qquad y_n \sim \lm(\cdot \mid \texttt{template}(z,x)),
+  \label{eq:mcreward}
+\end{equation}
+which is what every algorithm below consumes as its scalar reward.
+
+\paragraph{Objective: one policy for the whole curve.}
+During training $\lmb$ is drawn afresh per source, $\lmb \sim \mathcal{U}[0,1]$,
+and supplied to the policy as a conditioning input. A single set of parameters
+$\theta$ must therefore serve every point on the curve, so that at test time the
+frontier is traced by varying the conditioning input rather than by retraining:
+\begin{equation}
+  \max_{\theta}\;
+  \mathbb{E}_{\lmb \sim \mathcal{U}[0,1]}\;
+  \mathbb{E}_{x}\;
+  \mathbb{E}_{z \sim \pol(\cdot \mid \lmb)}\bigl[\hat{r}_{\lmb}(z,x)\bigr].
+  \label{eq:objective}
+\end{equation}
+This conditioning is what makes the problem multi-objective rather than a set of
+independent single-objective runs, and it is the reason entropy collapse is
+especially damaging here: a policy that collapses onto one prompt becomes
+$\lmb$-independent and degenerates to a single point instead of a curve.
