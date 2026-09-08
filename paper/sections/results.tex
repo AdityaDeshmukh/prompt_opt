@@ -76,13 +76,40 @@ $y$-scale, so the difference in spread between them is directly comparable.}
 Figure~\ref{fig:learning} shows that the outcome is not a late-training
 artifact. All arms improve rapidly over the first $\sim\!1500$ steps; the two
 families have separated by step $2000$ and never cross again. The \rrebel{}
-variants continue to climb to roughly $39$--$40$ and then plateau, whereas both
-GRPO arms flatten early --- plain GRPO at $\sim\!31$ and GRPO-plus-entropy at
-$\sim\!33$ --- and stay flat for the remaining $10{,}000$ steps. The seed bands
-are also informative: GRPO's band is markedly wider (its seeds at step $11{,}500$
-span $26.33$ to $34.65$, a $8.3$-point spread, versus $36.82$--$40.00$, a
+variants climb to roughly $39$--$40$ and then plateau, whereas both GRPO arms
+flatten early --- plain GRPO at $\sim\!31$ and GRPO-plus-entropy at $\sim\!33$
+--- and stay flat for the remaining $10{,}000$ steps. The seed bands are also
+informative: GRPO's band is markedly wider (its seeds at step $11{,}500$ span
+$26.33$ to $34.65$, an $8.3$-point spread, versus $36.82$--$40.00$, a
 $3.2$-point spread, across all nine \rrebel{} seeds), so the baseline is both
 worse on average and less reliable.
+
+\paragraph{Plain GRPO does not plateau --- it never learns at all.}
+This distinction matters, and reading Figure~\ref{fig:learning} as ``GRPO
+converges lower'' would be too generous to our own result. Measured from its
+\emph{first} evaluation at step $500$ to step $11{,}500$, the plain GRPO arm
+moves from $30.38$ to $30.19$: a change of $\mathbf{-0.18}$ points over
+$11{,}000$ training steps, inside the noise floor and slightly negative. The
+per-seed deltas are $+0.11$, $+1.09$ and $-1.75$. For comparison, over the same
+interval \rrebel{} ($\ell_1$-std) gains $+6.74$, $+6.23$ and $+7.77$, and
+GRPO-plus-entropy gains $+17.74$, $+3.23$ and $+16.77$. Two corroborating
+diagnostics from the training logs: the logged KL sits at $9.824$ against the
+$k_3$ estimator's analytic ceiling of $9.8249$ for a $50{,}257$-token
+vocabulary --- attained only when the sampled token has probability $\approx 1$
+--- and the count of distinct prompt tokens explored per training cycle has a
+median of $5$, which for a $5$-token prompt means a single frozen,
+$\lmb$-independent prompt.
+
+So the plain GRPO number in Table~\ref{tab:main} is the score of a policy that
+collapsed by step $500$ and never moved again. It is a \emph{diagnostic}, not a
+converged baseline, and we do not present it as one: \textbf{the defensible GRPO
+baseline in this paper is the GRPO-plus-entropy arm} at $33.36$, which does
+learn. The headline comparison should be read against that arm --- a $5.98$-point
+gap --- and plain GRPO read as evidence for the collapse mechanism of
+Section~\ref{sec:grpo} rather than as a tuned competitor.
+\todo{re-run plain GRPO with a competent (non-uniform) KL reference, per the
+TODO in Section~\ref{sec:algos-caveat}, before claiming anything about GRPO's
+ceiling as an algorithm.}
 
 \subsection{The baseline was debugged and tuned, and still trails}
 \label{sec:baseline-defense}
@@ -119,10 +146,21 @@ Both interventions behave as designed, which is evidence that they were
 implemented correctly rather than merely tried. The entropy bonus in particular
 starts \emph{worse} than plain GRPO and only overtakes it from step
 $\sim\!1500$ onward --- the signature of a term that buys exploration at the
-cost of early exploitation. Yet it evidently delays commitment rather than
-preventing it, since the arm still plateaus. After both fixes, two
-independently-configured GRPO arms converge on the same $\sim\!31$--$33$
-ceiling, $6$ points below \rrebel{}.
+cost of early exploitation.
+
+We must, however, retract one part of the defense. It would be convenient to say
+that the two GRPO arms are two \emph{independent} chances for the baseline, so
+that their agreeing on a $\sim\!31$--$33$ ceiling is strong evidence about GRPO
+as an algorithm. That claim does not survive scrutiny. As
+Section~\ref{sec:algos-caveat} shows, the pinned reference is the uniform
+distribution, so plain GRPO already carries an implicit entropy coefficient of
+$0.04$; the ``GRPO + entropy'' arm merely raises the total to $\approx\!0.05$.
+The two arms are one configuration at two nearby settings of the same
+anti-collapse lever, which is a natural explanation for their landing in the
+same place, and it is \emph{not} independent corroboration. What the table above
+does support is narrower but still real: a diagnosed defect was fixed and was
+worth $+4.14$, an additional exploration lever was worth $+1.80$, and a
+$6$-point gap to \rrebel{} remained after both.
 
 \todo{the direct collapse evidence --- per-checkpoint counts of distinct emitted
 prompts, which during the campaign read $2$--$19$ for defective GRPO against
@@ -181,6 +219,28 @@ remains open until the rerun completes.
 \texttt{slurm/eval\_v4.slurm} has produced
 \texttt{results/v4/*/test/output*.json}; \texttt{analysis/paper\_results.py}
 switches the figure over automatically and reports which version it drew.}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{tradeoff_recovered_prev2.pdf}
+\caption{What the intended figure looks like, recovered from an \textbf{older,
+pre-refactor run} --- shown to fix the form of the object, and \emph{not} as a
+result. Each point is one conditioning value $\lmb$ (labelled
+$\tau = 100\lmb$) evaluated on a single policy, so the joined line is the
+frontier that one policy spans; the axes are expected content and expected
+sentiment. Left: \rrebel{} ($\ell_1$) on the test split, tracing a clean
+monotone frontier from $(25, 88)$ at $\tau=0$ to $(72, 16)$ at $\tau=90$.
+Right: GRPO at step $540$, which does not trace a frontier --- but it is far too
+early in training for that to mean anything, which is exactly why this figure
+cannot stand in for the comparison. These are 2025 runs predating the fairness
+fixes, at unmatched steps, and they must not be read as the campaign result.}
+\label{fig:recovered}
+\end{figure}
+
+Figure~\ref{fig:recovered} shows the intended \emph{form} of the result,
+recovered from an older run whose per-$\lmb$ evaluation happened to survive.
+We include it only to make the target concrete: it is a pre-refactor run at an
+unmatched training step, so it carries no weight in the comparison.
 
 \subsection{Results at step 12{,}000}
 

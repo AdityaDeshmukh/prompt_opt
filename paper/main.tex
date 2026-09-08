@@ -59,10 +59,16 @@ GRPO on a Yelp negative-to-positive rewriting benchmark. Across five arms and
 three seeds trained for $12{,}000$ steps, the best \rrebel{} variants reach
 $39.3$ mean reward against $33.4$ for the strongest GRPO arm --- a $6.0$-point
 gap, six times the $1$-point evaluation noise floor, with \emph{every} \rrebel{}
-seed above \emph{every} GRPO seed. The GRPO baseline was both debugged (a
-reference-anchor defect worth $+4.1$ points) and tuned (an entropy bonus worth a
-further $+1.8$) before this comparison was drawn, so the remaining gap is not an
-artifact of an under-configured baseline.
+seed above \emph{every} GRPO seed. The GRPO baseline was first debugged (a
+reference-anchor defect worth $+4.1$ points) and then given the same
+exploration lever \rrebel{} has (a further $+1.8$), and the gap persisted. We
+also report, rather than suppress, two limitations that bound how far this
+comparison can be pushed: the reported metric is a $10$-sentence
+development-set score rather than the held-out test split, and because the
+pinned KL reference is numerically the uniform distribution, the GRPO arms
+carry an entropy bonus rather than a genuine trust region --- so the
+plain-GRPO arm collapses by step $500$ and is a collapse diagnostic, not a
+converged baseline.
 \end{abstract}
 
 \input{sections/intro}

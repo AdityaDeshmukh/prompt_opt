@@ -3,19 +3,21 @@
 
 \paragraph{Task and data.}
 Yelp sentiment transfer in the negative-to-positive direction
-(\texttt{direction} $= 0\!\to\!1$), with the standard train/dev/test splits.
-Content is measured by BERTScore against the source; sentiment by a
-\texttt{bert-base-uncased} classifier fine-tuned on Yelp. Reported numbers are
-on the test split.
+(\texttt{direction} $= 0\!\to\!1$). Content is measured by BERTScore against
+the source; sentiment by a \texttt{bert-base-uncased} classifier fine-tuned on
+Yelp.
 
 \paragraph{Models.}
 The policy is a \texttt{distilgpt2} backbone with a trained MLP adaptor head
-(hidden width $2048$) that emits a fixed-length $L=5$ token prompt; a
-$\lmb$-conditioning input is supplied to the head, and a logit bias of $-10$ is
-added to all prompt-token logits at initialization to encourage early
-exploration. The task model is \texttt{gpt2-xl}, \textbf{frozen} and
-inference-only in \texttt{bfloat16}, served through vLLM with top-$k=10$
-sampling. Only the adaptor is trained.
+(hidden width $2048$) that emits a fixed-length $L=5$ token prompt, with a
+$\lmb$-conditioning input supplied to the head. The head is initialized with
+Xavier-uniform weights at gain $10^{-4}$, which drives its output logits to
+zero, so \textbf{the initial prompt distribution is numerically uniform over
+the full $50{,}257$-token vocabulary}: the measured policy entropy at step $0$
+is $10.824904$ against $\ln 50257 = 10.824905$. This matters for GRPO and is
+revisited in Section~\ref{sec:algos-caveat}. The task model is
+\texttt{gpt2-xl}, \textbf{frozen} and inference-only in \texttt{bfloat16},
+served through vLLM with top-$k=10$ sampling. Only the adaptor is trained.
 
 \paragraph{Training.}
 $12{,}000$ steps; batch of $B=15$ sources per step with $\Ggrp=16$ prompts per
@@ -35,16 +37,31 @@ arms (plain, and with an entropy bonus $\alpha_H = 0.01$). A sixth,
 in Section~\ref{sec:grpo} --- is reported separately in
 Section~\ref{sec:baseline-defense} as the pre-fix baseline.
 
-\paragraph{Evaluation protocol.}
-Every $500$ steps the policy is evaluated on the test split over the
-$\lmb$ grid $\{0, 0.1, \dots, 0.9\}$, with a batch size of $50$. The headline
-metric is \emph{mean reward}: the reward of Eq.~\eqref{eq:reward} averaged over
-the test set and then over the ten $\lmb$ values. We also report content and
-sentiment averaged the same way. Because the frozen task model samples
-stochastically (\texttt{vllm\_seed} unset during the campaign), evaluation is
-noisy: re-running a single evaluation moved its score by $1.1$ points. We
-therefore treat $\mathbf{1.0}$ \textbf{point as a noise floor} and report
-differences below it as ties rather than rankings.
+\paragraph{Evaluation protocol, and a serious caveat about it.}
+Every $500$ steps the policy is evaluated over the $\lmb$ grid
+$\{0, 0.1, \dots, 0.9\}$. The headline metric is \emph{mean reward}: the reward
+of Eq.~\eqref{eq:reward} averaged over the evaluation set and then over the ten
+$\lmb$ values; content and sentiment are averaged the same way.
+
+The caveat is that this in-training evaluation runs on the \textbf{development
+split, capped at $10$ sentences} --- not on the $500$-sentence held-out test
+split. The cap is a speed hack in the data loader, and the training entry point
+passes the development set as the evaluation set. \textbf{Every number in
+this paper is therefore a $10$-sentence development-set number}, and no run in
+this campaign was ever evaluated on the test split. Two consequences we do not
+paper over: the effect sizes below carry a much wider confidence interval than
+three seeds would suggest, and the absolute values are not comparable to
+published test-split results. Evaluation is noisy for a second reason as well ---
+the frozen task model samples stochastically (\texttt{vllm\_seed} unset during
+the campaign), and re-running a single evaluation moved its score by $1.1$
+points --- so we treat $\mathbf{1.0}$ \textbf{point as a noise floor} and report
+differences below it as ties rather than rankings. The $6$-point family gap is
+well outside that floor; the sub-$2$-point gaps between variants are not
+resolvable at $n=10$.
+\todo{run the $500$-sentence test-split evaluation and report it as the primary
+table. \texttt{slurm/eval\_v4.slurm} does exactly this (it drives
+\texttt{run\_eval.py}, which uses the test split) for the regeneration
+campaign; the v3 numbers cannot be upgraded because their checkpoints are gone.}
 
 \paragraph{Compute.}
 Each run occupies one GPU ($\ge\!40$\,GB, natively bf16 --- L40S, A40, A100 or

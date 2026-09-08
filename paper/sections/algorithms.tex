@@ -49,11 +49,17 @@ Dr.\ GRPO does not apply in this setting. An optional entropy bonus
 $-\,\alpha_H H(\pol)$ may be added; it is off in the plain baseline.
 
 \paragraph{The clip is provably inert here, and this matters.}
-With a single update per rollout, the behaviour policy \emph{is} the current
-policy, so $\rho_{i,t} \equiv 1$ identically --- both in value and, since $1$
-lies strictly inside $[1-\epsilon_c, 1+\epsilon_c]$, in gradient. The two
-branches of the $\min$ therefore coincide, and Eq.~\eqref{eq:grpo} reduces to
-REINFORCE with a group-normalized advantage plus a KL penalty:
+With a single update per rollout the ratio is formed as
+$\rho_{i,t} = \exp\bigl(\log \pol(z_{i,t}) - \mathrm{sg}[\log \pol(z_{i,t})]\bigr)$,
+where $\mathrm{sg}[\cdot]$ is the stop-gradient, so $\rho_{i,t} \equiv 1$ in
+\emph{value} by construction. Because $1$ lies strictly inside
+$[1-\epsilon_c, 1+\epsilon_c]$, the clip passes its incoming gradient
+unchanged, so the two branches of the $\min$ coincide in value \emph{and} in
+gradient: it is the \textbf{clip}, not the ratio, that is inert. The ratio is
+not a constant --- $\nabla_\theta \rho_{i,t} = \nabla_\theta \log \pol(z_{i,t})
+\neq 0$, and this is precisely what carries the policy gradient. Hence
+Eq.~\eqref{eq:grpo} reduces to REINFORCE with a group-normalized advantage plus
+a KL penalty:
 \begin{equation}
   \nabla_\theta \mathcal{L}^{\mathrm{GRPO}}
   = -\frac{1}{\Ggrp L}\sum_{i,t} A_i \nabla_\theta \log \pol(z_{i,t})
@@ -78,6 +84,32 @@ staying within $\sim\!1\%$ of a reference that chases it. We therefore
 TRL's \texttt{sync\_ref\_model=False} default, verl's and OpenRLHF's frozen
 reference, and DeepSeekMath's once-per-outer-iteration re-anchoring.
 Section~\ref{sec:baseline-defense} reports what this fix is worth empirically.
+
+\paragraph{What the pinned anchor actually is, in this setting.}
+\label{sec:algos-caveat}
+Pinning the anchor at initialization has a consequence specific to this
+pipeline, and it is severe enough that it qualifies every GRPO result below.
+The policy at initialization is numerically \emph{uniform} over the
+$50{,}257$-token vocabulary (Section~\ref{sec:setup-exp}), so
+$\polref = \mathrm{Unif}$ and
+\begin{equation}
+  \beta_{\mathrm{KL}}\,\mathrm{KL}\bigl(\pol \,\|\, \mathrm{Unif}\bigr)
+  \;=\; \beta_{\mathrm{KL}}\bigl(\log V - H(\pol)\bigr),
+\end{equation}
+i.e.\ up to a constant the penalty is $-\beta_{\mathrm{KL}} H(\pol)$: an
+\textbf{entropy bonus, not a trust region}. It pulls the policy toward the
+uniform distribution rather than toward any competent reference. Two things
+follow that we take seriously rather than bury. First, the arm we call ``GRPO''
+is really REINFORCE with a group-normalized advantage and an entropy
+coefficient of $0.04$; it has no trust region at all. Second, the
+``GRPO + entropy'' arm adds an explicit $\alpha_H = 0.01$ on top of that, so
+the two GRPO arms differ only in the strength of the \emph{same}
+anti-collapse lever ($0.04$ versus $0.05$ in comparable units) --- they are not
+two independent configurations, and we no longer claim they are.
+\todo{the honest fix is a GRPO baseline whose reference is a competent
+(supervised-fine-tuned or at least trained) policy, so that the KL is a real
+trust region. That is the single most important missing experiment in this
+paper.}
 
 \begin{algorithm}[t]
 \caption{GRPO as implemented (one update per rollout, pinned KL anchor)}

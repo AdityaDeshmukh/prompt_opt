@@ -4,20 +4,43 @@
 We state these plainly, because several of them bound how strongly the headline
 comparison can be read.
 
-\paragraph{The reference policy is not a competent model.}
-GRPO's pinned $\polref$ is the policy at initialization: an untrained MLP
-adaptor head with a $-10$ logit bias, i.e.\ a near-uniform, high-entropy prompt
-distribution --- not a supervised-fine-tuned model as in canonical RLHF
-pipelines. Pinning such an anchor is a genuine departure from canonical GRPO.
-It is anti-collapse, so it works in GRPO's favour here, but it also means the KL
-term pulls toward high entropy rather than toward a good policy, and a GRPO run
-starting from a competent reference might behave differently. This is the single
-most important caveat on the comparison.
+\paragraph{The evaluation metric is a 10-sentence dev score, not the test split.}
+As Section~\ref{sec:setup-exp} states, the in-training evaluation runs on the
+development split capped at $10$ sentences, and no run in this campaign was
+ever evaluated on the $500$-sentence held-out test split. Every number in this
+paper inherits that. The $6$-point family gap is large relative to the measured
+$1$-point noise floor and we expect it to survive, but the confidence interval
+at $n=10$ is much wider than ``three seeds'' suggests, the sub-$2$-point
+variant gaps are not resolvable, and the absolute values are not comparable to
+test-split numbers in the literature. This is the single most important caveat
+on the results.
 
-\paragraph{The tradeoff curve itself is not yet measured.}
+\paragraph{GRPO's reference policy is uniform, so its KL is not a trust region.}
+The pinned $\polref$ is the policy at initialization, which in this
+configuration is numerically the uniform distribution over the $50{,}257$-token
+vocabulary (Section~\ref{sec:algos-caveat}). The KL penalty is therefore an
+entropy bonus up to a constant, not a trust region toward a competent
+reference, and the two GRPO arms are two settings of one anti-collapse lever
+rather than two independent configurations. A GRPO baseline anchored on a
+supervised-fine-tuned policy is the missing experiment, and until it is run our
+claim should be read as being about GRPO \emph{in this single-update,
+uniform-reference regime}, not about GRPO in general.
+
+\paragraph{Optimizer state does not survive a resume.}
+Checkpoints store the model's parameters only, and the optimizer is rebuilt on
+each resume, so every run is really a sequence of $\sim\!20$ Adam warm restarts
+with zeroed moments rather than one continuous trajectory. Cycle counts happen
+to be close across arms ($63$--$65$), so this is not a systematic handicap to
+either family, but it is a methodological defect and it should be fixed before
+publication.
+\todo{save and restore optimizer state in
+\texttt{ScoreTrainer.\_save\_checkpoint}.}
+
+\paragraph{The tradeoff curve itself is not yet measured for these arms.}
 As Sections~\ref{sec:tradeoff} and~\ref{sec:provenance} explain, the per-$\lmb$
-frontier --- the figure this paper is nominally about --- is pending a rerun.
-Everything reported here is $\lmb$-averaged. It remains possible that two arms
+frontier --- the figure this paper is nominally about --- is pending a rerun for
+the campaign arms; Figure~\ref{fig:recovered} shows the object for an older run
+only. Everything reported here for the campaign is $\lmb$-averaged. It remains possible that two arms
 with similar average reward have differently-shaped curves, and the dominance
 claim of Figure~\ref{fig:tradeoff} is about averaged operating points, not about
 pointwise dominance across $\lmb$.
@@ -33,8 +56,8 @@ Three seeds per arm and a $1.0$-point noise floor are enough to separate the
 families ($6.0$ points) but not to rank variants within a family; we
 consequently report the top two \rrebel{} variants as tied and draw no
 conclusion between them. The noise floor is itself estimated from a single
-repeated evaluation, so it is an order-of-magnitude figure rather than a
-calibrated standard error.
+repeated evaluation on $10$ sentences, so it is an order-of-magnitude figure
+rather than a calibrated standard error.
 
 \paragraph{The style classifier used at evaluation.}
 The evaluation entry point requests the \emph{train}-split style classifier
@@ -51,8 +74,9 @@ All results are Yelp negative-to-positive with a \texttt{gpt2-xl} task model and
 $5$-token prompts. We make no claim about other datasets, other transfer
 directions, longer prompts, or larger task models. In particular, the inert-clip
 argument of Section~\ref{sec:grpo} is a property of the single-update regime; a
-pipeline that takes multiple epochs per rollout would keep GRPO's trust region
-live and might close some of the gap.
+pipeline that takes multiple epochs per rollout would keep the clip live --- a
+real trust region, unlike the uniform-reference KL analysed in
+Section~\ref{sec:algos-caveat} --- and might close some of the gap.
 
 \paragraph{Scope of this draft.}
 Per its stated scope, this draft presents the algorithms and the results.

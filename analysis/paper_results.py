@@ -150,24 +150,67 @@ def trajectory(runs, key="score"):
             [len(acc[s]) for s in steps])
 
 
-def load_v4_frontiers():
-    """arm -> (lambdas, contents, styles) from the v4 per-lambda test evals."""
-    out = {}
-    for path in sorted(glob.glob(V4_GLOB)):
-        run = os.path.basename(os.path.dirname(os.path.dirname(path)))
-        arm = run.replace("v4_", "").rsplit("_seed", 1)[0]
-        with open(path) as f:
-            d = json.load(f)
-        acc = defaultdict(lambda: ([], []))
-        for lam, mc, ms in zip(d["lmbdas"], d["mean_contents"], d["mean_styles"]):
-            k = round(float(lam[0] if isinstance(lam, list) else lam), 3)
+def frontier_from_json(path):
+    """(lambdas, contents, styles) from one per-lambda eval JSON.
+
+    Handles both on-disk layouts. evaluate() appends one entry per
+    (batch, lambda), and `lmbdas` entries are per-row lists in some runs and
+    bare floats in others, while mean_contents/mean_styles are either a scalar
+    per entry or a list per entry. Everything is regrouped by lambda and
+    averaged, so the result is the expected content and expected sentiment at
+    each lambda -- the two axes of the tradeoff curve.
+    """
+    with open(path) as f:
+        d = json.load(f)
+    acc = defaultdict(lambda: ([], []))
+    for lam, mc, ms in zip(d["lmbdas"], d["mean_contents"], d["mean_styles"]):
+        k = round(float(lam[0] if isinstance(lam, list) else lam), 3)
+        if isinstance(mc, list):
+            acc[k][0].extend(mc)
+            acc[k][1].extend(ms)
+        else:
             acc[k][0].append(mc)
             acc[k][1].append(ms)
-        lams = sorted(acc)
-        out[arm] = (lams,
-                    [mean(acc[l][0]) for l in lams],
-                    [mean(acc[l][1]) for l in lams])
-    return out
+    lams = sorted(acc)
+    return (lams,
+            [mean(acc[l][0]) for l in lams],
+            [mean(acc[l][1]) for l in lams])
+
+
+def load_v4_frontiers():
+    """arm -> frontier, preferring the final fixed-seed test eval.
+
+    Falls back to the newest train-time per-lambda eval, which exists ~500
+    steps into a run and therefore gives a real curve long before the 12000-step
+    test eval does. Returns (frontiers, source) so the caption can say which.
+    """
+    test = {}
+    for path in sorted(glob.glob(V4_GLOB)):
+        run = os.path.basename(os.path.dirname(os.path.dirname(path)))
+        test[run.replace("v4_", "").rsplit("_seed", 1)[0]] = frontier_from_json(path)
+    if test:
+        return test, "test"
+
+    train = {}
+    pat = os.path.join(ROOT, "results", "v4", "*", "eval", "outputs.step.*.json")
+    by_arm = defaultdict(list)
+    for path in glob.glob(pat):
+        run = os.path.basename(os.path.dirname(os.path.dirname(path)))
+        arm = run.replace("v4_", "").rsplit("_seed", 1)[0]
+        step = int(path.rsplit("step.", 1)[1].split(".json")[0])
+        by_arm[arm].append((step, path))
+    if not by_arm:
+        return {}, None
+    # matched step: the newest step every arm has reached, so no arm is shown
+    # with more training than another
+    common = set.intersection(*[{s for s, _ in v} for v in by_arm.values()])
+    if not common:
+        return {}, None
+    step = max(common)
+    for arm, items in by_arm.items():
+        path = dict(items)[step]
+        train[arm] = frontier_from_json(path)
+    return train, f"train@{step}"
 
 
 def setup_mpl():
@@ -189,23 +232,53 @@ def setup_mpl():
     return plt
 
 
+def draw_frontier(ax, frontiers, arms=ARM_ORDER, annotate=True):
+    """The tradeoff curve proper: expected sentiment against expected content,
+    one point per lambda, joined in lambda order, tau = 100*lambda labelled.
+
+    This is the figure the paper is about. Each point is an operating point of
+    ONE policy at one conditioning value, so the joined line is the frontier
+    that single policy spans -- not a fit and not an average over lambda.
+    """
+    drawn = 0
+    for arm in arms:
+        if arm not in frontiers:
+            continue
+        lams, c, s = frontiers[arm]
+        col, ls, mk = STYLE[arm]
+        ax.plot(c, s, ls, color=col, marker=mk, markersize=5,
+                markerfacecolor="white", markeredgecolor=col,
+                markeredgewidth=1.3, label=LABEL[arm], zorder=3)
+        drawn += 1
+        if annotate and drawn == 1:
+            # tau labels on one curve only; on every curve they collide
+            for i, (lam, x, y) in enumerate(zip(lams, c, s)):
+                dx, dy = ((-8, -12) if i % 2 == 0 else (9, 5))
+                ax.annotate(rf"$\tau={int(round(100 * lam))}$", (x, y),
+                            textcoords="offset points", xytext=(dx, dy),
+                            ha="center", fontsize=6.5, color=MUTED)
+    ax.set_xlabel("Expected content score")
+    ax.set_ylabel("Expected sentiment score")
+    ax.set_xlim(0, 100)
+    ax.set_ylim(0, 100)
+    ax.set_aspect("equal", adjustable="box")
+    return drawn
+
+
 def fig_tradeoff(data, plt, balanced_step):
-    """Content vs sentiment. Real lambda-frontiers if v4 exists, else the
-    lambda-averaged operating points -- never a fake curve."""
-    v4 = load_v4_frontiers()
-    fig, ax = plt.subplots(figsize=(4.6, 3.6))
+    """Content vs sentiment. The real per-lambda frontier when v4 data exists;
+    otherwise the lambda-averaged operating points, labelled as not a curve."""
+    v4, source = load_v4_frontiers()
+    fig, ax = plt.subplots(figsize=(4.8, 4.4))
 
     if v4:
-        for arm in ARM_ORDER:
-            if arm not in v4:
-                continue
-            lams, c, s = v4[arm]
-            col, ls, mk = STYLE[arm]
-            ax.plot(c, s, ls, color=col, marker=mk, markersize=4.5,
-                    markerfacecolor="white", markeredgecolor=col,
-                    markeredgewidth=1.4, label=LABEL[arm])
-        ax.set_title("Content-sentiment tradeoff curve\n"
-                     r"(step 12000, $\lambda$ swept $0 \to 0.9$)")
+        draw_frontier(ax, v4)
+        where = ("step 12000, fixed-seed test eval" if source == "test"
+                 else f"matched {source.replace('train@', 'step ')}, "
+                      "train-time eval")
+        ax.set_title("Content--sentiment tradeoff curve\n"
+                     rf"($\lambda$ swept $0 \to 0.9$; {where})")
+        ax.legend(loc="upper right", fontsize=7.5)
     else:
         for arm in ARM_ORDER:
             got = at_step(data["arms"][arm], balanced_step)
@@ -233,18 +306,72 @@ def fig_tradeoff(data, plt, balanced_step):
                 ha="right", va="bottom", fontsize=7.5, color=MUTED,
                 linespacing=1.25)
 
-    ax.set_xlabel("Content score")
-    ax.set_ylabel("Sentiment score")
-    # Legend below the axes: with a zoomed scatter there is no empty corner
-    # inside the frame, and a legend over the marks hides data.
-    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.26), ncol=2,
-              handletextpad=0.4, columnspacing=1.2, borderaxespad=0)
+        ax.set_xlabel("Content score")
+        ax.set_ylabel("Sentiment score")
+        # Legend below the axes: with a zoomed scatter there is no empty corner
+        # inside the frame, and a legend over the marks hides data.
+        ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.26), ncol=2,
+                  handletextpad=0.4, columnspacing=1.2, borderaxespad=0)
+
     out = os.path.join(FIGDIR, "tradeoff.pdf")
     fig.savefig(out)
     plt.close(fig)
     print(f"  wrote {out}" + ("  [true lambda-frontier from v4]" if v4 else
                               "  [lambda-averaged operating points; v4 pending]"))
     return bool(v4)
+
+
+def fig_recovered_frontier(plt):
+    """The real tradeoff curve from the only per-lambda evals that survive.
+
+    PROVENANCE, and why this is not the paper's result: these five JSONs were
+    recovered from the editor's local file history (see
+    results/recovered_prev2/README.md). They are 2025, PRE-v2 runs -- different
+    code, before the fairness fixes, at wildly different training steps -- so
+    they must never be read as the v3 GRPO-vs-R-REBEL comparison. What they do
+    establish is the SHAPE of the object: expected sentiment against expected
+    content, one point per lambda, for a single conditioned policy.
+    """
+    rec = os.path.join(ROOT, "results", "recovered_prev2")
+    items = [  # (file, label, style key, step note)
+        ("new_l1_scaled_test_output.json", r"R-REBEL ($\ell_1$)",
+         "rrebel_l1_std", "test split, converged"),
+        ("grpo_eval_step540.json", "GRPO", "grpo", "step 540 only"),
+    ]
+    have = [(f, lab, k, note) for f, lab, k, note in items
+            if os.path.exists(os.path.join(rec, f))]
+    if not have:
+        return False
+
+    fig, axes = plt.subplots(1, len(have), figsize=(4.4 * len(have), 4.3))
+    if len(have) == 1:
+        axes = [axes]
+    for ax, (fn, lab, key, note) in zip(axes, have):
+        lams, c, s = frontier_from_json(os.path.join(rec, fn))
+        col, ls, mk = STYLE[key]
+        ax.plot(c, s, ls, color=col, marker=mk, markersize=5,
+                markerfacecolor="white", markeredgecolor=col,
+                markeredgewidth=1.3, zorder=3)
+        # alternate the offset: at the crowded ends of the curve consecutive
+        # lambdas sit almost on top of each other and one fixed offset collides
+        for i, (lam, x, y) in enumerate(zip(lams, c, s)):
+            dx, dy = ((-8, -12) if i % 2 == 0 else (9, 5))
+            ax.annotate(rf"$\tau={int(round(100 * lam))}$", (x, y),
+                        textcoords="offset points", xytext=(dx, dy),
+                        ha="center", fontsize=6.5, color=MUTED)
+        ax.set_xlim(0, 100)
+        ax.set_ylim(0, 100)
+        ax.set_aspect("equal", adjustable="box")
+        ax.set_xlabel("Expected content score")
+        ax.set_title(f"{lab}\n({note})")
+    axes[0].set_ylabel("Expected sentiment score")
+    fig.suptitle("Recovered pre-v2 runs (2025) -- shape only, NOT the v3 comparison",
+                 fontsize=8.5, color=INK2, y=1.0)
+    out = os.path.join(FIGDIR, "tradeoff_recovered_prev2.pdf")
+    fig.savefig(out)
+    plt.close(fig)
+    print(f"  wrote {out}  [recovered pre-v2 per-lambda evals]")
+    return True
 
 
 def fig_learning(data, plt):
@@ -370,6 +497,7 @@ def main():
     plt = setup_mpl()
     print("figures:")
     have_frontier = fig_tradeoff(data, plt, bal)
+    fig_recovered_frontier(plt)
     fig_learning(data, plt)
     fig_components(data, plt)
     fig_baseline_debug(data, plt)
