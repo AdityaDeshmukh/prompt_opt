@@ -186,39 +186,35 @@ def frontier_from_json(path):
 
 
 def load_v4_frontiers():
-    """arm -> frontier, preferring the final fixed-seed test eval.
+    """arm -> per-lambda frontier, from the TEST-split evals only.
 
-    Falls back to the newest train-time per-lambda eval, which exists ~500
-    steps into a run and therefore gives a real curve long before the 12000-step
-    test eval does. Returns (frontiers, source) so the caption can say which.
+    Source is results/v4/<run>/test/output*.json, written by run_eval.py via
+    slurm/eval_v4.slurm: the 500-sentence held-out test split, fp32 scorers,
+    fixed vLLM seed.
+
+    Deliberately does NOT fall back to the train-time
+    eval/outputs.step.*.json files. Those are produced by ScoreTrainer's
+    in-training evaluation, which runs on the DEVELOPMENT split capped at 10
+    sentences (run_tst_multi_obj.py passes val_dataset; tst_helpers.py caps
+    Yelp dev to max_size=10). A dev-10 curve is not the figure this paper
+    needs, and quietly substituting one would repeat exactly the mistake the
+    audit caught. To get a test-split frontier before training reaches 12000,
+    run slurm/eval_v4.slurm -- it evaluates the newest available checkpoint and
+    records the step in the output filename.
+
+    Returns (frontiers, step) where step is the checkpoint step the curves came
+    from, so the caption can state it.
     """
-    test = {}
+    out, steps = {}, set()
     for path in sorted(glob.glob(V4_GLOB)):
         run = os.path.basename(os.path.dirname(os.path.dirname(path)))
-        test[run.replace("v4_", "").rsplit("_seed", 1)[0]] = frontier_from_json(path)
-    if test:
-        return test, "test"
-
-    train = {}
-    pat = os.path.join(ROOT, "results", "v4", "*", "eval", "outputs.step.*.json")
-    by_arm = defaultdict(list)
-    for path in glob.glob(pat):
-        run = os.path.basename(os.path.dirname(os.path.dirname(path)))
         arm = run.replace("v4_", "").rsplit("_seed", 1)[0]
-        step = int(path.rsplit("step.", 1)[1].split(".json")[0])
-        by_arm[arm].append((step, path))
-    if not by_arm:
-        return {}, None
-    # matched step: the newest step every arm has reached, so no arm is shown
-    # with more training than another
-    common = set.intersection(*[{s for s, _ in v} for v in by_arm.values()])
-    if not common:
-        return {}, None
-    step = max(common)
-    for arm, items in by_arm.items():
-        path = dict(items)[step]
-        train[arm] = frontier_from_json(path)
-    return train, f"train@{step}"
+        out[arm] = frontier_from_json(path)
+        base = os.path.basename(path)
+        if ".step." in base:
+            steps.add(int(base.split(".step.")[1].split(".json")[0]))
+    step = max(steps) if steps else None
+    return out, step
 
 
 def setup_mpl():
@@ -276,7 +272,7 @@ def draw_frontier(ax, frontiers, arms=ARM_ORDER, annotate=True):
 def fig_tradeoff(data, plt, balanced_step):
     """Content vs sentiment. The real per-lambda frontier when v4 data exists;
     otherwise the lambda-averaged operating points, labelled as not a curve."""
-    v4, source = load_v4_frontiers()
+    v4, v4_step = load_v4_frontiers()
     fig, ax = plt.subplots(figsize=(4.8, 4.4))
 
     if v4:
@@ -472,6 +468,9 @@ def fig_baseline_debug(data, plt):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--tex", action="store_true", help="emit LaTeX tables")
+    ap.add_argument("--recovered", action="store_true",
+                    help="also plot the recovered PRE-v2 per-lambda curves "
+                         "(reference only; never a paper figure)")
     args = ap.parse_args()
 
     data = load()
@@ -512,7 +511,11 @@ def main():
     plt = setup_mpl()
     print("figures:")
     have_frontier = fig_tradeoff(data, plt, bal)
-    fig_recovered_frontier(plt)
+    # NOT drawn by default: the recovered pre-v2 curves are 2025 runs and must
+    # never appear in the paper as a result. --recovered draws them for
+    # reference only, into a filename the paper does not \includegraphics.
+    if args.recovered:
+        fig_recovered_frontier(plt)
     fig_learning(data, plt)
     fig_components(data, plt)
     fig_baseline_debug(data, plt)

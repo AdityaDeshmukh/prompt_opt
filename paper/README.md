@@ -55,16 +55,28 @@ The v3 campaign completed, but `/scratch` was purged around 2026-09-03..05 and
    from the purged eval JSONs. The surviving `num_tokens_explored` metric cannot
    substitute — it is a per-process cumulative set that restarts on every 4-hour
    resubmit, so its peak reflects early exploration, not steady-state collapse.
+5. **No pre-v2 data goes in the paper.** Five per-lambda eval JSONs recovered
+   from editor history live in `results/recovered_prev2/`, but they are 2025 runs
+   from before the fairness fixes. `analysis/paper_results.py` will only plot
+   them under an explicit `--recovered` flag, into a filename the paper does not
+   include. Do not re-add them.
 
 ## Getting the frontier figure
 
-`slurm/train_v4.slurm` retrains one seed per arm (5 runs x 12000 steps) purely
-to regenerate the per-lambda evals; its EXIT trap auto-submits
-`slurm/eval_v4.slurm` per arm on completion, which writes
-`results/v4/<run>/test/output*.json` with a fixed vLLM seed. `paper_results.py`
-detects those files and switches `tradeoff.pdf` from operating points to the
-true frontier automatically, printing which version it drew. No text change is
-needed beyond removing the TODO in §5.5 and the caveat in §6.
+`slurm/train_v4.slurm` retrains one seed per arm (3 runs x 12000 steps:
+rrebel_l1_std, grpo_ent, grpo_baseref) purely to regenerate the per-lambda
+evals; its EXIT trap auto-submits `slurm/eval_v4.slurm` per arm on completion,
+which writes `results/v4/<run>/test/output*.json` -- the **500-sentence test
+split**, fp32 scorers, fixed vLLM seed. `paper_results.py` detects those files
+and switches `tradeoff.pdf` from operating points to the true frontier
+automatically, printing the step it drew. No text change is needed beyond
+removing the TODO in the tradeoff subsection and the caveat in the limitations.
+
+`eval_v4.slurm` evaluates the **newest available checkpoint** when step 12000 is
+absent, so a real test-split frontier can be produced mid-training -- submit it
+by hand once checkpoints exist. It never reads the train-time
+`eval/outputs.step.*.json` files, and neither does the figure code: those are
+the 10-sentence DEV evals, not test.
 
 Both v4 scripts archive to `results/v4/` in **home** after every cycle — that is
 the fix for the root cause of the data loss above. Nothing a paper depends on

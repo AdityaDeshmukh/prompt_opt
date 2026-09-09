@@ -79,7 +79,11 @@ report_to_wandb: true
 project_name: "multi-objective-prompt-opt"
 run_name: null
 # Prompted Text Style Transfer Score (tst_helpers.py)
-task_lm: "gpt2-xl"
+# Canonical repo id. The legacy single-segment alias "gpt2-xl" is DEAD with
+# huggingface_hub >= 1.x: "Repository id must be 'namespace/name'". Same weights
+# (snapshot 15ea56de...), so this is comparability-safe -- it is a rename, not a
+# different model.
+task_lm: "openai-community/gpt2-xl"
 task_lm_dtype: "bfloat16" # dtype for the (frozen, inference-only) task LM
 task_lm_backend: "vllm" # 'vllm' (fast; falls back to hf if not installed) or 'hf'
 vllm_gpu_memory_utilization: 0.35 # fraction of GPU memory the vLLM engine may use

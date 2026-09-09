@@ -53,7 +53,13 @@ PY=/u/ad11/miniconda3/envs/prompt_opt_v3/bin/python
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 export PYTHONUNBUFFERED=1
 export VLLM_LOGGING_LEVEL=WARNING
-export VLLM_USE_FLASHINFER_SAMPLER=0  # native torch sampler; flashinfer needs ninja+nvcc JIT
+export VLLM_USE_FLASHINFER_SAMPLER=0
+# HF cache lives on scratch (home quota is 100G). Set it EXPLICITLY rather than
+# relying on the ~/.cache/huggingface symlink: the 2026-09 purge deleted the
+# gpt2-xl weight blob while leaving its cache directory in place, so vLLM tried
+# to re-download on a compute node and died with a confusing 404. Weights were
+# restored 2026-09-09 (6.43 GB safetensors, snapshot 15ea56de...).
+export HF_HOME=/scratch/ad11/hf_cache  # native torch sampler; flashinfer needs ninja+nvcc JIT
 
 MAX_STEPS=12000
 MAX_NOPROGRESS_RETRIES=3

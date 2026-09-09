@@ -11,8 +11,10 @@ where all fifteen runs are present.
 \input{tables/main_results}
 \caption{Mean reward, content, and sentiment at matched step $11{,}500$ ---
 the largest step at which every arm has all three seeds. Reward is averaged
-over the test set and then over the $\lmb$ grid $\{0,\dots,0.9\}$. All
-quantities are on a $0$--$100$ scale.}
+over the evaluation set and then over the $\lmb$ grid $\{0,\dots,0.9\}$. All
+quantities are on a $0$--$100$ scale. Note the evaluation set here is the
+$10$-sentence development split, not the held-out test split
+(Section~\ref{sec:setup-exp}).}
 \label{tab:main}
 \end{table}
 
@@ -220,27 +222,6 @@ remains open until the rerun completes.
 \texttt{results/v4/*/test/output*.json}; \texttt{analysis/paper\_results.py}
 switches the figure over automatically and reports which version it drew.}
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=\textwidth]{tradeoff_recovered_prev2.pdf}
-\caption{What the intended figure looks like, recovered from an \textbf{older,
-pre-refactor run} --- shown to fix the form of the object, and \emph{not} as a
-result. Each point is one conditioning value $\lmb$ (labelled
-$\tau = 100\lmb$) evaluated on a single policy, so the joined line is the
-frontier that one policy spans; the axes are expected content and expected
-sentiment. Left: \rrebel{} ($\ell_1$) on the test split, tracing a clean
-monotone frontier from $(25, 88)$ at $\tau=0$ to $(72, 16)$ at $\tau=90$.
-Right: GRPO at step $540$, which does not trace a frontier --- but it is far too
-early in training for that to mean anything, which is exactly why this figure
-cannot stand in for the comparison. These are 2025 runs predating the fairness
-fixes, at unmatched steps, and they must not be read as the campaign result.}
-\label{fig:recovered}
-\end{figure}
-
-Figure~\ref{fig:recovered} shows the intended \emph{form} of the result,
-recovered from an older run whose per-$\lmb$ evaluation happened to survive.
-We include it only to make the target concrete: it is a pre-refactor run at an
-unmatched training step, so it carries no weight in the comparison.
 
 \subsection{Results at step 12{,}000}
 
