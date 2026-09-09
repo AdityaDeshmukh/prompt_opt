@@ -127,22 +127,23 @@ latest_step() {  # highest checkpoint step, or 0
 }
 
 archive_cycle() {
-    # Copy the per-lambda eval JSONs (small, and the ONLY source of the
-    # tradeoff curve) plus the newest checkpoint into home. Runs every cycle,
-    # not just at the end, so a purge or a dead chain can never again cost us
-    # the whole campaign. cp -u = only changed/new files.
-    local n=0 newest
+    # Copy the eval JSONs into home. cp -u = only changed/new files.
+    #
+    # CHECKPOINTS ARE NOT COPIED HERE. ScoreTrainer._mirror_checkpoint does it
+    # on the checkpoint-save event itself (ckpt_mirror_dir below), which is
+    # strictly better: it fires every save_steps=150 rather than once per 4h
+    # cycle, and it survives a SIGKILL/node-failure that would skip this trap.
+    # Doing it in both places would just keep two ~750MB copies per run in a
+    # 100G-quota home.
+    local n=0
     if [ -d "$EVAL_DIR" ]; then
         cp -u ${EVAL_DIR}/outputs.step.*.json "${ARCHIVE_DIR}/eval/" 2>/dev/null
         n=$(ls -1 ${ARCHIVE_DIR}/eval/outputs.step.*.json 2>/dev/null | wc -l)
     fi
-    newest=$(ls -1v ${CKPT_DIR}/ckpt.step.*.pth 2>/dev/null | tail -1)
-    if [ -n "$newest" ]; then
-        cp -u "$newest" "${ARCHIVE_DIR}/" 2>/dev/null
-        # keep only the newest archived checkpoint (home quota is 100G)
-        ls -1v ${ARCHIVE_DIR}/ckpt.step.*.pth 2>/dev/null | head -n -1 | xargs -r rm -f
-    fi
-    echo "[$(date)] ${RUN}: archived ${n} eval JSONs + $(basename "${newest:-none}") -> ${ARCHIVE_DIR}"
+    # drop any checkpoint left by the pre-mirror version of this script
+    ls -1v ${ARCHIVE_DIR}/ckpt.step.*.pth 2>/dev/null | xargs -r rm -f
+    echo "[$(date)] ${RUN}: archived ${n} eval JSONs -> ${ARCHIVE_DIR}"
+    echo "[$(date)] ${RUN}: mirrored checkpoint: $(cat ${ARCHIVE_DIR}/ckpt.latest.step 2>/dev/null || echo none)"
 }
 
 START_STEP=$(latest_step)
@@ -209,6 +210,7 @@ timeout 13200 $PY run_tst_multi_obj.py \
         eval_steps=500 \
         run_name=${WANDB_NAME} \
         save_dir=${RUN_DIR} \
+        ckpt_mirror_dir=${ARCHIVE_DIR} \
         ${ALGO_ARGS} \
         ${CKPT_ARG}
 rc=$?

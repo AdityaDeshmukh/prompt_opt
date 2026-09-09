@@ -72,6 +72,12 @@ save_dir: "./outputs"
 save_steps: 150
 # Checkpoint params
 checkpoint_path: null
+# Directory (outside purgeable /scratch) that receives a copy of the newest
+# checkpoint on every save: exactly one ckpt.latest.pth per run, replaced in
+# place, plus a ckpt.latest.step marker. null = disabled. Set per-run by
+# slurm/train_v4.slurm. Exists because the 2026-09 /scratch purge destroyed
+# every checkpoint of a completed campaign.
+ckpt_mirror_dir: null
 # Random seed
 random_seed: null
 # Wandb reporting

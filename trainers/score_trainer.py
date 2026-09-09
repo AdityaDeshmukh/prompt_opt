@@ -3,6 +3,7 @@ import numpy as np
 from torch.utils.data import Dataset, DataLoader
 from typing import Optional, Dict, Any, Union, List
 import os
+import shutil
 import wandb
 import json
 import click
@@ -46,6 +47,10 @@ class ScoreTrainer:
         self.do_save = config.do_save
         self.save_dir = config.save_dir
         self.save_steps = config.save_steps
+        # Off-scratch mirror of the newest checkpoint (see _mirror_checkpoint).
+        # None/empty = disabled, so runs that don't set it behave exactly as
+        # before.
+        self.ckpt_mirror_dir = config.get('ckpt_mirror_dir', None)
         self.saved_steps: int = -1
 
         self.train_op, self.zero_grad_op = get_default_train_op(
@@ -80,6 +85,47 @@ class ScoreTrainer:
         torch.save({"steps": total_steps,
                     "model_state_dict": self.module.state_dict()}, tmp_path)
         os.replace(tmp_path, ckpt_path)
+        self._mirror_checkpoint(ckpt_path, total_steps)
+
+    def _mirror_checkpoint(self, ckpt_path: str, total_steps: int) -> None:
+        """Keep an off-scratch copy of the newest checkpoint, replaced in place.
+
+        Why this exists: /scratch is purgeable, and the 2026-09 purge destroyed
+        every checkpoint of a completed 15-run campaign. Anything a paper
+        depends on must also exist somewhere that is not purgeable.
+
+        Why it lives HERE rather than in the SLURM script: this runs on the
+        checkpoint-save event itself, so nothing has to poll or watch the
+        filesystem, and it fires even if the job is later killed in a way that
+        skips the shell's EXIT trap (SIGKILL, node failure, preemption).
+
+        Footprint is bounded BY DESIGN -- exactly one .pth per run, overwritten
+        in place -- because unbounded growth in home is what killed the v2
+        campaign when it hit the 100G quota. The step number is stored inside
+        the checkpoint (key "steps") so a fixed filename loses no information;
+        a one-line .step marker is written alongside it so the current step is
+        readable without loading ~750MB of tensors.
+
+        Never fatal: a failed mirror (quota, Lustre hiccup, missing dir) warns
+        and training continues. Losing the mirror is bad; losing the run is
+        worse.
+        """
+        mirror_dir = getattr(self, "ckpt_mirror_dir", None)
+        if not mirror_dir:
+            return
+        try:
+            os.makedirs(mirror_dir, exist_ok=True)
+            dst = os.path.join(mirror_dir, "ckpt.latest.pth")
+            tmp = dst + ".tmp"
+            shutil.copyfile(ckpt_path, tmp)
+            os.replace(tmp, dst)          # atomic swap; readers never see a partial file
+            with open(os.path.join(mirror_dir, "ckpt.latest.step"), "w") as f:
+                f.write(f"{total_steps}\n")
+            print(f"mirrored step {total_steps} -> {dst} "
+                  f"({os.path.getsize(dst) / 1e6:.0f} MB)", flush=True)
+        except Exception as e:
+            print(f"WARNING: checkpoint mirror to {mirror_dir} failed "
+                  f"({type(e).__name__}: {e}); training continues", flush=True)
 
     def _get_train_dataloader(self) -> DataLoader:
         return DataLoader(self.train_dataset,
