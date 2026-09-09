@@ -277,11 +277,10 @@ def fig_tradeoff(data, plt, balanced_step):
 
     if v4:
         draw_frontier(ax, v4)
-        where = ("step 12000, fixed-seed test eval" if source == "test"
-                 else f"matched {source.replace('train@', 'step ')}, "
-                      "train-time eval")
+        where = f"step {v4_step:,}" if v4_step else "final checkpoint"
         ax.set_title("Content--sentiment tradeoff curve\n"
-                     rf"($\lambda$ swept $0 \to 0.9$; {where})")
+                     rf"($\lambda$ swept $0 \to 0.9$; {where}, "
+                     "500-sentence test split)")
         ax.legend(loc="upper right", fontsize=7.5)
     else:
         for arm in ARM_ORDER:
@@ -465,6 +464,73 @@ def fig_baseline_debug(data, plt):
     print(f"  wrote {out}")
 
 
+def v4_test_table():
+    """Test-split results for the v4 arms, from the same JSONs as the frontier.
+
+    This is the table the v3 numbers could not provide: the 500-sentence
+    held-out test split rather than the 10-sentence dev split
+    (AUDIT.md finding 1). Aggregation matches ScoreTrainer.evaluate() -- mean
+    over the evaluation set, then mean over the lambda grid -- so the reward
+    column is directly comparable in construction to the v3 tables, even though
+    the underlying split differs. Returns [] when no test eval exists yet.
+    """
+    rows = []
+    for path in sorted(glob.glob(V4_GLOB)):
+        run = os.path.basename(os.path.dirname(os.path.dirname(path)))
+        arm = run.replace("v4_", "").rsplit("_seed", 1)[0]
+        with open(path) as f:
+            d = json.load(f)
+        acc = defaultdict(lambda: ([], [], []))
+        for lam, sc, mc, ms in zip(d["lmbdas"], d["mean_scores"],
+                                   d["mean_contents"], d["mean_styles"]):
+            k = round(float(lam[0] if isinstance(lam, list) else lam), 3)
+            for i, v in enumerate((sc, mc, ms)):
+                acc[k][i].extend(v if isinstance(v, list) else [v])
+        lams = sorted(acc)
+        base = os.path.basename(path)
+        step = (int(base.split(".step.")[1].split(".json")[0])
+                if ".step." in base else None)
+        rows.append({
+            "arm": arm, "step": step, "n_lambda": len(lams),
+            "score": mean([mean(acc[l][0]) for l in lams]),
+            "content": mean([mean(acc[l][1]) for l in lams]),
+            "style": mean([mean(acc[l][2]) for l in lams]),
+        })
+    rows.sort(key=lambda r: -r["score"])
+    return rows
+
+
+def print_v4_test_table(rows):
+    print("=" * 78)
+    print("v4 TEST SPLIT (500 sentences, fp32 scorers, fixed vLLM seed) -- 1 seed/arm")
+    print("=" * 78)
+    print(f"  {'arm':24s} {'reward':>7} {'content':>8} {'sentiment':>10} "
+          f"{'step':>7} {'n_lam':>6}")
+    print("  " + "-" * 66)
+    for r in rows:
+        print(f"  {PLAIN.get(r['arm'], r['arm']):24s} {r['score']:7.2f} "
+              f"{r['content']:8.2f} {r['style']:10.2f} "
+              f"{(r['step'] if r['step'] else '-'):>7} {r['n_lambda']:>6}")
+    steps = {r["step"] for r in rows}
+    if len(steps) > 1:
+        print(f"\n  WARNING: arms evaluated at DIFFERENT steps {sorted(steps)} "
+              f"-- not a matched comparison")
+    print("\n  Single seed per arm, so treat cross-arm gaps below the ~1-point")
+    print("  noise floor as unresolved. Not comparable to the v3 tables above,")
+    print("  which are 10-sentence dev scores.\n")
+
+
+def latex_v4_test_table(rows):
+    lines = [r"\begin{tabular}{lrrrr}", r"\toprule",
+             r"Algorithm & Reward & Content & Sentiment & Step \\", r"\midrule"]
+    for r in rows:
+        lines.append(f"{LABEL.get(r['arm'], r['arm'])} & {r['score']:.2f} & "
+                     f"{r['content']:.2f} & {r['style']:.2f} & "
+                     f"{r['step'] if r['step'] else '--'} \\\\")
+    lines += [r"\bottomrule", r"\end{tabular}"]
+    return "\n".join(lines)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--tex", action="store_true", help="emit LaTeX tables")
@@ -523,6 +589,11 @@ def main():
         print("\n  the tradeoff FRONTIER figure is still a placeholder: it needs")
         print("  the per-lambda v4 evals (slurm/train_v4.slurm -> eval_v4.slurm).")
 
+    v4rows = v4_test_table()
+    if v4rows:
+        print()
+        print_v4_test_table(v4rows)
+
     if args.tex:
         os.makedirs(TEXDIR, exist_ok=True)
         for rows, step, fn in ((rows_bal, bal, "main_results.tex"),
@@ -530,6 +601,11 @@ def main():
             p = os.path.join(TEXDIR, fn)
             with open(p, "w") as f:
                 f.write(latex_table(rows, step) + "\n")
+            print(f"  wrote {p}")
+        if v4rows:
+            p = os.path.join(TEXDIR, "v4_test_results.tex")
+            with open(p, "w") as f:
+                f.write(latex_v4_test_table(v4rows) + "\n")
             print(f"  wrote {p}")
 
 
