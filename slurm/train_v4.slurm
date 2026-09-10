@@ -53,13 +53,13 @@ PY=/u/ad11/miniconda3/envs/prompt_opt_v3/bin/python
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 export PYTHONUNBUFFERED=1
 export VLLM_LOGGING_LEVEL=WARNING
-export VLLM_USE_FLASHINFER_SAMPLER=0
+export VLLM_USE_FLASHINFER_SAMPLER=0  # native torch sampler; flashinfer needs ninja+nvcc JIT
 # HF cache lives on scratch (home quota is 100G). Set it EXPLICITLY rather than
 # relying on the ~/.cache/huggingface symlink: the 2026-09 purge deleted the
 # gpt2-xl weight blob while leaving its cache directory in place, so vLLM tried
 # to re-download on a compute node and died with a confusing 404. Weights were
 # restored 2026-09-09 (6.43 GB safetensors, snapshot 15ea56de...).
-export HF_HOME=/scratch/ad11/hf_cache  # native torch sampler; flashinfer needs ninja+nvcc JIT
+export HF_HOME=/scratch/ad11/hf_cache
 
 MAX_STEPS=12000
 MAX_NOPROGRESS_RETRIES=3
@@ -97,13 +97,26 @@ elif [ "$ARM" = "grpo_baseref" ]; then
 fi
 RUN=v4_${ARM}_seed${SEED}
 WANDB_NAME=${RUN}
-# csl is physically 2 nodes, so at most 2 of our jobs can ever sit there. With
-# only 3 arms all of them are eligible for both partitions; note this PART only
-# takes effect on RESUBMISSION -- the initial sbatch uses the #SBATCH default,
-# so pass --partition on the command line for the first submission.
-CSL_TASKS=" 0 1 2 "  # all 3 arms may take csl or secondary, whichever frees first
-PART=secondary
-[[ "$CSL_TASKS" == *" $T "* ]] && PART="secondary,csl"
+# Where this arm runs, and for how long. Two regimes:
+#
+#   secondary (4h cap)  -> ~37 allocations to reach 12000 steps, each re-queued.
+#                          Measured 2026-09-09: 44 s/step on an RTX A6000 and
+#                          only ~54 steps/h once inter-cycle queue waits are
+#                          counted, i.e. ~8.5 days for the remaining work.
+#   csl (7-day cap)     -> the whole run in ONE allocation on an L40S at
+#                          ~25 s/step = 144 steps/h, ~3 days. Worth a multi-day
+#                          queue wait: the crossover is past 96h of waiting.
+#
+# Override per submission:  sbatch --partition=csl --time=7-00:00:00 \
+#                             --export=ALL,V4_TIMEOUT=597600 --array=N ...
+# V4_TIMEOUT must stay comfortably INSIDE the walltime so the EXIT trap gets to
+# archive and resubmit before SLURM kills the allocation (4h job -> 13200s
+# leaves 20 min; 7-day job -> 597600s leaves 2h).
+TIMEOUT_S=${V4_TIMEOUT:-13200}
+CSL_TASKS=" 0 1 2 "  # every arm may take csl or secondary, whichever frees first
+PART=${V4_PART:-secondary}
+[[ -z "${V4_PART:-}" && "$CSL_TASKS" == *" $T "* ]] && PART="secondary,csl"
+WALL=${V4_WALL:-04:00:00}
 
 OUT_ROOT=/scratch/ad11/prompt_opt/outputs/v4
 RUN_DIR=${OUT_ROOT}/${RUN}
@@ -153,7 +166,7 @@ resubmit() {  # sbatch with time-bounded retries (rides out a slurmctld outage)
     local wait=30 k=0
     while [ "$(date +%s)" -lt "$deadline" ]; do
         k=$((k + 1))
-        sbatch --partition="$PART" --array=${T} /u/ad11/prompt_opt/slurm/train_v4.slurm && return 0
+        sbatch --partition="$PART" --time="$WALL" --export=ALL,V4_PART="$PART",V4_WALL="$WALL",V4_TIMEOUT="$TIMEOUT_S" --array=${T} /u/ad11/prompt_opt/slurm/train_v4.slurm && return 0
         echo "[$(date)] ${RUN}: sbatch attempt ${k} failed, retrying in ${wait}s"
         sleep "$wait"
         wait=$(( wait * 2 )); [ "$wait" -gt 120 ] && wait=120
@@ -200,9 +213,9 @@ trap resubmit_decision EXIT
 
 CKPT_ARG=""
 [ "$START_STEP" -gt 0 ] && CKPT_ARG="checkpoint_path=${CKPT_DIR}/ckpt.step.${START_STEP}.pth"
-echo "[$(date)] ${RUN}: arm=${ARM} algo=${ALGO} args='${ALGO_ARGS}' resuming from step ${START_STEP} (target ${MAX_STEPS})"
+echo "[$(date)] ${RUN}: arm=${ARM} algo=${ALGO} args='${ALGO_ARGS}' part=${PART} wall=${WALL} timeout=${TIMEOUT_S}s resuming from step ${START_STEP} (target ${MAX_STEPS})"
 
-timeout 13200 $PY run_tst_multi_obj.py \
+timeout $TIMEOUT_S $PY run_tst_multi_obj.py \
         algo=${ALGO} \
         random_seed=${SEED} \
         device=cuda:0 device_scorer=cuda:0 \
