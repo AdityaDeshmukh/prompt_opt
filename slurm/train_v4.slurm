@@ -97,26 +97,32 @@ elif [ "$ARM" = "grpo_baseref" ]; then
 fi
 RUN=v4_${ARM}_seed${SEED}
 WANDB_NAME=${RUN}
-# Where this arm runs, and for how long. Two regimes:
-#
-#   secondary (4h cap)  -> ~37 allocations to reach 12000 steps, each re-queued.
-#                          Measured 2026-09-09: 44 s/step on an RTX A6000 and
-#                          only ~54 steps/h once inter-cycle queue waits are
-#                          counted, i.e. ~8.5 days for the remaining work.
-#   csl (7-day cap)     -> the whole run in ONE allocation on an L40S at
-#                          ~25 s/step = 144 steps/h, ~3 days. Worth a multi-day
-#                          queue wait: the crossover is past 96h of waiting.
-#
-# Override per submission:  sbatch --partition=csl --time=7-00:00:00 \
-#                             --export=ALL,V4_TIMEOUT=597600 --array=N ...
-# V4_TIMEOUT must stay comfortably INSIDE the walltime so the EXIT trap gets to
-# archive and resubmit before SLURM kills the allocation (4h job -> 13200s
-# leaves 20 min; 7-day job -> 597600s leaves 2h).
+# Walltime regime. V4_TIMEOUT must stay comfortably INSIDE the walltime so the
+# EXIT trap gets to archive and resubmit before SLURM kills the allocation
+# (4h job -> 13200s leaves 20 min; a 7-day job would need 597600s, leaving 2h).
+# A long single allocation is available on csl only:
+#   sbatch --partition=csl --time=7-00:00:00 \
+#          --export=ALL,V4_PART=csl,V4_WALL=7-00:00:00,V4_TIMEOUT=597600 --array=N ...
+# but see the measured numbers below before reaching for it -- csl preempts, so
+# "7 days" is a cap, not a guarantee.
 TIMEOUT_S=${V4_TIMEOUT:-13200}
-CSL_TASKS=" 0 1 2 "  # every arm may take csl or secondary, whichever frees first
-PART=${V4_PART:-secondary}
-[[ -z "${V4_PART:-}" && "$CSL_TASKS" == *" $T "* ]] && PART="secondary,csl"
 WALL=${V4_WALL:-04:00:00}
+# Every arm is eligible for BOTH partitions and takes whichever frees first.
+# NOTE the coupling: secondary caps walltime at 4h, so a job asking for more
+# than that can only ever land on csl. Measured 2026-09-09..11:
+#   csl  143 steps/h (L40S, matches the predicted 144) but PREEMPTS -- arm 2
+#        lost its slot after 13.6h -- and a 7-day request waited >26h unserved
+#   secondary 57 steps/h, but always schedulable
+# so a 4h request on both beats a 7-day request on csl alone: it never idles,
+# and short jobs backfill into csl gaps that a long job cannot use.
+#
+# PART is deliberately NOT carried in --export: sbatch --export takes a
+# COMMA-separated list, so exporting V4_PART="secondary,csl" truncated it to
+# "secondary" and silently cost the chain its csl eligibility.
+CSL_TASKS=" 0 1 2 "
+PART=secondary
+[[ "$CSL_TASKS" == *" $T "* ]] && PART="secondary,csl"
+[ -n "${V4_PART:-}" ] && PART="$V4_PART"   # single-partition override only
 
 OUT_ROOT=/scratch/ad11/prompt_opt/outputs/v4
 RUN_DIR=${OUT_ROOT}/${RUN}
@@ -166,7 +172,7 @@ resubmit() {  # sbatch with time-bounded retries (rides out a slurmctld outage)
     local wait=30 k=0
     while [ "$(date +%s)" -lt "$deadline" ]; do
         k=$((k + 1))
-        sbatch --partition="$PART" --time="$WALL" --export=ALL,V4_PART="$PART",V4_WALL="$WALL",V4_TIMEOUT="$TIMEOUT_S" --array=${T} /u/ad11/prompt_opt/slurm/train_v4.slurm && return 0
+        sbatch --partition="$PART" --time="$WALL" --export=ALL,V4_WALL="$WALL",V4_TIMEOUT="$TIMEOUT_S" --array=${T} /u/ad11/prompt_opt/slurm/train_v4.slurm && return 0
         echo "[$(date)] ${RUN}: sbatch attempt ${k} failed, retrying in ${wait}s"
         sleep "$wait"
         wait=$(( wait * 2 )); [ "$wait" -gt 120 ] && wait=120
