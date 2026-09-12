@@ -44,7 +44,11 @@ export VLLM_USE_FLASHINFER_SAMPLER=0
 # restored 2026-09-09 (6.43 GB safetensors, snapshot 15ea56de...).
 export HF_HOME=/scratch/ad11/hf_cache
 
-STEP=12000
+# Which checkpoint to evaluate. Defaults to the end of training; override to
+# produce a matched INTERIM frontier from checkpoints that already exist:
+#   sbatch --export=ALL,V4_EVAL_STEP=3000 --array=0-2 slurm/eval_v4.slurm
+# Use a step ALL arms have, or the comparison is not matched.
+STEP=${V4_EVAL_STEP:-12000}
 SEED=0
 ARMS=(rrebel_l1_std grpo_ent grpo_baseref)
 T=$SLURM_ARRAY_TASK_ID

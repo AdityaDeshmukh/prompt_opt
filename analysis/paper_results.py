@@ -205,15 +205,25 @@ def load_v4_frontiers():
     Returns (frontiers, step) where step is the checkpoint step the curves came
     from, so the caption can state it.
     """
-    out, steps = {}, set()
-    for path in sorted(glob.glob(V4_GLOB)):
+    # Pick the HIGHEST step per arm, numerically. Sorting the filenames
+    # lexically would rank output.step.3000.json above output.step.12000.json
+    # and silently plot an early checkpoint as if it were the final one.
+    best = {}
+    for path in glob.glob(V4_GLOB):
         run = os.path.basename(os.path.dirname(os.path.dirname(path)))
         arm = run.replace("v4_", "").rsplit("_seed", 1)[0]
-        out[arm] = frontier_from_json(path)
         base = os.path.basename(path)
-        if ".step." in base:
-            steps.add(int(base.split(".step.")[1].split(".json")[0]))
-    step = max(steps) if steps else None
+        st = int(base.split(".step.")[1].split(".json")[0]) if ".step." in base else -1
+        if arm not in best or st > best[arm][0]:
+            best[arm] = (st, path)
+    out = {a: frontier_from_json(pth) for a, (st, pth) in best.items()}
+    steps = {st for st, _ in best.values() if st >= 0}
+    # if the arms are at different steps the comparison is not matched; report
+    # the lowest so the caption cannot overstate how far training had gone
+    step = min(steps) if steps else None
+    if len(steps) > 1:
+        print(f"  WARNING: v4 test evals are at DIFFERENT steps {sorted(steps)} "
+              f"-- not a matched comparison; captioning with the lowest")
     return out, step
 
 
