@@ -113,6 +113,20 @@ WANDB_NAME=${RUN}
 # "7 days" is a cap, not a guarantee.
 TIMEOUT_S=${V4_TIMEOUT:-13200}
 WALL=${V4_WALL:-04:00:00}
+# CPU request. Measured 2026-09-18 over six completed cycles: TotalCPU 1:27-2:15
+# against 3:40 elapsed = 0.4-0.6 cores average, MaxRSS ~6.6 GB. The historic
+# --ntasks-per-node=16 was ~30x over-provisioned, and an oversized request is
+# harder for the backfill scheduler to place. Lower = schedules sooner, with no
+# effect on step time (generation is ~97% of a step and runs on the GPU).
+NTASKS=${V4_NTASKS:-16}
+# PRESUBMIT=1 queues the NEXT cycle at the START of this one, gated on this job
+# finishing (--dependency=afterany). The successor then accrues queue priority
+# during the 3h40m this cycle runs instead of entering an empty queue afterwards.
+# Measured duty cycle under the old end-of-cycle resubmit: 35-42%, i.e. ~60% of
+# wall time was spent queued rather than training.
+# When set, resubmit_decision must NOT also resubmit -- two successors, one of
+# them undependent, would run concurrently on the same checkpoint dir.
+PRESUBMIT=${V4_PRESUBMIT:-0}
 # Every arm is eligible for BOTH partitions and takes whichever frees first.
 # NOTE the coupling: secondary caps walltime at 4h, so a job asking for more
 # than that can only ever land on csl. Measured 2026-09-09..11:
@@ -173,6 +187,43 @@ archive_cycle() {
 
 START_STEP=$(latest_step)
 
+presubmit_next() {
+    # Queue the successor NOW, dependent on this job ending for ANY reason
+    # (completion, timeout, preemption, crash), so the chain is self-healing.
+    # --kill-on-invalid-dep=yes cleans it up if this job is cancelled outright.
+    local jid
+    jid=$(sbatch --parsable --dependency=afterany:${SLURM_JOB_ID} \
+            --kill-on-invalid-dep=yes \
+            --partition="$PART" --time="$WALL" --ntasks-per-node="$NTASKS" \
+            --export=ALL,V4_WALL="$WALL",V4_TIMEOUT="$TIMEOUT_S",V4_NTASKS="$NTASKS",V4_PRESUBMIT=1 \
+            --array=${T} /u/ad11/prompt_opt/slurm/train_v4.slurm 2>&1)
+    if [ $? -eq 0 ]; then
+        echo "[$(date)] ${RUN}: pre-submitted successor ${jid} (afterany:${SLURM_JOB_ID})"
+    else
+        echo "[$(date)] ${RUN}: PRE-SUBMIT FAILED (${jid}); falling back to end-of-cycle resubmit"
+        PRESUBMIT=0
+    fi
+}
+
+# Guards that used to live only at the END of a cycle. With pre-submit the
+# successor is already queued before the outcome is known, so it has to be able
+# to stand itself down.
+if [ "$START_STEP" -ge "$MAX_STEPS" ]; then
+    echo "[$(date)] ${RUN}: already at ${START_STEP} >= ${MAX_STEPS} - nothing to do"
+    # only hand off to eval if the predecessor's trap did not (e.g. SIGKILL)
+    if [ ! -f "${RUN_DIR}/test/output.step.${MAX_STEPS}.json" ]; then
+        sbatch --array=${T} /u/ad11/prompt_opt/slurm/eval_v4.slurm \
+            && echo "[$(date)] ${RUN}: submitted final eval (predecessor had not)"
+    fi
+    exit 0
+fi
+_retries=$(cat "$RETRY_FILE" 2>/dev/null || echo 0)
+if [ "$_retries" -gt "$MAX_NOPROGRESS_RETRIES" ]; then
+    echo "[$(date)] ${RUN}: no-progress budget already exhausted (${_retries}) - standing down"
+    exit 0
+fi
+[ "$PRESUBMIT" = "1" ] && presubmit_next
+
 resubmit() {  # sbatch with time-bounded retries (rides out a slurmctld outage)
     local deadline=$(( $(date +%s) + 900 ))   # 15 min
     local wait=30 k=0
@@ -207,7 +258,8 @@ resubmit_decision() {
     fi
     if [ "$end_step" -gt "$START_STEP" ]; then
         rm -f "$RETRY_FILE"
-        echo "[$(date)] ${RUN}: progress ${START_STEP}->${end_step}, resubmitting"
+        echo "[$(date)] ${RUN}: progress ${START_STEP}->${end_step}"
+        [ "$PRESUBMIT" = "1" ] && { echo "[$(date)] ${RUN}: successor already queued"; return; }
         resubmit
         return
     fi
@@ -215,7 +267,8 @@ resubmit_decision() {
     retries=$((retries + 1))
     if [ "$retries" -le "$MAX_NOPROGRESS_RETRIES" ]; then
         echo "$retries" > "$RETRY_FILE"
-        echo "[$(date)] ${RUN}: NO progress (retry ${retries}/${MAX_NOPROGRESS_RETRIES}), resubmitting anyway"
+        echo "[$(date)] ${RUN}: NO progress (retry ${retries}/${MAX_NOPROGRESS_RETRIES})"
+        [ "$PRESUBMIT" = "1" ] && { echo "[$(date)] ${RUN}: successor already queued"; return; }
         resubmit
     else
         echo "[$(date)] ${RUN}: no progress after ${MAX_NOPROGRESS_RETRIES} retries - GIVING UP (investigate!)"
