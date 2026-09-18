@@ -14,7 +14,7 @@
 #
 # Auto-submitted per-arm by train_v4.slurm's EXIT trap when a run reaches
 # 12000. Also runnable by hand for whatever has finished:
-#   sbatch slurm/eval_v4.slurm            (all 3 arms; skips unfinished)
+#   sbatch slurm/eval_v4.slurm            (all 4 arms; skips unfinished)
 #   sbatch --array=2 slurm/eval_v4.slurm  (one arm)
 ###############################################################################
 #SBATCH --gres=gpu:1
@@ -25,7 +25,7 @@
 #SBATCH --partition=secondary,csl
 #SBATCH --exclude=ccc0215,ccc0286,ccc0287,ccc0478
 #SBATCH --no-requeue
-#SBATCH --array=0-2
+#SBATCH --array=0-3
 #SBATCH --output=/u/ad11/prompt_opt/logs/%x_%A_%a.out
 #SBATCH --error=/u/ad11/prompt_opt/logs/%x_%A_%a.err
 #SBATCH --mail-user=ad11@illinois.edu
@@ -50,7 +50,7 @@ export HF_HOME=/scratch/ad11/hf_cache
 # Use a step ALL arms have, or the comparison is not matched.
 STEP=${V4_EVAL_STEP:-12000}
 SEED=0
-ARMS=(rrebel_l1_std grpo_ent grpo_baseref)
+ARMS=(rrebel_l1_std grpo_ent grpo_baseref rrebel_huber_std)
 T=$SLURM_ARRAY_TASK_ID
 ARM=${ARMS[$T]}
 ALGO=$ARM

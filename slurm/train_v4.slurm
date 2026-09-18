@@ -1,6 +1,6 @@
 #!/bin/bash
 ###############################################################################
-# v4 frontier regeneration: 3 arms x seed 0 = 3 single-GPU runs, 12000 steps.
+# v4 frontier regeneration: 4 arms x seed 0 = 4 single-GPU runs, 12000 steps.
 #
 # WHY THIS EXISTS
 # The v3 campaign completed (all 15 runs, 12000 steps) but /scratch was purged
@@ -25,7 +25,7 @@
 #     the root cause of the v3 data loss -- scratch is purgeable, so nothing
 #     that a paper depends on may live only there.
 #
-# Usage: sbatch slurm/train_v4.slurm             (all 3)
+# Usage: sbatch slurm/train_v4.slurm             (all 4)
 #        sbatch --array=2 slurm/train_v4.slurm   (one run)
 #        touch /u/ad11/prompt_opt/STOP_V4        (stop all chains at cycle end)
 ###############################################################################
@@ -42,7 +42,7 @@
 # the EXIT trap owns chain continuation; requeue would create a second
 # concurrent chain for the same run and corrupt its checkpoints.
 #SBATCH --no-requeue
-#SBATCH --array=0-2
+#SBATCH --array=0-3
 #SBATCH --output=/u/ad11/prompt_opt/logs/%x_%A_%a.out
 #SBATCH --error=/u/ad11/prompt_opt/logs/%x_%A_%a.err
 #SBATCH --mail-user=ad11@illinois.edu
@@ -64,8 +64,8 @@ export HF_HOME=/scratch/ad11/hf_cache
 MAX_STEPS=12000
 MAX_NOPROGRESS_RETRIES=3
 SEED=0
-# 3 arms (trimmed from 5 on 2026-09-08 so the array schedules -- both partitions
-# were saturated and a 5-GPU array was estimated >1 day out):
+# Arms (trimmed from 5 on 2026-09-08 so the array would schedule; huber added
+# back 2026-09-18 on request):
 #   rrebel_l1_std  the best R-REBEL variant (tied with huber_std within noise)
 #   grpo_ent       the DEFENSIBLE GRPO baseline. Plain `grpo` is dropped because
 #                  the audit showed it never learns: arm mean 30.38 @500 ->
@@ -79,7 +79,13 @@ SEED=0
 #                  entropy bonus rather than a trust region; base_lm measures
 #                  7.672 nats, so the anchor finally exerts real force. This is
 #                  the arm that answers "was your baseline actually GRPO?".
-ARMS=(rrebel_l1_std grpo_ent grpo_baseref)
+#   rrebel_huber_std  added 2026-09-18. In v3 it scored 39.25 against
+#                  rrebel_l1_std's 39.47 -- a 0.22 gap, far inside the ~1-point
+#                  noise floor, so the two were reported as TIED for best and
+#                  neither can be called the winner. Needs no ALGO_ARGS: the
+#                  dispatch already fixes d=huber with reward_std_scale=True,
+#                  and huber_delta defaults to 1.0.
+ARMS=(rrebel_l1_std grpo_ent grpo_baseref rrebel_huber_std)
 T=$SLURM_ARRAY_TASK_ID
 ARM=${ARMS[$T]}
 ALGO=$ARM
@@ -119,7 +125,7 @@ WALL=${V4_WALL:-04:00:00}
 # PART is deliberately NOT carried in --export: sbatch --export takes a
 # COMMA-separated list, so exporting V4_PART="secondary,csl" truncated it to
 # "secondary" and silently cost the chain its csl eligibility.
-CSL_TASKS=" 0 1 2 "
+CSL_TASKS=" 0 1 2 3 "
 PART=secondary
 [[ "$CSL_TASKS" == *" $T "* ]] && PART="secondary,csl"
 [ -n "${V4_PART:-}" ] && PART="$V4_PART"   # single-partition override only

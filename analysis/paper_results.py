@@ -510,6 +510,22 @@ def v4_test_table():
     return rows
 
 
+def v4_latest_matched_step(rows):
+    """The highest step at which EVERY arm has a test eval.
+
+    With evals at several steps there is one row per (arm, step); comparing
+    across steps would be meaningless, so the table is reported at the newest
+    step all arms share.
+    """
+    by_arm = defaultdict(set)
+    for r in rows:
+        by_arm[r["arm"]].add(r["step"])
+    if not by_arm:
+        return None
+    common = set.intersection(*by_arm.values())
+    return max(common) if common else None
+
+
 def print_v4_test_table(rows):
     print("=" * 78)
     print("v4 TEST SPLIT (500 sentences, fp32 scorers, fixed vLLM seed) -- 1 seed/arm")
@@ -601,8 +617,23 @@ def main():
 
     v4rows = v4_test_table()
     if v4rows:
+        step = v4_latest_matched_step(v4rows)
+        matched = [r for r in v4rows if r["step"] == step]
         print()
-        print_v4_test_table(v4rows)
+        print_v4_test_table(matched)
+        others = sorted({r["step"] for r in v4rows} - {step})
+        if others:
+            print(f"  (earlier matched evals also on disk at steps {others}; "
+                  f"table shows the newest step all arms share)\n")
+            for st in others:
+                prev = {r["arm"]: r for r in v4rows if r["step"] == st}
+                print(f"  change from step {st} -> {step}:")
+                for r in sorted(matched, key=lambda r: -r["score"]):
+                    if r["arm"] in prev:
+                        d = r["score"] - prev[r["arm"]]["score"]
+                        print(f"    {PLAIN.get(r['arm'], r['arm']):24s} "
+                              f"{prev[r['arm']]['score']:6.2f} -> {r['score']:6.2f}  ({d:+.2f})")
+            print()
 
     if args.tex:
         os.makedirs(TEXDIR, exist_ok=True)
@@ -615,7 +646,9 @@ def main():
         if v4rows:
             p = os.path.join(TEXDIR, "v4_test_results.tex")
             with open(p, "w") as f:
-                f.write(latex_v4_test_table(v4rows) + "\n")
+                f.write(latex_v4_test_table(
+                    [r for r in v4rows
+                     if r["step"] == v4_latest_matched_step(v4rows)]) + "\n")
             print(f"  wrote {p}")
 
 
