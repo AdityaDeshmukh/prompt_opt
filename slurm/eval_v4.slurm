@@ -20,7 +20,19 @@
 #SBATCH --gres=gpu:1
 #SBATCH --time=04:00:00
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=16
+# Right-sized 2026-09-18. `--ntasks-per-node=16` requested 16 TASKS (=16 CPUs)
+# while the script runs a single python process, so 15 slots were pure waste --
+# and on ccc0324, which has CPUTot=16, that request took the WHOLE node: it
+# blocked the node's second GPU and could only start once all 16 CPUs were
+# idle. It also pulled ~1 TB of memory, because with no --mem a full-CPU
+# request gets the node's full memory under CR_CPU_MEMORY.
+# Measured need: 0.4-0.6 cores average, MaxRSS 6.6 GB.
+# A GPU cannot be requested without CPUs -- a Slurm allocation is CPUs + memory
+# + GRES, and the process needs a core to run on -- so the fix is to ask for a
+# few, not to ask for none.
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=48G
 #SBATCH --job-name=tst_v4_eval
 #SBATCH --partition=secondary,csl
 #SBATCH --exclude=ccc0215,ccc0286,ccc0287,ccc0478

@@ -32,7 +32,19 @@
 #SBATCH --gres=gpu:1
 #SBATCH --time=04:00:00
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=16
+# Right-sized 2026-09-18. `--ntasks-per-node=16` requested 16 TASKS (=16 CPUs)
+# while the script runs a single python process, so 15 slots were pure waste --
+# and on ccc0324, which has CPUTot=16, that request took the WHOLE node: it
+# blocked the node's second GPU and could only start once all 16 CPUs were
+# idle. It also pulled ~1 TB of memory, because with no --mem a full-CPU
+# request gets the node's full memory under CR_CPU_MEMORY.
+# Measured need: 0.4-0.6 cores average, MaxRSS 6.6 GB.
+# A GPU cannot be requested without CPUs -- a Slurm allocation is CPUs + memory
+# + GRES, and the process needs a core to run on -- so the fix is to ask for a
+# few, not to ask for none.
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=48G
 #SBATCH --job-name=tst_v4
 #SBATCH --partition=secondary
 # node-select via --exclude (see train_v3.slurm): drop V100/T4 (emulated bf16,
@@ -113,12 +125,14 @@ WANDB_NAME=${RUN}
 # "7 days" is a cap, not a guarantee.
 TIMEOUT_S=${V4_TIMEOUT:-13200}
 WALL=${V4_WALL:-04:00:00}
-# CPU request. Measured 2026-09-18 over six completed cycles: TotalCPU 1:27-2:15
-# against 3:40 elapsed = 0.4-0.6 cores average, MaxRSS ~6.6 GB. The historic
-# --ntasks-per-node=16 was ~30x over-provisioned, and an oversized request is
-# harder for the backfill scheduler to place. Lower = schedules sooner, with no
-# effect on step time (generation is ~97% of a step and runs on the GPU).
-NTASKS=${V4_NTASKS:-16}
+# CPUs per task. Measured 2026-09-18 over six cycles: TotalCPU 1:27-2:15 against
+# 3:40 elapsed = 0.4-0.6 cores average, MaxRSS 6.6 GB. The old 16-CPU request
+# was not merely over-provisioned: ccc0324 has CPUTot=16, so the job took that
+# node ENTIRELY (blocking its second GPU and requiring a fully idle node), and
+# on the 96-CPU/8-GPU H100 nodes 16 exceeds the 12-CPU-per-GPU fair share. That
+# is a first-order cause of the 35-42% duty cycle. No effect on step time:
+# generation is ~97% of a step and runs on the GPU.
+NTASKS=${V4_NTASKS:-4}   # cpus-per-task
 # PRESUBMIT=1 queues the NEXT cycle at the START of this one, gated on this job
 # finishing (--dependency=afterany). The successor then accrues queue priority
 # during the 3h40m this cycle runs instead of entering an empty queue afterwards.
@@ -194,7 +208,7 @@ presubmit_next() {
     local jid
     jid=$(sbatch --parsable --dependency=afterany:${SLURM_JOB_ID} \
             --kill-on-invalid-dep=yes \
-            --partition="$PART" --time="$WALL" --ntasks-per-node="$NTASKS" \
+            --partition="$PART" --time="$WALL" --cpus-per-task="$NTASKS" \
             --export=ALL,V4_WALL="$WALL",V4_TIMEOUT="$TIMEOUT_S",V4_NTASKS="$NTASKS",V4_PRESUBMIT=1 \
             --array=${T} /u/ad11/prompt_opt/slurm/train_v4.slurm 2>&1)
     if [ $? -eq 0 ]; then
