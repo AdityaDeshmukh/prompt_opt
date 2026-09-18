@@ -34,8 +34,12 @@
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=48G
 #SBATCH --job-name=tst_v4_eval
-#SBATCH --partition=secondary,csl
-#SBATCH --exclude=ccc0215,ccc0286,ccc0287,ccc0478
+#SBATCH --partition=secondary,scavenger
+# See train_v4.slurm for the full rationale: hard floor excludes every GPU
+# with <40 GB VRAM (V100/T4/A30/QuadroRTX6000), soft --prefer steers to fast
+# ones without ever idling for them.
+#SBATCH --exclude=ccc0089,ccc0090,ccc0215,ccc0286,ccc0287,ccc0478,ccc0232,ccc0233,ccc0234,ccc0235,ccc0236
+#SBATCH --prefer=H100|h100|h200|rtx6000b
 #SBATCH --no-requeue
 #SBATCH --array=0-3
 #SBATCH --output=/u/ad11/prompt_opt/logs/%x_%A_%a.out

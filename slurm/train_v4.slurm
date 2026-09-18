@@ -47,10 +47,31 @@
 #SBATCH --mem=48G
 #SBATCH --job-name=tst_v4
 #SBATCH --partition=secondary
-# node-select via --exclude (see train_v3.slurm): drop V100/T4 (emulated bf16,
-# ~12x slower -> a cycle never reaches the 150-step checkpoint interval and the
-# chain dies silently) and A30 (24GB, too small for max_gen_batch_size=400).
-#SBATCH --exclude=ccc0215,ccc0286,ccc0287,ccc0478
+# Node eligibility has a HARD FLOOR and a SOFT CEILING.
+#
+# FLOOR (--exclude): every GPU with <40 GB VRAM. gpt2-xl under vLLM with
+# max_gen_batch_size=400 does not fit in 24 GB, and V100/T4 lack native bf16
+# (~12x slower -> a cycle never reaches the 150-step checkpoint and the chain
+# dies silently). Adding `scavenger` exposes five QuadroRTX6000 nodes (24 GB)
+# and two more V100 nodes that `secondary` alone never offered -- a probe job
+# submitted 2026-09-18 landed on ccc0232 (Quadro RTX 6000, 24 GB) in 25 s, so
+# these MUST be excluded or the chain will happily schedule onto a node it
+# cannot run on.
+#   V100          ccc0089 ccc0090 ccc0215
+#   TeslaT4       ccc0286 ccc0287
+#   A30 (24 GB)   ccc0478
+#   QuadroRTX6000 ccc0232-ccc0236 (24 GB)
+#SBATCH --exclude=ccc0089,ccc0090,ccc0215,ccc0286,ccc0287,ccc0478,ccc0232,ccc0233,ccc0234,ccc0235,ccc0236
+#
+# CEILING (--prefer): a SOFT constraint -- take a fast GPU if one is free, else
+# take any eligible one rather than idle. Measured s/step over 27,750 steps:
+#   H100 16.7 | L40S 27-30 | A100 29 | RTXA6000 44 | A40 88
+# A hard --constraint=H100 was measured to still be queued after 4 min while an
+# unconstrained scavenger job started in 25 s, so the ceiling must stay SOFT.
+# L40S has no standalone feature (only AE7763_100g_1T_L40S), so it is reachable
+# through the floor but not nameable here. Feature names are CASE-SENSITIVE and
+# this cluster spells H100 both ways on different nodes -- both are required.
+#SBATCH --prefer=H100|h100|h200|rtx6000b
 # the EXIT trap owns chain continuation; requeue would create a second
 # concurrent chain for the same run and corrupt its checkpoints.
 #SBATCH --no-requeue
@@ -118,11 +139,12 @@ WANDB_NAME=${RUN}
 # Walltime regime. V4_TIMEOUT must stay comfortably INSIDE the walltime so the
 # EXIT trap gets to archive and resubmit before SLURM kills the allocation
 # (4h job -> 13200s leaves 20 min; a 7-day job would need 597600s, leaving 2h).
-# A long single allocation is available on csl only:
-#   sbatch --partition=csl --time=7-00:00:00 \
-#          --export=ALL,V4_PART=csl,V4_WALL=7-00:00:00,V4_TIMEOUT=597600 --array=N ...
-# but see the measured numbers below before reaching for it -- csl preempts, so
-# "7 days" is a cap, not a guarantee.
+# Longer single allocations exist (scavenger caps at 24h, csl at 7 days) but the
+# measured wait rises steeply with the request: scavenger GPU jobs asking >12h
+# waited a median 12.9h once one user's 2,529 one-minute jobs are excluded,
+# versus 0.02h at <=1h. Long requests are hard to backfill, and 88% of ALL job
+# starts on this cluster come from the backfill scheduler (sdiag: 2,943 of
+# 3,336 starts in one 8h window). Short jobs that chain beat one long job.
 TIMEOUT_S=${V4_TIMEOUT:-13200}
 WALL=${V4_WALL:-04:00:00}
 # CPUs per task. Measured 2026-09-18 over six cycles: TotalCPU 1:27-2:15 against
@@ -134,29 +156,70 @@ WALL=${V4_WALL:-04:00:00}
 # generation is ~97% of a step and runs on the GPU.
 NTASKS=${V4_NTASKS:-4}   # cpus-per-task
 # PRESUBMIT=1 queues the NEXT cycle at the START of this one, gated on this job
-# finishing (--dependency=afterany). The successor then accrues queue priority
-# during the 3h40m this cycle runs instead of entering an empty queue afterwards.
+# finishing (--dependency=afterany). NOTE what this does and does not buy:
+# PriorityFlags is empty on this cluster (no ACCRUE_ALWAYS), so a dependency-held
+# job is NOT eligible and therefore accrues NO age priority while it waits. The
+# gain is only that the successor is already in the queue the instant the parent
+# ends, instead of paying submit-and-be-noticed latency afterwards. Age is worth
+# having: PriorityWeightAge=1000 over PriorityMaxAge=7d is the ONLY differentiator
+# between our jobs, since FairShare/QOS/JobSize weights are all 0 and every
+# partition has PriorityJobFactor=1 (flat 2000). That is also exactly why a
+# pending job must be edited with `scontrol update`, NEVER cancelled and
+# resubmitted -- cancelling throws away every point of accrued age.
 # Measured duty cycle under the old end-of-cycle resubmit: 35-42%, i.e. ~60% of
 # wall time was spent queued rather than training.
 # When set, resubmit_decision must NOT also resubmit -- two successors, one of
 # them undependent, would run concurrently on the same checkpoint dir.
 PRESUBMIT=${V4_PRESUBMIT:-0}
-# Every arm is eligible for BOTH partitions and takes whichever frees first.
-# NOTE the coupling: secondary caps walltime at 4h, so a job asking for more
-# than that can only ever land on csl. Measured 2026-09-09..11:
-#   csl  143 steps/h (L40S, matches the predicted 144) but PREEMPTS -- arm 2
-#        lost its slot after 13.6h -- and a 7-day request waited >26h unserved
-#   secondary 57 steps/h, but always schedulable
-# so a 4h request on both beats a 7-day request on csl alone: it never idles,
-# and short jobs backfill into csl gaps that a long job cannot use.
+# PARTITION CHOICE -- rewritten 2026-09-18 after measuring the whole campaign.
+#
+# Was: "secondary,csl". Now: "secondary,scavenger". Evidence:
+#
+# 1. csl is 2 nodes (ccc0435/0436) and BOTH are drain/drng as of 2026-09-18, so
+#    it contributes zero capacity. It also produced 6 of our 6 preemptions --
+#    csl is the only partition we used with AllowQos=ALL, and scav_high (prio
+#    1000) preempts normal there. secondary's preemption rate is 0.34%.
+# 2. Slurm REORDERS the partition list by PriorityTier (csl/scavenger are tier
+#    3, secondary is tier 1), so "secondary,csl" is stored as "csl,secondary" --
+#    verified on a fresh submit. With csl first, `sbatch --test-only` estimated
+#    a start 17 DAYS later than the same job without csl, reproducibly (3/3).
+# 3. scavenger is 63 nodes at tier 3 with a 24h cap, open to all accounts, and
+#    it holds hardware secondary never offered us: H200 x8, RTX6000B x8 on four
+#    nodes, plus more H100/L40S.
+#
+# Measured wait (per-user median, then median ACROSS users, so no single user's
+# job flood can skew it; GPU jobs, 2026-09-11..18):
+#     partition   <=1h wall   <=2h    =4h wall
+#     scavenger      0.02h    0.11h     2.67h
+#     secondary      1.25h    1.14h     2.27h
+# and a real 10-min probe job started on scavenger in 25 SECONDS.
+#
+# Our own campaign for comparison: 410.7h queued vs 241.9h running = 37% duty
+# cycle, and 139.8 of those 241.9 GPU-hours (58%) went to ccc0324, the SLOWEST
+# eligible GPU, because "any GPU" resolves to the least-contended node and the
+# least-contended node is the least desirable one. Hence --prefer above.
+#
+# NOT changed: the 4h walltime. The =4h bucket is the worst cell in the table
+# (secondary 2.27h vs 0.44h at <=3h), so shortening cycles is the next big win
+# -- but `save_steps=150` plus a hard `timeout` kill means work since the last
+# checkpoint is lost, and per AUDIT.md the Adam state is NOT checkpointed, so
+# every extra resubmit is another optimizer warm restart. Shortening the cycle
+# changes training dynamics and is therefore a deliberate experiment, not a
+# scheduling tweak. Fix optimizer-state checkpointing first, then shorten.
 #
 # PART is deliberately NOT carried in --export: sbatch --export takes a
-# COMMA-separated list, so exporting V4_PART="secondary,csl" truncated it to
-# "secondary" and silently cost the chain its csl eligibility.
-CSL_TASKS=" 0 1 2 3 "
-PART=secondary
-[[ "$CSL_TASKS" == *" $T "* ]] && PART="secondary,csl"
-[ -n "${V4_PART:-}" ] && PART="$V4_PART"   # single-partition override only
+# COMMA-separated list, so exporting V4_PART="secondary,scavenger" truncates it
+# to "secondary" and silently costs the chain its scavenger eligibility.
+PART=${V4_PART:-secondary,scavenger}
+# Self-heal: a cycle launched by a PRE-2026-09-18 parent is submitted with that
+# parent's in-memory PART ("secondary,csl"), which overrides the #SBATCH default
+# above for that one cycle. Rewrite it here so the chain converges on its own
+# rather than needing a human to notice. See the PARTITION CHOICE block for why
+# csl is out: zero usable nodes and 6 of our 6 preemptions.
+case ",$PART," in
+    *,csl,*) echo "[$(date)] ${RUN}: inherited a csl partition list (${PART}) from a pre-2026-09-18 parent; resetting to secondary,scavenger"
+             PART=secondary,scavenger ;;
+esac
 
 OUT_ROOT=/scratch/ad11/prompt_opt/outputs/v4
 RUN_DIR=${OUT_ROOT}/${RUN}
