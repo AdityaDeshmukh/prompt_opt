@@ -153,7 +153,7 @@ tread at $\mathbb{E}[c] \approx 57$--$63$ for floors $35$--$70$, missing floors
 of $60$--$80$ by $2$--$7$ points in expectation; above that it switches to a copy
 prompt that reaches content $85$--$90$, meets $\tau = 85$, and misses $90$ and $95$
 by $1$--$5$ points. GRPO + entropy's tread at $\approx\!63$ misses every floor from
-$\tau = 65$, by up to $17$ points at the top. $\ell_1$-std meets every floor up to
+$\tau = 65$, by up to $16$ points at the top. $\ell_1$-std meets every floor up to
 $75$ (\vLoneMet{} of \vNlam{} in total, the most of any arm) only because its
 single high-content mode over-satisfies them, at the sentiment cost described
 above. The right panel shows the per-sample view that the constrained reward
@@ -226,7 +226,8 @@ uses several prompts across the range of floors.
 \IfFileExists{figures/test_learning.pdf}{\includegraphics[width=0.9\textwidth]{test_learning.pdf}}{\fbox{\parbox{0.8\textwidth}{\centering test-split learning curves pending}}}
 \caption{\textbf{Test-split learning curves.} Each arm's checkpoints at
 \vLcNsteps{} matched steps, evaluated with the full protocol (one task-model
-seed; across five seeds the reward's standard deviation is \vLoneSeedSD).
+seed; at step $12{,}000$ the reward's standard deviation across five seeds is
+at most \vSeedSDmax).
 \textbf{Left:} mean constrained reward. \textbf{Right:} hypervolume of the
 tradeoff curve. Rings mark the checkpoint each arm's $10$-sentence
 \emph{development} score would select, without reference to test data.}
@@ -238,8 +239,10 @@ matched steps (\vLcFirst--\vLcLast) with the same test protocol, which shows
 how the step-$12{,}000$ picture came about.
 
 \paragraph{The gap between the families is not a late-training artifact.}
-Huber-std leads GRPO + entropy at every evaluated checkpoint, by
-\vLcHuberGentMin--\vLcHuberGentMax{} reward points. Its reward plateaus by
+At the first checkpoint the two \rrebel{} arms and GRPO + entropy are within
+\vLcFirstSpread{} reward points of one another. From step \vLcLeadFrom{} on,
+Huber-std leads GRPO + entropy at every checkpoint, by
+\vLcLeadMin--\vLcLeadMax{} points. Its reward plateaus by
 mid-training, while its hypervolume continues to grow (from \vHuberHVfirst{}
 at the first checkpoint to \vHuberHV{} at the end). GRPO + entropy improves
 slowly throughout (reward \vGentLcMin--\vGentLcMax, hypervolume
@@ -249,10 +252,10 @@ and its hypervolume shrinks late in training.
 
 \paragraph{The $\ell_1$-std run regresses late, and the regression is in indexing.}
 $\ell_1$-std peaks at step \vLonePeakStep{} with reward \vLonePeakRew,
-level with Huber-std, and then loses \vLoneDrop{} points by step
-$12{,}000$. It stays ahead of GRPO + entropy at \vLcLoneGentPosSteps{} of the
-\vLcNsteps{} checkpoints. Its hypervolume, however, stays within
-\vLoneHVmin--\vLoneHVmax{} throughout. The set of operating points it can reach
+level with Huber-std, and then declines steadily, losing \vLoneDrop{} points
+by step $12{,}000$. It is ahead of GRPO + entropy at \vLcLoneGentPosSteps{} of
+the \vLcNsteps{} checkpoints. Its hypervolume, however, stays within
+\vLoneHVmin--\vLoneHVmax{} from the peak onward. The set of operating points it can reach
 does not shrink; what degrades is \emph{which} point it assigns to each floor.
 Late in training the policy spreads its copy prompt to more and more floors
 (Section~\ref{sec:res-frontier}), trading sentiment for surplus content.
@@ -271,7 +274,7 @@ development score among the evaluated steps. This selects step
 \vLoneDevStep{} for $\ell_1$-std (test reward \vLoneDevRew), \vHuberDevStep{}
 for Huber-std (\vHuberDevRew), \vGentDevStep{} for GRPO + entropy
 (\vGentDevRew) and \vGbaseDevStep{} for the base-LM-reference arm
-(\vGbaseDevRew). Under this protocol both \rrebel{} variants beat both GRPO
+(\vGbaseDevRew; its development score never improves after that). Under this protocol both \rrebel{} variants beat both GRPO
 arms, by at least \vDevFamilyGap{} reward points, and the $\ell_1$-std
 regression disappears from the comparison.
 

@@ -206,11 +206,15 @@ def main():
     lams = runs[ARMS[0][0]][0]["lams"]
     for arm in runs:
         assert all(np.allclose(r["lams"], lams) for r in runs[arm]), "lambda grids differ"
-        # greedy prompts must not depend on the task-LM seed
+    # Greedy prompts are deterministic on a given GPU model, but floating-point
+    # differences between GPU models (evals ran on whichever eligible GPU was
+    # free) can flip near-tied argmax choices. Measure it rather than assume it:
+    # fraction of (sentence, lambda) prompts that differ from the seed-0 run.
+    flips = {}
+    for arm in runs:
         base = [" ".join(p) for row in runs[arm][0]["prompts"] for p in row]
-        for r in runs[arm][1:]:
-            assert base == [" ".join(p) for row in r["prompts"] for p in row], \
-                f"{arm}: prompts differ across seeds (policy decoding is not greedy?)"
+        flips[arm] = [float(np.mean([a != b for a, b in zip(
+            base, [" ".join(p) for row in r["prompts"] for p in row])])) for r in runs[arm][1:]]
     avg = {arm: seed_avg(runs[arm]) for arm in runs}
     n_src = avg[ARMS[0][0]]["content"].shape[1]
     tau = 100 * lams
@@ -246,6 +250,7 @@ def main():
             "monotone_violations": int((np.diff(p["ec"]) < 0).sum()),
             "distinct_prompts": dp, "distinct_prompts_median": float(np.median(dp)),
             "seed_rewards": seed_rewards,
+            "prompt_flip_frac_vs_seed0": flips[arm],
             "seed_sd": float(np.std(seed_rewards, ddof=1)) if len(seed_rewards) > 1 else None,
             "example_prompts": {f"{t:g}": detok(runs[arm][0]["prompts"][i][0]) for i, t in enumerate(tau)},
         }
@@ -341,7 +346,8 @@ def print_summary(S):
               f"  HV {m['hv']['point']:5.2f}  content {m['content']['point']:5.2f}  sent {m['sentiment']['point']:5.2f}"
               f"  met {m['met']['point']:.0f}/{len(S['lambdas'])}  feas {m['feasible']['point']:.3f}"
               f"  rho {m['spearman_tau_content']:.3f}  viol {m['monotone_violations']}"
-              f"  distinct(med) {m['distinct_prompts_median']:.0f}  seedSD {m['seed_sd']}")
+              f"  distinct(med) {m['distinct_prompts_median']:.0f}  seedSD {m['seed_sd']:.3f}"
+              f"  prompt-flips vs seed0 {[round(100 * x, 2) for x in m['prompt_flip_frac_vs_seed0']]}%")
     D = S["dominance"]
     print(f"\ndominance of {D['of']}: largest content gap in its frontier {D['largest_content_gap']}")
     for o, v in D["vs"].items():
@@ -492,6 +498,8 @@ def macros(S):
         L.append(f"\\newcommand{{\\{name}}}{{{val}}}")
     m("vNsent", S["n_sentences"]); m("vNlam", len(S["lambdas"]))
     m("vNseeds", min(len(v) for v in S["seeds"].values()))
+    m("vSeedSDmax", f"{max(S['arms'][a]['seed_sd'] for a in MACRO_ARM):.2f}")
+    m("vSeedRangeMax", f"{max(max(S['arms'][a]['seed_rewards']) - min(S['arms'][a]['seed_rewards']) for a in MACRO_ARM):.2f}")
     for arm, A in MACRO_ARM.items():
         a = S["arms"][arm]
         for k, K in (("reward", "Rew"), ("hv", "HV"), ("content", "Con"), ("sentiment", "Sen")):
@@ -501,6 +509,9 @@ def macros(S):
         m(f"v{A}PromptsMax", f"{max(a['distinct_prompts'])}")
         m(f"v{A}Rho", f"{a['spearman_tau_content']:.2f}")
         m(f"v{A}SeedSD", f"{a['seed_sd']:.2f}" if a['seed_sd'] is not None else "--")
+        fl = a.get("prompt_flip_frac_vs_seed0") or [0.0]
+        m(f"v{A}FlipMax", f"{100 * max(fl):.1f}")
+        m(f"v{A}SeedRange", f"{max(a['seed_rewards']) - min(a['seed_rewards']):.2f}")
         f = a["frontier"]
         m(f"v{A}ConMax", f"{max(f['content']):.1f}"); m(f"v{A}SenMax", f"{max(f['sentiment']):.1f}")
         for st, T in MACRO_STEP.items():
@@ -520,12 +531,19 @@ def macros(S):
     m("vLcFirst", f"{common[0]:,}".replace(",", "{,}")); m("vLcLast", f"{common[-1]:,}".replace(",", "{,}"))
     gHG = [LC["rrebel_huber_std"][t]["reward"] - LC["grpo_ent"][t]["reward"] for t in common]
     m("vLcHuberGentMin", f"{min(gHG):.1f}"); m("vLcHuberGentMax", f"{max(gHG):.1f}")
+    # first checkpoint from which Huber-std leads GRPO+entropy at every later one
+    lead = next(i for i in range(len(common)) if all(g > 0 for g in gHG[i:]))
+    m("vLcLeadFrom", f"{common[lead]:,}".replace(",", "{,}"))
+    m("vLcLeadMin", f"{min(gHG[lead:]):.1f}"); m("vLcLeadMax", f"{max(gHG[lead:]):.1f}")
+    m("vLcFirstGapAbs", f"{abs(gHG[0]):.1f}")
+    early = [LC[a][common[0]]["reward"] for a in ("rrebel_l1_std", "rrebel_huber_std", "grpo_ent")]
+    m("vLcFirstSpread", f"{max(early) - min(early):.1f}")
     gLG = [LC["rrebel_l1_std"][t]["reward"] - LC["grpo_ent"][t]["reward"] for t in common]
     m("vLcLoneGentPosSteps", sum(g > 0 for g in gLG))
     pk = max(common, key=lambda t: LC["rrebel_l1_std"][t]["reward"])
     m("vLonePeakStep", f"{pk:,}".replace(",", "{,}")); m("vLonePeakRew", f"{LC['rrebel_l1_std'][pk]['reward']:.1f}")
     m("vLoneDrop", f"{LC['rrebel_l1_std'][pk]['reward'] - LC['rrebel_l1_std'][common[-1]]['reward']:.1f}")
-    hvs = [LC["rrebel_l1_std"][t]["hv"] for t in common]
+    hvs = [LC["rrebel_l1_std"][t]["hv"] for t in common if t >= pk]   # from the peak onward
     m("vLoneHVmin", f"{min(hvs):.1f}"); m("vLoneHVmax", f"{max(hvs):.1f}")
     for a, A in MACRO_ARM.items():
         r = [LC[a][t]["reward"] for t in common]

@@ -49,11 +49,20 @@ each prompt is scored by averaging $N = 50$ task-model samples. We report
 \emph{expected} content $\mathbb{E}[c]$ and \emph{expected} sentiment
 $\mathbb{E}[s]$ per $\lmb$, each averaged over task-model samples and test
 sentences. Scorers run in \texttt{float32}.
-The prompt is deterministic given $(x,\lmb)$, so the only randomness is the
+The prompt is deterministic given $(x,\lmb)$, so the main randomness is the
 task model's. We therefore repeat the final-checkpoint evaluation with
-\textbf{five task-model seeds}. We verified that the emitted prompts are
-identical across seeds, so the seeds vary only the task model's samples. We
-average over seeds first, then over sentences.
+\textbf{five task-model seeds}, averaging over seeds first and then over
+sentences. Evaluations ran on whichever eligible GPU was free. On a given GPU
+model the greedy prompts are bit-identical across seeds. Across GPU models,
+floating-point differences flip near-tied greedy choices for up to
+\vHuberFlipMax\% (Huber-std) and \vGentFlipMax\% (GRPO + entropy) of the
+(sentence, floor) prompts, and for up to \vGbaseFlipMax\% for GRPO with the
+base-LM reference, whose prompt distribution is flatter. These flips are
+between near-equivalent prompts: across the five seeds, each arm's mean reward
+varies by at most \vSeedRangeMax{} points (standard deviation at most
+\vSeedSDmax). The five-seed average therefore also averages over this
+hardware variation. For comparison, re-running a $10$-sentence development
+evaluation moved its score by $1.1$ points.
 \textbf{Confidence intervals} are $95\%$ percentile bootstraps over test
 sentences ($2{,}000$ resamples). The same resampled sentences are used for
 every arm, so differences between arms are \emph{paired}. Resampling

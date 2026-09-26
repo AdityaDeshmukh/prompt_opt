@@ -60,7 +60,7 @@ add it to `macros()` in the script rather than typing the value.
 - 20 floors, `lambda in {0, 0.05, ..., 0.95}` (training draws `lambda ~ U[0,1)`).
 - Greedy prompt per (sentence, lambda); N=50 task-LM samples per prompt;
   fp32 scorers; `vllm_seed` pinned per task-LM seed.
-- 5 task-LM seeds at step 12000 (prompts are verified identical across seeds;
+- 5 task-LM seeds at step 12000 (prompts are bit-identical across seeds on the same GPU model, and flip for 0-29% of rows across GPU models;
   the reward's seed-to-seed SD is ~0.04), 1 seed at the learning-curve steps
   (1500, 3000, ..., 10500).
 - 95% percentile bootstrap over sentences, 2000 resamples, **paired** across
