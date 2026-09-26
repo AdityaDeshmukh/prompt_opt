@@ -116,3 +116,5 @@ input_conditioning: true
 prompt_length: 5 # Max output token length of the LM model
 prompt_infer_batch_size: 16
 source_str: "<|endoftext|>"
+eval_lmbdas: null  # list overrides the default 10-point eval grid (0.0..0.9)
+eval_subdir: "test"  # run_eval.py output subfolder

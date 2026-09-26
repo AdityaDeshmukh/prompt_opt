@@ -9,7 +9,7 @@ not one operating point but the whole tradeoff curve, so that a downstream user
 can choose where on it to sit. Training one policy per point is wasteful and
 gives no guarantee that the points are mutually consistent.
 
-We study this in the prompt-optimization setting, where the trainable object is
+We study this in the prompt-optimization setting~\citep{deng2022rlprompt}, where the trainable object is
 a short discrete prompt that steers a \emph{frozen} task language model. Our
 policy is conditioned on a scalar $\lmb$ that indexes how tightly content
 preservation is required, so a single trained policy traces the entire
@@ -18,34 +18,50 @@ This makes exploration unusually load-bearing: a policy that collapses onto one
 prompt is not merely suboptimal, it becomes $\lmb$-independent and collapses the
 curve to a point.
 
-That observation motivates the algorithm we study. GRPO, the default choice for
+That observation motivates the algorithm we study. GRPO~\citep{shao2024deepseekmath}, the default choice for
 this kind of problem, estimates a group-relative advantage and ascends it inside
 a clipped trust region. But in a pipeline that takes one gradient update per
 batch of rollouts --- as prompt optimization naturally does, because rollouts
 are expensive and the policy is small --- the importance ratio is identically
-one and the clip is provably inert, leaving the KL penalty as the objective's
+one in value and the clip is provably inert, leaving the KL penalty as the objective's
 only regularizer, and leaving its unconstrained optimum a deterministic policy.
-\rrebel{} instead treats improvement as regression: it fits the $\beta$-scaled
+\rrebel{}, a robust extension of REBEL~\citep{gao2024rebel}, instead treats
+improvement as regression: it fits the $\beta$-scaled
 log-ratio difference of two sampled prompts to their observed reward difference,
-under a \emph{robust} discrepancy chosen because those reward differences are
-noisy Monte Carlo estimates. Its fixed point is a tempered softmax --- a
-distribution, not a point mass --- so exploration is a property of the objective
-rather than a penalty added to it.
+under a \emph{robust} discrepancy, with rewards standardized within each group.
+Why this works, and when it should, has so far been argued informally. We give
+it a theory in the style of DPO~\citep{rafailov2023dpo}, which says what the
+objective converges to and what each design choice buys. The theory also
+predicts the regime where group standardization matters: one in which the
+reward's scale varies enormously across the contexts a single policy must
+serve. We measure that this multi-objective problem is squarely in that
+regime.
 
 \paragraph{Contributions.}
 \begin{itemize}\itemsep2pt
   \item A $\lmb$-conditioned prompt policy for multi-objective controlled
         rewriting, trained against a constrained reward in which $\lmb$ sets a
         content floor (Section~\ref{sec:setup}).
-  \item \rrebel{}, a family of robust pairwise reward-difference regression
-        objectives, and an analysis of why GRPO's trust region is inert in the
-        single-update regime while \rrebel{}'s fixed point resists collapse
-        (Section~\ref{sec:algos}).
-  \item An empirical comparison over five arms and three seeds at $12{,}000$
-        steps in which the best \rrebel{} variants reach $39.3$ mean reward
-        against $33.4$ for the strongest GRPO arm, with every \rrebel{} seed
-        above every GRPO seed --- and in which the GRPO baseline was first
-        debugged ($+4.1$ points) and then tuned ($+1.8$ points), so the
-        remaining gap cannot be attributed to an under-configured baseline
-        (Section~\ref{sec:results}).
+  \item A theory of \rrebel{}-std (Section~\ref{sec:theory}). Its population
+        minimizer is a KL-regularized optimum for any discrepancy and any
+        full-support sampler, with group standardization turning one global
+        temperature into a per-context one. Consequently every context gets the
+        same trust-region radius, and a lagged reference performs mirror ascent
+        with standardized steps. Pairwise differencing symmetrizes reward
+        noise, so robust discrepancies do not bias the target. GRPO without a KL
+        term is the special case of \rrebel{}-$\ell_2$-std with lag one. Every
+        statement is proved and checked numerically against the implementation.
+  \item A held-out test-split evaluation of the full tradeoff curve for two
+        \rrebel{} and two GRPO variants (Section~\ref{sec:results}):
+        $\vNsent$ sentences, $\vNlam$ content floors, repeated task-model
+        seeds, and paired bootstrap intervals. \rrebel{} with a Huber
+        discrepancy has the best curve (hypervolume $\vHuberHV$ against
+        $\vGentHV$, reward $\vHuberRew$ against $\vGentRew$). We also report
+        how well each policy honours its floor, what prompts it learned, how its
+        curve evolved over training, and a direct measurement of the reward-scale
+        variation that motivates standardization.
+  \item Two negative results that bound the comparison. A GRPO baseline
+        anchored to the pretrained backbone, with a genuine trust region, is the
+        weakest arm. And the $\ell_1$ variant's curve regresses late in
+        training, which development-set early stopping avoids.
 \end{itemize}

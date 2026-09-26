@@ -1,0 +1,399 @@
+\section{Theory: what \rrebel{}-std optimizes, and why}
+\label{sec:theory}
+
+This section develops the theory behind \rrebel{} with group standardization
+(``-std''), the variant family that wins every comparison in
+Section~\ref{sec:results}. The approach follows DPO~\citep{rafailov2023dpo}:
+start from the KL-regularized objective, use its closed-form optimum to turn a
+statement about rewards into a statement about log-ratios, and then ask what a
+given loss on those log-ratios converges to. We answer four questions.
+\emph{What is the target?} (\S\ref{sec:th-target}): for \emph{any} discrepancy
+$d$ and \emph{any} full-support sampler, the population minimizer is a
+KL-regularized optimum; standardization changes only its temperature.
+\emph{What does standardization buy?} (\S\ref{sec:th-std}): a trust region
+whose radius does not depend on the reward's scale, which matters because in
+this problem that scale varies by orders of magnitude across $\lmb$.
+\emph{Why is a robust $d$ free?} (\S\ref{sec:th-robust}): differencing within
+a pair symmetrizes reward noise, so robust losses do not bias the target.
+\emph{How does it relate to GRPO?} (\S\ref{sec:th-grpo}): GRPO without a KL
+term is \emph{exactly} \rrebel{}-$\ell_2$-std with the reference refreshed every
+step.
+
+Proofs are in Appendix~\ref{app:proofs}. Every statement is also checked
+numerically, by a script that runs the repository's actual loss code on a
+tabular policy (\texttt{analysis/\allowbreak theory\_checks.py};
+Appendix~\ref{app:checks}).
+
+\paragraph{Setting.}
+A \emph{context} is $c = (x, \lmb)$, drawn as in training
+($x$ from the data, $\lmb \sim \mathcal{U}[0,1]$). Prompts range over a finite
+set $\mathcal{Z}$ (all length-$L$ token strings). We analyse the
+population reward $r(c,z) = \mathbb{E}_{y}[\Rlam(z,x;y)]$, of which the Monte
+Carlo average $\hat r_\lmb$ in Eq.~\eqref{eq:mcreward} is an unbiased estimate.
+$\pi_0(\cdot \mid c)$ denotes the reference policy, assumed to have full support
+on $\mathcal{Z}$. Everything below holds context by context, so the policy is
+written $\pi(\cdot\mid c)$ throughout; the $\lmb$-conditioned network of
+Section~\ref{sec:setup} is one way of representing the whole family
+$\{\pi(\cdot\mid c)\}_c$ with shared parameters.
+
+% ---------------------------------------------------------------------------
+\subsection{The target: reward-difference regression recovers the KL-regularized optimum}
+\label{sec:th-target}
+
+Fix a temperature $\tau_c > 0$ for each context and consider
+\begin{equation}
+  \max_{\pi}\;
+  \mathbb{E}_{z\sim\pi(\cdot\mid c)}\bigl[r(c,z)\bigr]
+  \;-\; \tau_c\, \mathrm{KL}\bigl(\pi(\cdot\mid c)\,\|\,\pi_0(\cdot\mid c)\bigr).
+  \label{eq:th-klobj}
+\end{equation}
+
+\begin{lemma}[KL-regularized optimum; \citealp{peters2007rwr,rafailov2023dpo}]
+\label{lem:gibbs}
+The unique maximizer of Eq.~\eqref{eq:th-klobj} is the Gibbs policy
+$\pi^\star_{\tau_c}(z\mid c) = \pi_0(z\mid c)\,e^{r(c,z)/\tau_c}/Z(c)$, and for
+all $z, z'$
+\begin{equation}
+  r(c,z) - r(c,z') \;=\;
+  \tau_c\Bigl[\log\tfrac{\pi^\star_{\tau_c}(z\mid c)}{\pi_0(z\mid c)}
+            - \log\tfrac{\pi^\star_{\tau_c}(z'\mid c)}{\pi_0(z'\mid c)}\Bigr].
+  \label{eq:th-diff}
+\end{equation}
+\end{lemma}
+
+The partition function cancels in differences, which is the same cancellation
+DPO exploits. DPO uses it to express a Bradley--Terry preference
+\emph{probability} through log-ratio differences and fits it by
+classification. REBEL~\citep{gao2024rebel} and \rrebel{} use it to express a
+reward \emph{difference} through log-ratio differences, and fit it by
+regression.
+
+\paragraph{The population loss.}
+Let $q(\cdot\mid c)$ be the distribution prompts are sampled from, let
+$s(c) > 0$ be a reward scale, and let $d$ be any discrepancy with $d(0)=0$ and
+$d(e) > 0$ for $e \neq 0$. The population version of Eq.~\eqref{eq:rrebel} is
+\begin{equation}
+  \mathcal{L}_{q,s}(\pi) =
+  \mathbb{E}_c\,\mathbb{E}_{z,z'\sim q(\cdot\mid c)}\,
+  d\Bigl(\beta\bigl[\log\tfrac{\pi(z\mid c)}{\pi_0(z\mid c)}
+                   - \log\tfrac{\pi(z'\mid c)}{\pi_0(z'\mid c)}\bigr]
+         \;-\; \tfrac{r(c,z) - r(c,z')}{s(c)}\Bigr).
+  \label{eq:th-poploss}
+\end{equation}
+Plain \rrebel{} has $s \equiv 1$. \rrebel{}-std has
+$s(c) = \sigma_q(c)$, the standard deviation of $r(c,\cdot)$ under
+$q(\cdot\mid c)$: the population counterpart of the within-group standard
+deviation in Eq.~\eqref{eq:rewardprep}.
+
+\begin{theorem}[Consistency for every discrepancy and every full-support sampler]
+\label{thm:consistency}
+Suppose $q(\cdot\mid c)$ has full support on $\mathcal{Z}$ for almost every $c$.
+Then $\mathcal{L}_{q,s}(\pi) \ge 0$, with equality if and only if
+$\pi(\cdot\mid c) = \pi^\star_{\beta s(c)}(\cdot\mid c)$ for almost every $c$.
+In particular:
+\begin{enumerate}[label=(\roman*),itemsep=1pt,topsep=2pt]
+  \item plain \rrebel{} is minimized uniquely by the KL-regularized optimum at
+        temperature $\beta$, whatever the discrepancy $d$;
+  \item \rrebel{}-std is minimized uniquely by the KL-regularized optimum at the
+        \emph{context-dependent} temperature $\beta\,\sigma_q(c)$. Equivalently,
+        it solves KL-regularized RL on per-context \emph{standardized} reward,
+        \[
+          \max_\pi\; \mathbb{E}_c\bigl[\mathbb{E}_{\pi}[\,r/\sigma_q(c)\,]
+          - \beta\,\mathrm{KL}(\pi\,\|\,\pi_0)\bigr].
+        \]
+\end{enumerate}
+\end{theorem}
+
+Three consequences are worth stating.
+\emph{First, the target does not depend on how prompts are sampled.} The
+perturbed samplers used for exploration in the original \rrebel{}
+formulation (e.g.\ excluding the top-$m$ tokens) change the loss surface but
+not its minimizer, so exploration costs no bias. For \rrebel{}-std the
+qualification is that $\sigma_q$ is itself measured under $q$; we analyse the
+natural choice below, $q = \pi_0$ at the start of each reference window.
+\emph{Second, the discrepancy enters only through ``zero iff the residual is
+zero''.} At the population level, $\ell_1$, Huber, and Cauchy losses all have the
+same target as $\ell_2$; \S\ref{sec:th-robust} shows that this survives noisy
+rewards.
+\emph{Third, amortization is lossless.} Because the loss vanishes if and only if
+it vanishes context by context, a $\lmb$-conditioned policy class rich enough to
+represent every $\pi^\star(\cdot\mid x,\lmb)$ recovers all of them
+simultaneously. A single policy can trace the whole frontier without giving up
+any point on it. (Like DPO's Theorem~1, this is a statement about the
+nonparametric minimizer; with finite capacity, which contexts the fit favours
+is the subject of Proposition~\ref{prop:balance}.)
+
+\begin{lemma}[Standardization enlarges the reward equivalence class]
+\label{lem:invariance}
+DPO calls two rewards equivalent if they differ by a function of the context
+alone, $r' = r + b(c)$; such rewards share an optimal policy. Plain \rrebel{}
+has exactly these classes. Under \rrebel{}-std, every
+$r' = a(c)\,r + b(c)$ with $a(c) > 0$ yields the \emph{same loss}
+$\mathcal{L}_{q,\sigma_q}$ for every $\pi$, not merely the same minimizer.
+\end{lemma}
+
+The constants $\kappa$ and $g(\lmb)$ in Eq.~\eqref{eq:rewardprep} are such an
+$a(c)$. Lemma~\ref{lem:invariance} is therefore the formal version of the
+earlier observation that they have no effect on any -std variant. Hand-tuning
+a $\lmb$-dependent reward weight is unnecessary: standardization already puts
+every context on a common scale.
+
+% ---------------------------------------------------------------------------
+\subsection{What standardization buys: a scale-free trust region}
+\label{sec:th-std}
+
+Theorem~\ref{thm:consistency}(ii) says standardization replaces the global
+temperature $\beta$ with $\beta\sigma(c)$. The next three results explain why
+this is the right temperature for a $\lmb$-conditioned policy. Throughout, the
+sampler at the start of a reference window is the reference itself,
+$q = \pi_0$. This holds exactly at every refresh and approximately during the
+$K = 150$ steps that follow.
+
+\begin{proposition}[Scale-free trust region]
+\label{prop:trust}
+Fix $c$ and let $u = (r - \mathbb{E}_{\pi_0}r)/\sigma_{\pi_0}(c)$ be the
+standardized reward, with cumulant generating function
+$\Lambda_u(t) = \log\mathbb{E}_{\pi_0}e^{tu}$. The \rrebel{}-std target
+$\pi^+ = \pi^\star_{\beta\sigma}$ satisfies
+\begin{equation}
+  \mathrm{KL}(\pi^+\|\pi_0) = \tfrac{1}{\beta}\Lambda_u'\!\bigl(\tfrac1\beta\bigr)
+                              - \Lambda_u\!\bigl(\tfrac1\beta\bigr),
+  \qquad
+  \mathbb{E}_{\pi^+}[u] = \Lambda_u'\!\bigl(\tfrac1\beta\bigr).
+  \label{eq:th-trust}
+\end{equation}
+Both quantities depend on the context only through the \emph{shape} of the law
+of $u$, and not through the reward's scale or location. Moreover $\pi^+$ solves
+$\max_\pi \mathbb{E}_\pi[r]$ subject to
+$\mathrm{KL}(\pi\|\pi_0) \le \varepsilon(c)$, where $\varepsilon(c)$ is the
+left-hand side of Eq.~\eqref{eq:th-trust}. For large $\beta$,
+\begin{equation}
+  \varepsilon(c) = \tfrac{1}{2\beta^2} + \tfrac{\gamma(c)}{3\beta^3} + O(\beta^{-4}),
+  \qquad
+  \mathbb{E}_{\pi^+}[u] = \tfrac{1}{\beta} + \tfrac{\gamma(c)}{2\beta^2} + O(\beta^{-3}),
+\end{equation}
+where $\gamma(c) = \mathbb{E}_{\pi_0}[u^3]$ is the reward's skewness. The plain
+target $\pi^\star_\beta$ has instead
+$\mathrm{KL}(\pi^\star_\beta\|\pi_0) = \sigma(c)^2/(2\beta^2) + O(\sigma^3/\beta^3)$.
+\end{proposition}
+
+Read as an algorithm, each reference window of \rrebel{}-std is a
+\emph{trust-region} step. To leading order the KL radius is the same in every
+context and the expected gain is $1/\beta$ standard deviations. For
+Gaussian-shaped rewards the radius is exactly $1/(2\beta^2)$, i.e.\ $2$ nats at
+our $\beta = 0.5$. Plain \rrebel{} applies one KL \emph{penalty}, so its radius
+grows as $\sigma(c)^2$. Figure~\ref{fig:theory-toy} (left) shows the
+consequence on a toy problem: over five decades of reward scale, the
+standardized target's KL is constant, while the plain target's KL ranges from
+$10^{-6}$ nats (no movement) to $\log|\mathcal{Z}|$ (collapse to a point mass
+in a single window).
+
+\begin{proposition}[A lagged reference is mirror ascent with standardized steps]
+\label{prop:mirror}
+Suppose each reference window is solved exactly, and the reference is then
+refreshed to the result. The iterates satisfy
+\begin{equation}
+  \pi_{k+1}(z\mid c) \;\propto\; \pi_k(z\mid c)\,
+  \exp\bigl(\eta_k(c)\, r(c,z)\bigr),
+  \qquad \eta_k(c) = \frac{1}{\beta\,\sigma_{\pi_k}(c)},
+  \label{eq:th-mirror}
+\end{equation}
+which is mirror ascent on $\mathbb{E}_\pi[r]$ with the KL mirror map
+\citep{beck2003mirror}, i.e.\ exponentiated-gradient / natural policy gradient
+\citep{kakade2001npg}. This is the connection REBEL draws for its own update
+\citep{gao2024rebel}, here with a per-context step size. Unrolled,
+$\pi_k \propto \pi_0\, e^{T_k(c)\, r}$ with $T_k = \sum_{j<k}\eta_j$. Hence every
+iterate is a Gibbs distribution: no single window can collapse the policy. As
+$T_k \to \infty$ the iterates concentrate on $\arg\max_z r(c,z)$, the best
+prompt for that $(x,\lmb)$, which is the operating point the multi-objective
+problem asks for.
+\end{proposition}
+
+With standardization, the step $\eta_k$ \emph{grows} as the policy sharpens and
+$\sigma_{\pi_k}$ shrinks, which holds the per-window KL near
+$\varepsilon \approx 1/(2\beta^2)$. Progress therefore does not stall as the
+policy concentrates, and it is \emph{identical} across contexts whose rewards
+differ only in scale. Without standardization, $T_k = k/\beta$ in every
+context, so contexts with small reward spread barely move while contexts with
+large spread saturate in one window. Figure~\ref{fig:theory-toy} (right) shows
+both behaviours. The earlier informal claim that ``\rrebel{}'s optimum is a
+distribution'' should be read in this precise sense: each window targets a
+Gibbs policy at bounded KL, so concentration happens at a controlled rate of
+roughly $1/(2\beta^2)$ nats per window rather than in one step.
+
+\begin{proposition}[Standardization balances the amortized objective]
+\label{prop:balance}
+At the start of a window ($\pi = \pi_0 = q$, all log-ratios zero), the expected
+$\ell_2$ loss of a context is $2\,\sigma(c)^2$ for plain \rrebel{}, and exactly
+$2$ for \rrebel{}-std. Under $\ell_1$ it is $\sigma(c)\cdot m_u$ versus $m_u$,
+where $m_u = \mathbb{E}|u-u'|$ depends only on the shape of $u$.
+\end{proposition}
+
+A shared-parameter policy trained without standardization therefore gives
+contexts weight in proportion to $\sigma(c)^2$ (or $\sigma(c)$). It spends its
+capacity on the high-variance end of the $\lmb$ range and treats contexts
+where every sampled prompt has nearly the same reward as noise. With
+standardization, every context starts from the same loss.
+
+\paragraph{How large is the scale variation in this problem?}
+The constrained reward of Eq.~\eqref{eq:reward} has two branches on very
+different scales. Where the content floor is met, the reward is a sentiment
+score on $[0,100]$. Where it is not, the reward is $0.01\times$ the shortfall,
+typically $|r| \lesssim 0.5$. Which branch
+dominates a group depends on both $\lmb$ and $x$.
+Section~\ref{sec:res-scale} measures $\sigma(x,\lmb)$ under the training
+sampler: it varies by a factor of \sRangeQ{} across contexts. It also computes
+the per-group KL radii that Proposition~\ref{prop:trust} predicts for the plain
+and standardized targets.
+
+% ---------------------------------------------------------------------------
+\subsection{Why a robust discrepancy costs nothing}
+\label{sec:th-robust}
+
+\begin{proposition}[Pairwise differencing symmetrizes reward noise]
+\label{prop:symm}
+Suppose observed rewards are $\hat r(z_i) = r(z_i) + \epsilon_i$, with the
+$\epsilon_i$ independent across the members of a group and \emph{either}
+(a) identically distributed, of any shape (skewed or heavy-tailed), \emph{or}
+(b) each symmetric about zero, with any prompt-dependent scale. Then
+$\epsilon_i - \epsilon_j$ is symmetric about zero, and for every even, convex
+$d$ the minimizer over $h$ of
+$\mathbb{E}\, d\bigl(h - (\hat r(z_i) - \hat r(z_j))/s\bigr)$ is the noiseless
+target $(r(z_i) - r(z_j))/s$. It is unique if $d$ is strictly convex, or, for
+$d = |\cdot|$, if $\epsilon_i - \epsilon_j$ has positive density at zero.
+\end{proposition}
+
+By contrast, a \emph{pointwise} robust regression of a score $h(z)$ onto
+$\hat r(z)$ estimates $\mathrm{median}(r + \epsilon)$, which is biased whenever
+the noise is skewed. The pairwise construction is what makes the ``R'' in
+\rrebel{} free: $\ell_1$ and Huber inherit the target of
+Theorem~\ref{thm:consistency}, and their bounded influence functions
+\citep{huber1964robust} cap how much any single noisy pair can move the
+gradient. This matters here because $\hat r_\lmb$ is an average of a
+\emph{discontinuous} per-sample reward: a rewrite whose content lands just
+either side of $100\lmb$ switches between a sentiment score and a small
+penalty. (Non-convex $d$, such as Cauchy, additionally needs the noise
+difference to be unimodal.)
+
+\begin{lemma}[Standardized targets are bounded]
+\label{lem:bounded}
+With the sample standard deviation of Eq.~\eqref{eq:rewardprep}
+($G-1$ normalization), every standardized target satisfies
+$|\tilde r_i - \tilde r_j| \le \sqrt{2(G-1)}$, and this bound is attained
+\citep{samuelson1968deviant}.
+\end{lemma}
+
+For $G = 16$, every regression target lies in $[-5.48,\, 5.48]$, whatever the
+reward scale. With Huber's $\delta = 1$, the targets therefore span both its
+quadratic and its linear regimes. Together with a bounded influence function,
+Lemma~\ref{lem:bounded} means no single pair can dominate a group's update.
+
+% ---------------------------------------------------------------------------
+\subsection{Relation to GRPO: GRPO is \rrebel{}-$\ell_2$-std with lag one}
+\label{sec:th-grpo}
+
+\begin{proposition}[First-order equivalence]
+\label{prop:firstorder}
+Let $\psi = d'$ (odd, since $d$ is even). At the start of a reference window,
+where $\pol = \polref$ and every log-ratio is zero, the \rrebel{} gradient over
+$S$ groups of size $G$ with $P = G(G-1)/2$ pairs is
+\begin{equation}
+  \nabla_\theta \mathcal{L}^{\rrmath}
+  = -\frac{\beta}{S P}\sum_{\text{groups}}\sum_{i=1}^{G}
+     u_i\,\nabla_\theta \log\pol(z_i),
+  \qquad
+  u_i = \sum_{j\neq i}\psi\bigl(\tilde r_i - \tilde r_j\bigr).
+  \label{eq:th-firstorder}
+\end{equation}
+This is a policy gradient with a zero-sum advantage built from pairwise
+comparisons, and its shape is the influence function of $d$:
+\begin{itemize}[itemsep=1pt,topsep=2pt]
+  \item $\ell_2$: $u_i = 2G(\tilde r_i - \overline{\tilde r}) = 2G A_i$, with
+        $A_i$ the GRPO advantage of Eq.~\eqref{eq:grpo-adv};
+  \item $\ell_1$: $u_i = \sum_{j}\mathrm{sign}(r_i - r_j) = 2\,\mathrm{rank}_i - (G+1)$,
+        a \emph{centered-rank} advantage. It is invariant to every strictly
+        increasing transformation of the reward, and it is the fitness shaping
+        of natural evolution strategies \citep{wierstra2014nes,salimans2017es};
+  \item Huber: $u_i = \sum_j \mathrm{clip}(\tilde r_i - \tilde r_j, -\delta, \delta)$,
+        which interpolates between the rank ($\delta\to0$) and GRPO
+        ($\delta\to\infty$) advantages.
+\end{itemize}
+\end{proposition}
+
+\begin{corollary}[GRPO as a special case]
+\label{cor:grpo}
+If the reference is refreshed at every step ($K=1$), every gradient is taken at
+a window start. \rrebel{}-$\ell_2$-std then produces, at every step, a positive
+constant ($4\beta G L/(G-1)$ for prompts of length $L$) times the gradient of
+single-update GRPO with $\beta_{\mathrm{KL}} = 0$. Adam is invariant to a
+constant rescaling of the gradient (up to its $\epsilon$, and provided
+gradient-norm clipping is inactive), so under Adam the two produce the same
+parameter trajectory.
+\end{corollary}
+
+Within a window ($K > 1$), the advantage is evaluated at the regression
+\emph{residual},
+$u_i = \sum_j \psi\bigl(\tilde r_i - \tilde r_j - [\logratio(z_i) - \logratio(z_j)]\bigr)$.
+It therefore shrinks as the log-ratio differences absorb the reward differences,
+and it vanishes at the Gibbs target of Theorem~\ref{thm:consistency}.
+GRPO's advantage $A_i$ does not depend on $\theta$; only its KL term opposes it,
+and in this single-update pipeline that term is the \emph{only} regularizer
+(Section~\ref{sec:grpo}). Corollary~\ref{cor:grpo} thus locates the difference
+between the two families precisely. Relative to GRPO, \rrebel{}-std adds
+(1) a \emph{lag} $K$, which gives every window a finite, trust-region target
+(Propositions~\ref{prop:trust}--\ref{prop:mirror}), and (2) a
+\emph{discrepancy} $d$, whose influence function becomes the advantage shape
+(Proposition~\ref{prop:firstorder}), with no change of target
+(Proposition~\ref{prop:symm}). The winning variants use $K = 150$ and a
+bounded-influence $d$.
+
+\paragraph{Does the choice between $\ell_1$ and Huber matter for settling?}
+The decay argument above needs $\psi(e) \to 0$ as $e \to 0$. This holds for
+$\ell_2$, Huber and Cauchy, but not for $\ell_1$, whose force on an unfitted pair
+is $\pm1$ however small the residual. In the deterministic population limit,
+fixed-step Adam on the $\ell_1$ loss therefore stalls at a small error floor,
+while Huber converges; in our toy the floor is $8\times10^{-9}$ nats against
+$3\times10^{-11}$. With sampled groups, in-group standardization and noisy
+rewards, however, the distinction disappears: the stationary jitter of the two
+fits is indistinguishable ($5.1\times10^{-5}$ versus $6.5\times10^{-5}$ nats), because
+gradient noise dominates. This property therefore does \emph{not} explain the
+late-training divergence between the two -std variants reported in
+Section~\ref{sec:res-dynamics}, and we do not claim a mechanism for it.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{theory_toy.pdf}
+\caption{Propositions~\ref{prop:trust} and~\ref{prop:mirror} on a toy problem
+($|\mathcal{Z}| = 400$ prompts in the left panel, $200$ in the right, Gaussian-shaped rewards,
+$\beta = 0.5$), computed exactly. \textbf{Left:} KL from the reference to the
+one-window target, for rewards of identical shape but different scale
+$\sigma$. The standardized target moves the same distance at every scale
+($1.82$ nats here). The plain target ranges from negligible movement to
+collapse onto a point mass. \textbf{Right:} mass on the best prompt across
+refresh windows. The three standardized trajectories ($\sigma = 0.01, 1, 100$)
+coincide exactly. Plain \rrebel{} saturates in one window at $\sigma = 100$ and
+barely moves in $40$ windows at $\sigma = 0.01$.}
+\label{fig:theory-toy}
+\end{figure}
+
+\paragraph{What the theory does not cover.}
+The results are about idealized, population-level quantities, and four gaps
+separate them from the implementation.
+(i) The in-group standard deviation uses $G = 16$ samples, and
+$\mathbb{E}[1/\hat\sigma] \ne 1/\sigma$. For Gaussian rewards
+$\mathbb{E}[\sigma/\hat\sigma] = 1.054$, so standardized targets are about 5\%
+larger on average: a slightly lower effective temperature, not a different
+target family.
+(ii) Within a window the sampler is the moving policy $\pol$, not $\polref$,
+so $\sigma_q$ drifts; Propositions~\ref{prop:trust}--\ref{prop:balance} are
+exact only at refresh steps.
+(iii) Each window runs $150$ Adam steps rather than being solved exactly, and
+optimizer state is reset at every scheduler resume (Section~\ref{sec:limitations}),
+so Proposition~\ref{prop:mirror} describes an idealized trajectory.
+(iv) The theory concerns maximizing the constrained reward $r_\lmb$. It does
+\emph{not} guarantee that the expected content of the chosen prompt meets
+$100\lmb$: the reward penalizes each task-model sample that violates the floor,
+which makes it a surrogate for a chance constraint rather than an
+expected-value constraint. Whether the trained policies honour the constraint
+is therefore an empirical question, and Section~\ref{sec:res-frontier}
+measures it directly.

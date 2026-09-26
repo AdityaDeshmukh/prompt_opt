@@ -1,82 +1,71 @@
 \section{Limitations and threats to validity}
 \label{sec:limitations}
 
-We state these plainly, because several of them bound how strongly the headline
+We state these plainly, because several of them bound how strongly the
 comparison can be read.
 
-\paragraph{The evaluation metric is a 10-sentence dev score, not the test split.}
-As Section~\ref{sec:setup-exp} states, the in-training evaluation runs on the
-development split capped at $10$ sentences, and no run in this campaign was
-ever evaluated on the $500$-sentence held-out test split. Every number in this
-paper inherits that. The $6$-point family gap is large relative to the measured
-$1$-point noise floor and we expect it to survive, but the confidence interval
-at $n=10$ is much wider than ``three seeds'' suggests, the sub-$2$-point
-variant gaps are not resolvable, and the absolute values are not comparable to
-test-split numbers in the literature. This is the single most important caveat
-on the results.
+\paragraph{One training seed per arm in the main campaign.}
+The v4 frontiers come from one training run per arm. The test-split confidence
+intervals capture sentence and task-model sampling variation, but not
+\emph{training-seed} variation, which in this problem is large for GRPO: in the
+three-seed v3 campaign its seeds spanned $26.3$--$34.7$ mean reward, against
+$36.8$--$40.0$ for \rrebel{} (Section~\ref{sec:seed-replication}). The v3
+replication supports the \emph{family} ordering across seeds, but it was
+measured on a $10$-sentence development set. A multi-seed test-split
+replication of v4 is the most important missing experiment.
 
-\paragraph{GRPO's reference policy is uniform, so its KL is not a trust region.}
-The pinned $\polref$ is the policy at initialization, which in this
-configuration is numerically the uniform distribution over the $50{,}257$-token
-vocabulary (Section~\ref{sec:algos-caveat}). The KL penalty is therefore an
-entropy bonus up to a constant, not a trust region toward a competent
-reference, and the two GRPO arms are two settings of one anti-collapse lever
-rather than two independent configurations. A GRPO baseline anchored on a
-supervised-fine-tuned policy is the missing experiment, and until it is run our
-claim should be read as being about GRPO \emph{in this single-update,
-uniform-reference regime}, not about GRPO in general.
+\paragraph{GRPO in the single-update regime.}
+Both GRPO arms take one gradient step per rollout, so the PPO clip is inert
+(Section~\ref{sec:grpo}) and the KL term is the only regularizer. The base-LM
+reference arm removes the earlier confound that GRPO's anchor was uniform (an
+entropy bonus rather than a trust region). It does not test GRPO with multiple
+epochs per rollout, where the clip is live, and $\beta_{\mathrm{KL}}$ was not
+swept. Our claims are about GRPO in this regime, not about GRPO in general.
+Corollary~\ref{cor:grpo} sharpens what the comparison isolates: at $K=1$,
+\rrebel{}-$\ell_2$-std \emph{is} KL-free GRPO. The measured gap is therefore
+attributable to the reference lag and the discrepancy, the two ingredients
+\rrebel{} adds.
+
+\paragraph{The theory is idealized.}
+Section~\ref{sec:theory} analyses population quantities: exact reward
+expectations, the population reward standard deviation, and reference windows
+solved to optimality. The implementation uses $16$-sample standard deviations,
+a moving sampler within each window, and $150$ Adam steps per window. The gaps
+are listed at the end of Section~\ref{sec:theory}. No experiment here ablates
+standardization directly, since every \rrebel{} arm uses it; the evidence for
+Section~\ref{sec:th-std} is the toy computation of
+Figure~\ref{fig:theory-toy} together with the reward-scale measurement of
+Section~\ref{sec:res-scale}.
+
+\paragraph{The reward is a surrogate for the constraint.}
+The constrained reward penalizes each task-model sample that falls below the
+floor. It is therefore a surrogate for a \emph{chance} constraint, not a
+guarantee that expected content meets the floor. Section~\ref{sec:res-control}
+measures how closely each policy honours the floor. The penalty constant
+($0.01$) was not tuned, and it shapes where violations are traded against
+sentiment.
 
 \paragraph{Optimizer state does not survive a resume.}
-Checkpoints store the model's parameters only, and the optimizer is rebuilt on
-each resume, so every run is really a sequence of $\sim\!20$ Adam warm restarts
-with zeroed moments rather than one continuous trajectory. Cycle counts happen
-to be close across arms ($63$--$65$), so this is not a systematic handicap to
-either family, but it is a methodological defect and it should be fixed before
-publication.
-\todo{save and restore optimizer state in
-\texttt{ScoreTrainer.\_save\_checkpoint}.}
+Checkpoints store model parameters only, and the optimizer is rebuilt on each
+resume. Every run is thus a sequence of Adam warm restarts with zeroed moments:
+$26$--$31$ productive $4$-hour cycles per v4 arm. The counts are similar across
+arms, so this is not a systematic handicap to either family, but it is a
+methodological defect. It also blocks the obvious scheduling improvement:
+shorter cycles would queue faster but would multiply the warm restarts.
 
-\paragraph{The tradeoff curve itself is not yet measured for these arms.}
-As Sections~\ref{sec:tradeoff} and~\ref{sec:provenance} explain, the per-$\lmb$
-frontier --- the figure this paper is nominally about --- is pending the
-regeneration run. Everything reported here is $\lmb$-averaged. It remains possible that two arms
-with similar average reward have differently-shaped curves, and the dominance
-claim of Figure~\ref{fig:tradeoff} is about averaged operating points, not about
-pointwise dominance across $\lmb$.
-
-\paragraph{The rerun is single-seed.}
-The regeneration campaign trains one seed per arm, not three. Its frontiers will
-therefore be indicative rather than seed-averaged, and given GRPO's wide seed
-spread ($26.3$--$34.7$ at step $11{,}500$) a single GRPO seed should not be read
-as that arm's typical curve.
-
-\paragraph{Evaluation noise and the number of seeds.}
-Three seeds per arm and a $1.0$-point noise floor are enough to separate the
-families ($6.0$ points) but not to rank variants within a family; we
-consequently report the top two \rrebel{} variants as tied and draw no
-conclusion between them. The noise floor is itself estimated from a single
-repeated evaluation on $10$ sentences, so it is an order-of-magnitude figure
-rather than a calibrated standard error.
+\paragraph{Heterogeneous hardware.}
+Training cycles ran on whichever eligible GPU was free (H100, L40S, A100,
+RTX~A6000, RTX~6000 Blackwell). Different GPUs execute different kernels, so
+runs are not bit-reproducible. We have no evidence that this affects any arm
+systematically.
 
 \paragraph{The style classifier used at evaluation.}
-The evaluation entry point requests the \emph{train}-split style classifier
-rather than the test-split one. Since the same classifier scores every arm, this
-cannot explain the family gap, but it does mean the absolute sentiment numbers
-are not directly comparable to work that evaluates with the held-out
-classifier.
-\todo{confirm whether this is intentional; if not, re-evaluate with the
-test-split classifier and update the absolute sentiment numbers. Arm ordering is
-not at risk either way.}
+The evaluation entry point loads the \emph{train}-split style classifier (the
+only one available locally). The same classifier scores every arm, so this
+cannot explain differences between arms, but absolute sentiment numbers are not
+comparable to work that evaluates with a held-out classifier.
 
 \paragraph{Single task and single direction.}
-All results are Yelp negative-to-positive with a \texttt{gpt2-xl} task model and
-$5$-token prompts. We make no claim about other datasets, other transfer
-directions, longer prompts, or larger task models. In particular, the inert-clip
-argument of Section~\ref{sec:grpo} is a property of the single-update regime; a
-pipeline that takes multiple epochs per rollout would keep the clip live --- a
-real trust region, unlike the uniform-reference KL analysed in
-Section~\ref{sec:algos-caveat} --- and might close some of the gap.
-
-\paragraph{Scope of this draft.}
-Per its stated scope, this draft presents the algorithms and the results.
-Related work is a stub, and there is no discussion or conclusion section yet.
+All results are Yelp negative-to-positive, with a \texttt{gpt2-xl} task model and
+$5$-token prompts. We make no claim about other datasets, transfer directions,
+prompt lengths, or larger task models.

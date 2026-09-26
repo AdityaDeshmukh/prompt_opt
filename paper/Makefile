@@ -1,6 +1,6 @@
 # Build the draft. This cluster has pdflatex + bibtex but NOT latexmk, so the
-# passes are spelled out. Two pdflatex passes resolve \ref/\label; a third is
-# only needed once refs.bib is wired up (see main.tex).
+# passes are spelled out: pdflatex, bibtex, then two more pdflatex passes to
+# resolve citations and \ref/\label.
 #
 #   make          build main.pdf
 #   make results  regenerate tables + figures from the recovered data, then build
@@ -8,14 +8,17 @@
 #   make distclean also remove main.pdf
 
 PY   := /u/ad11/miniconda3/envs/prompt_opt/bin/python
+PY3  := /u/ad11/miniconda3/envs/prompt_opt_v3/bin/python
 TEX  := pdflatex -interaction=nonstopmode -halt-on-error
-SRC  := main.tex $(wildcard sections/*.tex) $(wildcard tables/*.tex) $(wildcard figures/*.pdf)
+SRC  := main.tex refs.bib $(wildcard sections/*.tex) $(wildcard tables/*.tex) $(wildcard figures/*.pdf)
 
 .PHONY: all results clean distclean
 
 all: main.pdf
 
 main.pdf: $(SRC)
+	$(TEX) main.tex
+	bibtex main
 	$(TEX) main.tex
 	$(TEX) main.tex
 	@echo
@@ -28,6 +31,9 @@ main.pdf: $(SRC)
 # analysis/recover_from_wandb.py first if the export itself is stale.
 results:
 	cd .. && $(PY) analysis/paper_results.py --tex
+	cd .. && $(PY3) analysis/full_eval.py
+	cd .. && $(PY3) analysis/reward_scale_analysis.py
+	cd .. && $(PY3) analysis/theory_checks.py --fig paper/figures/theory_toy.pdf
 	$(MAKE) all
 
 clean:

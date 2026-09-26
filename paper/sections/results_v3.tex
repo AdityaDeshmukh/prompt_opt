@@ -1,0 +1,88 @@
+\subsection{Training-seed replication (v3, three seeds, development set)}
+\label{sec:seed-replication}
+
+The v4 campaign has one training run per arm, so it cannot measure how much a
+result depends on the training seed. The earlier v3 campaign can, with a
+caveat: it used the same code, hyperparameters and budget, but its only
+surviving evaluation is the in-training score on a $10$-sentence development
+set, over the $10$-point grid $\{0,\dots,0.9\}$ (Section~\ref{sec:provenance}).
+Table~\ref{tab:main} reports it at step $11{,}500$, the largest step at which
+all fifteen runs were evaluated.
+
+\begin{table}[t]
+\centering
+\input{tables/main_results}
+\caption{\textbf{v3 campaign} (three training seeds per arm): mean reward,
+content and sentiment at matched step $11{,}500$, on the \emph{$10$-sentence
+development set} and the $10$-point $\lmb$ grid. Not comparable in absolute
+terms to the v4 test-split numbers.}
+\label{tab:main}
+\end{table}
+
+\paragraph{The family ordering holds across seeds.}
+The best \rrebel{} variants score $39.34$ ($\ell_1$-std) and $39.27$
+(Huber-std), tied within noise, against $33.36$ for GRPO + entropy, a gap of
+$5.98$ points. There is no overlap at the level of individual runs: the worst
+\rrebel{} seed ($36.82$) beats the best GRPO seed ($34.65$). GRPO's seeds are
+also far more dispersed, spanning $26.3$--$34.7$ against $36.8$--$40.0$ for the
+nine \rrebel{} seeds. A single GRPO run is therefore a less reliable estimate of
+its arm than a single \rrebel{} run. $\ell_1$-ent ($37.49$) trails $\ell_1$-std
+by $1.85$ points: adding an entropy bonus to a -std variant hurt, consistent
+with Proposition~\ref{prop:mirror}, under which each window already moves by a
+bounded KL. None of the three v3 $\ell_1$-std seeds shows the late decline of the
+v4 $\ell_1$-std run (Section~\ref{sec:res-dynamics}) on this development set.
+
+\paragraph{The baseline was debugged, and plain GRPO is a collapse diagnostic.}
+\label{sec:baseline-defense}
+Three GRPO configurations compared at matched step $4500$ show the baseline
+being repaired rather than tuned against:
+
+\begin{center}
+\begin{tabular}{lrl}
+\toprule
+GRPO configuration (v3, dev set) & Mean reward & Change \\
+\midrule
+Rolling reference anchor (defective) & $27.16$ & --- \\
+Pinned reference anchor (Section~\ref{sec:grpo}) & $31.30$ & $+4.14$ \\
+\quad + entropy bonus $\alpha_H = 0.01$ & $33.10$ & $+1.80$ \\
+\midrule
+\rrebel{} (all variants, same step) & $39.26$ & $+6.16$ remaining \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The rolling anchor re-copied the KL reference from the live policy every $150$
+steps, which zeroed the penalty and its gradient at every refresh. Pinning it
+was worth $+4.14$ points, and the entropy bonus a further $+1.80$. The
+plain-GRPO arm, however, never learns. Its score moves from $30.38$ at step
+$500$ to $30.19$ at step $11{,}500$. Its logged KL sits at $9.824$, against the
+$k_3$ estimator's ceiling of $9.8249$, and it explores a median of $5$ distinct
+prompt tokens per cycle: one frozen prompt. Because its pinned anchor is the
+uniform distribution (Section~\ref{sec:algos-caveat}), plain GRPO and
+GRPO + entropy are one configuration at two strengths of the same entropy
+lever, not two independent baselines. This is why v4 replaces plain GRPO with
+the base-LM-reference arm.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.78\textwidth]{learning_curves.pdf}
+\caption{\textbf{v3 campaign}: mean reward on the $10$-sentence development set
+against training step, averaged over three seeds, with the band spanning the
+seed minimum to maximum. Blue: \rrebel{} variants; orange: GRPO arms.}
+\label{fig:learning}
+\end{figure}
+
+\subsection{Data provenance}
+\label{sec:provenance}
+
+The v3 campaign ran to completion, but a purge of the scratch filesystem then
+destroyed all of its checkpoints and per-$\lmb$ evaluation files. Its numbers
+were recovered from the experiment tracker's scalar history, by a
+reconstruction that is validated three ways per run and refuses to emit data if
+any check fails. All fifteen runs pass. The tracker logged only
+$\lmb$-averaged scores, so no v3 tradeoff curve can be drawn, and three runs lack
+a step-$12{,}000$ evaluation (hence step $11{,}500$ above). The v4 campaign was
+run to regenerate what was lost. Its checkpoints are mirrored off the purgeable
+filesystem on every save, and every evaluation file is archived. Every v4
+number in this paper is regenerated from those files by
+\texttt{analysis/full\_eval.py}.

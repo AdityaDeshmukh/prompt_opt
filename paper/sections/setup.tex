@@ -3,8 +3,9 @@
 
 \paragraph{Prompted style transfer with a frozen task model.}
 Let $x$ be a source sentence with an undesired attribute (here, a negative Yelp
-review). A policy $\pol(\cdot \mid \lmb)$ emits a short discrete
-\emph{prompt} $z = (z_1,\dots,z_L)$ of fixed length $L=5$ tokens. The prompt is
+review). A policy $\pol(\cdot \mid x, \lmb)$, conditioned on the source and
+on a tradeoff parameter $\lmb$, emits a short discrete \emph{prompt}
+$z = (z_1,\dots,z_L)$ of fixed length $L=5$ tokens. The prompt is
 inserted into a fixed template together with the source,
 \begin{equation}
   \texttt{template}(z, x) \;=\; \texttt{\{z\}\ "\{x\}"\ "} ,
@@ -55,7 +56,8 @@ average over $N = 50$ task-model samples per (prompt, source) pair,
   \qquad y_n \sim \lm(\cdot \mid \texttt{template}(z,x)),
   \label{eq:mcreward}
 \end{equation}
-which is what every algorithm below consumes as its scalar reward.
+which is what every algorithm below consumes as its scalar reward. We write
+$\tau = 100\lmb$ for the content floor when discussing results.
 
 \paragraph{Objective: one policy for the whole curve.}
 During training $\lmb$ is drawn afresh per source, $\lmb \sim \mathcal{U}[0,1]$,
@@ -66,7 +68,7 @@ frontier is traced by varying the conditioning input rather than by retraining:
   \max_{\theta}\;
   \mathbb{E}_{\lmb \sim \mathcal{U}[0,1]}\;
   \mathbb{E}_{x}\;
-  \mathbb{E}_{z \sim \pol(\cdot \mid \lmb)}\bigl[\hat{r}_{\lmb}(z,x)\bigr].
+  \mathbb{E}_{z \sim \pol(\cdot \mid x, \lmb)}\bigl[\hat{r}_{\lmb}(z,x)\bigr].
   \label{eq:objective}
 \end{equation}
 This conditioning is what makes the problem multi-objective rather than a set of

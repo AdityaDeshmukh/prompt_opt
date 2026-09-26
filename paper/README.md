@@ -1,94 +1,83 @@
-# Paper draft — R-REBEL vs GRPO
+# Paper draft — R-REBEL vs GRPO, with theory
 
-Draft started 2026-09-08. **Scope of this draft: the algorithms and the results
-only**, as requested. Intro is thin on purpose, related work is a stub, and
-there is no discussion/conclusion yet.
+Scope: algorithms, theory, and results. Related work is still a stub (the
+only open `\todo`), and there is no conclusion section yet.
 
 ## Build
 
 ```bash
-cd paper && make          # pdflatex x2 -> main.pdf (14 pages)
-make results              # regenerate tables+figures from data, then build
+cd paper && make          # pdflatex, bibtex, pdflatex x2 -> main.pdf
+make results              # regenerate every table/figure/number from data, then build
 make clean
 ```
 
 Toolchain on this cluster: `pdflatex` and `bibtex` are present; `latexmk`,
-`algorithm2e`, `algpseudocode` and `pgfplots` are **not**. Hence
-`algorithm`+`algorithmic` for pseudocode and pre-rendered matplotlib PDFs for
-every figure. Don't add a package without checking `kpsewhich <pkg>.sty` first.
+`algorithm2e`, `algpseudocode`, `pgfplots`, `thmtools` and `cleveref` are
+**not**. Hence `algorithm`+`algorithmic`, plain `amsthm`, and pre-rendered
+matplotlib PDFs for every figure. Check `kpsewhich <pkg>.sty` before adding a
+package. There is no `pdftoppm`; preview pages with
+`gs -sDEVICE=png16m -r80 -dFirstPage=N -dLastPage=N -o p.png main.pdf`.
 
-## Where the numbers come from
+## Structure
 
-Nothing here is typed by hand. Everything flows from one committed data file:
+| Section | File | Evidence |
+|---|---|---|
+| 2 Setup, 3 Algorithms | `sections/setup.tex`, `algorithms.tex` | code |
+| 4 Theory of R-REBEL-std | `sections/theory.tex` (+ proofs in `appendix.tex`) | `analysis/theory_checks.py` |
+| 5 Experimental setup | `sections/experiments.tex` | |
+| 6.1–6.4 Main results (v4, test split) | `sections/results.tex` | `analysis/full_eval.py` |
+| 6.5 Reward-scale measurement | `sections/results.tex` | `analysis/reward_scale_analysis.py` |
+| 6.6–6.7 Seed replication (v3, dev set), provenance | `sections/results_v3.tex` | `analysis/paper_results.py` |
+| 7 Limitations | `sections/limitations.tex` | |
+
+## Where the numbers come from — nothing is typed by hand
+
+Every number in the prose is a LaTeX macro written by a script, loaded in the
+preamble of `main.tex`:
 
 ```
-results/v3_wandb_export.json        <- analysis/recover_from_wandb.py  (needs network)
-  -> paper/tables/*.tex             <- analysis/paper_results.py --tex
-  -> paper/figures/*.pdf            <- analysis/paper_results.py
+results/v4/v4_<arm>_seed0/test_full/output.step.<N>.seed<S>.json   <- slurm/eval_full.slurm
+  -> analysis/full_eval.py  -> paper/tables/{full_results,pairwise,prompts,v4_numbers}.tex
+                               paper/figures/{frontier,control,test_learning}.pdf
+                               results/v4/full_eval_summary.json
+results/v4/reward_scale_probe/*.json                               <- slurm/reward_probe.slurm
+  -> analysis/reward_scale_analysis.py -> paper/tables/scale_numbers.tex, figures/reward_scale.pdf
+analysis/theory_checks.py --fig ...    -> paper/figures/theory_toy.pdf  (31 checks, exits 1 on failure)
+results/v3_wandb_export.json          -> analysis/paper_results.py --tex -> tables/main_results.tex,
+                                                                           figures/learning_curves.pdf
 ```
 
-`analysis/paper_results.py` also prints the tables to stdout with the pairwise
-gaps and a noise-floor verdict on each, which is the quickest way to sanity-check
-a claim in the text.
+`full_eval.py` refuses to write outputs unless every arm has all 5 task-LM
+seeds at step 12000 (`--allow-partial` exists for drafting only). If you change
+a sentence that quotes a number, use the macro; if the macro does not exist,
+add it to `macros()` in the script rather than typing the value.
+
+## Evaluation protocol (v4)
+
+- **500-sentence Yelp test split**, never the 10-sentence dev set, for every
+  v4 number. The dev set is used for exactly one thing: selecting a checkpoint
+  in the early-stopping comparison.
+- 20 floors, `lambda in {0, 0.05, ..., 0.95}` (training draws `lambda ~ U[0,1)`).
+- Greedy prompt per (sentence, lambda); N=50 task-LM samples per prompt;
+  fp32 scorers; `vllm_seed` pinned per task-LM seed.
+- 5 task-LM seeds at step 12000 (prompts are verified identical across seeds;
+  the reward's seed-to-seed SD is ~0.04), 1 seed at the learning-curve steps
+  (1500, 3000, ..., 10500).
+- 95% percentile bootstrap over sentences, 2000 resamples, **paired** across
+  arms.
 
 ## Read this before trusting a number
 
-The v3 campaign completed, but `/scratch` was purged around 2026-09-03..05 and
-**every checkpoint and every per-lambda eval JSON is gone** (0 `*.pth`,
-0 `outputs.step.*.json`). Consequences, all disclosed in
-`sections/results.tex` §"Data provenance":
-
-1. **Scores are solid.** Recovered from wandb and validated three ways per run
-   (true-step anchors, distinct-step count, perfectly regular step grid). All 15
-   runs pass; the script refuses to emit data if a check fails.
-2. **The lambda-frontier does not exist yet.** `evaluate()` averages over the
-   lambda grid *before* logging (`trainers/score_trainer.py:282-284`), so wandb
-   never had per-lambda content/style. Figure `tradeoff.pdf` currently shows
-   lambda-**averaged operating points** and says so on its face. It is not a
-   frontier — do not describe it as one.
-3. **Step 11500, not 12000, is the headline.** Three runs (`*_seed1` of
-   rrebel_huber_std, rrebel_l1_ent, grpo_ent) lack a step-12000 eval: their last
-   cycle ran under the trainer's wandb-init fallback, so those evals went to
-   disk only and the disk copies were purged. 11500 is the largest step where
-   all 15 runs are present.
-4. **Distinct-prompt collapse counts are not quoted as measured.** They came
-   from the purged eval JSONs. The surviving `num_tokens_explored` metric cannot
-   substitute — it is a per-process cumulative set that restarts on every 4-hour
-   resubmit, so its peak reflects early exploration, not steady-state collapse.
-5. **No pre-v2 data goes in the paper.** Five per-lambda eval JSONs recovered
-   from editor history live in `results/recovered_prev2/`, but they are 2025 runs
-   from before the fairness fixes. `analysis/paper_results.py` will only plot
-   them under an explicit `--recovered` flag, into a filename the paper does not
-   include. Do not re-add them.
-
-## Getting the frontier figure
-
-`slurm/train_v4.slurm` retrains one seed per arm (3 runs x 12000 steps:
-rrebel_l1_std, grpo_ent, grpo_baseref) purely to regenerate the per-lambda
-evals; its EXIT trap auto-submits `slurm/eval_v4.slurm` per arm on completion,
-which writes `results/v4/<run>/test/output*.json` -- the **500-sentence test
-split**, fp32 scorers, fixed vLLM seed. `paper_results.py` detects those files
-and switches `tradeoff.pdf` from operating points to the true frontier
-automatically, printing the step it drew. No text change is needed beyond
-removing the TODO in the tradeoff subsection and the caveat in the limitations.
-
-`eval_v4.slurm` evaluates the **newest available checkpoint** when step 12000 is
-absent, so a real test-split frontier can be produced mid-training -- submit it
-by hand once checkpoints exist. It never reads the train-time
-`eval/outputs.step.*.json` files, and neither does the figure code: those are
-the 10-sentence DEV evals, not test.
-
-Both v4 scripts archive to `results/v4/` in **home** after every cycle — that is
-the fix for the root cause of the data loss above. Nothing a paper depends on
-should ever live only on `/scratch`.
-
-## Open TODOs in the draft
-
-`grep -rn 'TODO' sections/ main.tex` — currently:
-
-- populate `refs.bib` and convert by-name mentions to `\citep`
-- related-work section
-- replace the operating-point figure with the true frontier (needs v4)
-- restore the distinct-prompt collapse numbers (needs v4)
-- confirm whether evaluating with the *train*-split style classifier
-  (`run_eval.py` calls `get_style_classifier('train', ...)`) is intentional
+1. **The v3 campaign's checkpoints and per-lambda evals were destroyed** by a
+   scratch purge. Its scores survive only in wandb and are 10-sentence dev
+   numbers on a 10-point grid; they appear only in the seed-replication
+   subsection, labelled as such.
+2. **No pre-v2 data goes in the paper.** Recovered 2025 curves in
+   `results/recovered_prev2/` are plotted by `paper_results.py` only under an
+   explicit `--recovered` flag, into a filename the paper does not include.
+   Do not re-add them.
+3. **v4 has one training seed per arm.** The test intervals do not include
+   training-seed variation; the limitations section says so.
+4. `figures/{components,tradeoff,baseline_debug}.pdf` and
+   `tables/{results_12000,v4_test_results}.tex` are still produced by
+   `paper_results.py` but are no longer included; the v4 figures supersede them.

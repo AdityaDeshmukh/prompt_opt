@@ -27,7 +27,7 @@ def main(config: "DictConfig"):
 
     config.save_dir = os.path.join(output_dir, config.save_dir)
     trainer = ScoreTrainer(algo_module, train_dataset, test_dataset, config)
-    eval_save_dir = os.path.join(config.save_dir, "test")
+    eval_save_dir = os.path.join(config.save_dir, config.get('eval_subdir', "test"))
     if not os.path.exists(eval_save_dir):
         os.makedirs(eval_save_dir)
     # name the result by checkpoint step so evals at different steps coexist
@@ -36,6 +36,9 @@ def main(config: "DictConfig"):
         m = re.search(r"step\.(\d+)\.pth$", str(config.checkpoint_path))
         if m:
             out_name = f"output.step.{m.group(1)}.json"
+    # a seed tag keeps repeated evals of one checkpoint from overwriting
+    if config.get('vllm_seed', None) is not None and config.get('eval_subdir', "test") != "test":
+        out_name = out_name.replace(".json", f".seed{config.vllm_seed}.json")
     trainer.evaluate(output_save_path=os.path.join(eval_save_dir, out_name))
 
 

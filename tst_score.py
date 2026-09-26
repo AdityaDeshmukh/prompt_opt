@@ -116,6 +116,20 @@ class PromptedTextStyleTransferScore(BaseScore):
         mean_contents = content_mat.mean(dim=-1)
         mean_styles = style_mat.mean(dim=-1)
 
+        if mode == 'infer':
+            # Per-row arrays for the evaluator (read by ScoreTrainer.evaluate).
+            # Eval-only side channel: the training path never reads it, so the
+            # optimization is untouched. `feasible` is the fraction of the N
+            # task-LM samples meeting the content threshold -- the quantity the
+            # constrained reward actually cares about, and not recoverable from
+            # the means alone.
+            self.last_infer_rows = {
+                'score': mean_scores.detach().cpu(),
+                'content': mean_contents.detach().cpu(),
+                'style': mean_styles.detach().cpu(),
+                'feasible': (content_mat >= lmbda_col).float().mean(dim=-1).cpu(),
+            }
+
         quantities_to_log: Dict[str, List[torch.Tensor]] = defaultdict(list)
         quantities_to_log['mean_content'].append(mean_contents.mean())
         quantities_to_log['mean_style'].append(mean_styles.mean())

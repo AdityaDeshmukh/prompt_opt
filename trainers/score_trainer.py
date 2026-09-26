@@ -70,6 +70,7 @@ class ScoreTrainer:
         self.run_name = config.run_name
 
         self.random_lmbda = config.random_lmbda
+        self.eval_lmbdas = config.get('eval_lmbdas', None)
 
     def _load_checkpoint(self, checkpoint_path: str) -> None:
         checkpoint = torch.load(checkpoint_path, map_location='cpu')
@@ -291,7 +292,11 @@ class ScoreTrainer:
             eval_dataset = self.eval_dataset
         eval_dataloader = self._get_eval_dataloader(eval_dataset)
         if lmbda == -1:
-            lmbdas = torch.arange(0, 1, 0.1)
+            # `eval_lmbdas` (config) overrides the default 10-point grid; the
+            # default is unchanged so train-time evals stay comparable.
+            grid = getattr(self, 'eval_lmbdas', None)
+            lmbdas = (torch.tensor([float(v) for v in grid])
+                      if grid else torch.arange(0, 1, 0.1))
         else:
             lmbdas = [lmbda]
         model = self.module.eval()
@@ -300,8 +305,12 @@ class ScoreTrainer:
         mean_contents= []
         mean_styles = []
         json_lmbdas = []
+        rows = {'src': [], 'lmbda': [], 'score': [], 'content': [],
+                'style': [], 'feasible': []}
+        n_seen = 0
         print('------------------------------Start Eval--------------------------------')
         for batch in eval_dataloader:
+            n_batch = len(batch['source_texts'])
             for lmbda in lmbdas:
                 infer_outputs: Dict[str, Union[torch.Tensor, List[List[str]]]]
                 lmbda = lmbda.repeat_interleave(len(batch['source_texts'])).to(device)
@@ -316,13 +325,22 @@ class ScoreTrainer:
                 mean_contents.append(score_log['mean_content'].tolist())
                 mean_styles.append(score_log['mean_style'].tolist())
                 json_lmbdas.append(lmbda.tolist()[0])
+                per_row = getattr(self.module._score, 'last_infer_rows', None)
+                if per_row is not None:
+                    rows['src'] += list(range(n_seen, n_seen + n_batch))
+                    rows['lmbda'] += [json_lmbdas[-1]] * n_batch
+                    for key in ('score', 'content', 'style', 'feasible'):
+                        rows[key] += per_row[key].tolist()
+            n_seen += n_batch
         if output_save_path is not None:
-            json.dump({'output_tokens': hypos,
-                       'lmbdas': json_lmbdas,
-                       'mean_scores': mean_scores,
-                       'mean_contents': mean_contents,
-                       'mean_styles': mean_styles},
-                      open(output_save_path, 'w'))
+            out = {'output_tokens': hypos,
+                   'lmbdas': json_lmbdas,
+                   'mean_scores': mean_scores,
+                   'mean_contents': mean_contents,
+                   'mean_styles': mean_styles}
+            if rows['src']:
+                out['rows'] = rows   # per-(sentence, lambda); added 2026-09-26
+            json.dump(out, open(output_save_path, 'w'))
         
         mean_score = torch.Tensor(mean_scores).mean(dim=-1).mean().item()
         mean_content = torch.Tensor(mean_contents).mean(dim=-1).mean().item()

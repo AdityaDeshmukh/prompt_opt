@@ -4,13 +4,13 @@
 Both algorithms share the same outer loop, the same rollout mechanics, and the
 same reward. For each of the $B=15$ sources in a batch, a fresh
 $\lmb \sim \mathcal{U}[0,1]$ is drawn and $\Ggrp = 16$ prompts are sampled
-i.i.d.\ from $\pol(\cdot \mid \lmb)$, forming a \emph{group} that shares a
+i.i.d.\ from $\pol(\cdot \mid x, \lmb)$, forming a \emph{group} that shares a
 source and a $\lmb$. Each prompt's reward $r_i = \hat{r}_{\lmb}(z_i, x)$ is the
 Monte Carlo average of Eq.~\eqref{eq:mcreward}. The algorithms differ only in
 how a group of $(z_i, r_i)$ pairs becomes a loss. Throughout, the policy
 log-probability of a prompt is the token sum
 \begin{equation}
-  \log \pol(z \mid \lmb) \;=\; \sum_{t=1}^{L} \log \pol(z_t \mid z_{<t}, \lmb),
+  \log \pol(z \mid x, \lmb) \;=\; \sum_{t=1}^{L} \log \pol(z_t \mid z_{<t}, x, \lmb),
 \end{equation}
 and one crucial implementation fact holds for both methods: \textbf{exactly one
 gradient update is taken per rollout}. There is no inner epoch loop.
@@ -72,7 +72,7 @@ trust region inactive, GRPO's fixed point in this pipeline is entropy collapse.
 Implementations that run GRPO with $\beta_{\mathrm{KL}} = 0$ (TRL's default;
 DAPO; Dr.\ GRPO) can do so because they take multiple epochs per rollout, which
 keeps the clip live. This pipeline does not, so we set
-$\beta_{\mathrm{KL}} = 0.04$, the canonical DeepSeekMath value.
+$\beta_{\mathrm{KL}} = 0.04$, the canonical DeepSeekMath value~\citep{shao2024deepseekmath}.
 
 \paragraph{The reference anchor must be long-lived.}
 A KL penalty only regularizes if the anchor is stable. If $\polref$ is
@@ -106,10 +106,18 @@ coefficient of $0.04$; it has no trust region at all. Second, the
 the two GRPO arms differ only in the strength of the \emph{same}
 anti-collapse lever ($0.04$ versus $0.05$ in comparable units) --- they are not
 two independent configurations, and we no longer claim they are.
-\todo{the honest fix is a GRPO baseline whose reference is a competent
-(supervised-fine-tuned or at least trained) policy, so that the KL is a real
-trust region. That is the single most important missing experiment in this
-paper.}
+
+\paragraph{A GRPO baseline with a real trust region.}
+To remove this confound, the v4 campaign adds a GRPO arm whose pinned reference
+is the \emph{unadapted pretrained backbone}. The reference copy skips the
+adaptor MLP and uses \texttt{distilgpt2}'s own next-token distribution, whose
+initial entropy is $7.67$ nats against $10.82$ for the uniform anchor. This is
+the analogue of RLHF's KL-to-SFT penalty: a competent, non-uniform anchor, so
+that $\beta_{\mathrm{KL}}\,\mathrm{KL}(\pol\,\|\,\polref)$ is a genuine trust
+region. We call it \emph{GRPO, base-LM reference}. It uses the same
+$\beta_{\mathrm{KL}} = 0.04$ and no entropy bonus. The other GRPO arm,
+\emph{GRPO + entropy} ($\alpha_H = 0.01$, uniform anchor), is the strongest
+GRPO configuration from the earlier campaign.
 
 \begin{algorithm}[t]
 \caption{GRPO as implemented (one update per rollout, pinned KL anchor)}
@@ -120,7 +128,7 @@ paper.}
 \FOR{step $= 1$ \TO $T$}
   \STATE draw a batch of sources $x^{(1..B)}$ and $\lmb^{(b)} \sim \mathcal{U}[0,1]$
   \FOR{each source $b$}
-    \STATE sample $z_1,\dots,z_\Ggrp \sim \pol(\cdot \mid \lmb^{(b)})$
+    \STATE sample $z_1,\dots,z_\Ggrp \sim \pol(\cdot \mid x^{(b)}, \lmb^{(b)})$
     \STATE $r_i \leftarrow \hat{r}_{\lmb^{(b)}}(z_i, x^{(b)})$ \COMMENT{avg.\ of $N=50$ frozen-task-LM samples}
     \STATE $A_i \leftarrow (r_i - \mathrm{mean}(r))/(\mathrm{std}(r) + \varepsilon)$
   \ENDFOR
@@ -137,7 +145,7 @@ paper.}
 improvement as a \emph{regression} problem. Define the $\beta$-scaled log-ratio
 of a prompt against a reference policy,
 \begin{equation}
-  \logratio(z) \;=\; \beta\Bigl(\log \pol(z \mid \lmb) - \log \polref(z \mid \lmb)\Bigr).
+  \logratio(z) \;=\; \beta\Bigl(\log \pol(z \mid x, \lmb) - \log \polref(z \mid x, \lmb)\Bigr).
   \label{eq:logratio}
 \end{equation}
 For every \emph{unordered pair} $(i,j)$, $i<j$, within a group, \rrebel{} asks
@@ -160,15 +168,18 @@ tempered softmax
   \pi^\star(z) \;\propto\; \polref(z)\,\exp\!\bigl(r(z)/\beta\bigr).
   \label{eq:fixedpoint}
 \end{equation}
-This is the structural difference from GRPO, and the paper's central mechanistic
-claim: \textbf{\rrebel{}'s optimum is a distribution, not a point mass.}
-Exploration does not have to be bolted on by a KL penalty or an entropy bonus,
-because a policy that collapses cannot satisfy Eq.~\eqref{eq:rrebel} --- a
-deterministic policy makes every log-ratio difference infinite while the reward
-differences stay finite and bounded. Since a $\lmb$-conditioned policy must
-serve the entire curve, this matters more here than in single-objective RLHF: a
-collapsed policy is not merely suboptimal, it is $\lmb$-independent and yields a
-point instead of a frontier.
+This is the structural difference from GRPO. \rrebel{}'s target is a
+\emph{distribution}, a Gibbs tilt of the reference, whereas GRPO's
+unregularized target is a point mass. Section~\ref{sec:theory} makes this
+precise. The minimizer of Eq.~\eqref{eq:rrebel} is the tilt of
+Eq.~\eqref{eq:fixedpoint} for \emph{every} discrepancy $d$ and every
+full-support sampler (Theorem~\ref{thm:consistency}), so each reference window
+moves the policy by a bounded KL (Proposition~\ref{prop:trust}). Because the
+reference is refreshed, successive windows compose into mirror ascent
+(Proposition~\ref{prop:mirror}). The policy does sharpen over training, but one
+trust region at a time rather than in a single jump. For a $\lmb$-conditioned
+policy this matters more than in single-objective RLHF: a policy that collapses
+early becomes $\lmb$-independent and yields a point instead of a frontier.
 
 \paragraph{Robust discrepancies.}
 The \emph{R} in \rrebel{} is the replacement of the squared loss by a robust
@@ -198,25 +209,34 @@ optionally standardized within the group:
 The group standardization in the denominator \emph{exactly cancels} any positive
 per-group scale, so for every \rrebel{} variant reported in this paper (all of
 which use it) the constants $\kappa$ and $g(\lmb)$ have no effect on the
-gradient. This is a deliberate fairness property rather than an accident: GRPO's
-advantage normalization in Eq.~\eqref{eq:grpo-adv} cancels reward scale in the
-same way, so neither family can benefit from a tuned reward scale that the other
-lacks. Both families therefore regress or ascend on a scale-normalized target.
+gradient (Lemma~\ref{lem:invariance}). GRPO's advantage normalization in
+Eq.~\eqref{eq:grpo-adv} cancels reward scale in the same way, so neither family
+can benefit from a tuned reward scale that the other lacks. Standardization is
+not only a fairness device, however. Section~\ref{sec:th-std} shows that it
+turns one global temperature $\beta$ into a per-context temperature
+$\beta\sigma(x,\lmb)$, which gives every context the same trust-region radius,
+and Section~\ref{sec:res-scale} measures how much that matters in this problem.
 
 \paragraph{Reference policy.}
 Unlike GRPO's pinned anchor, \rrebel{}'s $\polref$ is refreshed every
-$150$ steps. This is not a hyperparameter choice but part of REBEL's
-construction: Eq.~\eqref{eq:rrebel} regresses the log-ratio against reward
-differences measured under the \emph{recent} policy, so the reference must lag
-by a bounded amount. The asymmetry with GRPO is intentional and is exactly the
-distinction that the earlier defect blurred (Section~\ref{sec:baseline-defense}).
+$K = 150$ steps. This is part of REBEL's construction~\citep{gao2024rebel},
+not an incidental hyperparameter: each window regresses log-ratios against the
+\emph{recent} policy, and consecutive windows then compose into mirror ascent
+(Proposition~\ref{prop:mirror}). The lag is also exactly what separates
+\rrebel{} from GRPO. With $K = 1$, \rrebel{}-$\ell_2$-std reproduces
+single-update GRPO without a KL term step for step
+(Corollary~\ref{cor:grpo}). The asymmetry in reference handling between the
+families is therefore intentional, and it is the distinction that the earlier
+rolling-anchor defect blurred (Section~\ref{sec:baseline-defense}).
 
 \paragraph{Variants evaluated.}
-We report three: $\ell_1$-std ($d = |\cdot|$, group standardization),
-Huber-std ($d = \mathrm{Huber}_1$, group standardization), and
-$\ell_1$-ent ($\ell_1$-std plus an entropy bonus $-\alpha_H H(\pol)$,
-$\alpha_H = 0.01$). Plain $\ell_2$ (REBEL) was dropped after ranking fourth and
-proving seed-unstable in an earlier campaign.
+The main (v4) campaign evaluates the two variants that tied for first in the
+earlier multi-seed campaign: $\ell_1$-std ($d = |\cdot|$) and Huber-std
+($d = \mathrm{Huber}_1$), both with group standardization. The earlier campaign
+also ran $\ell_1$-ent ($\ell_1$-std plus an entropy bonus
+$-\alpha_H H(\pol)$, $\alpha_H = 0.01$), which ranked third
+(Section~\ref{sec:seed-replication}). Plain $\ell_2$ (REBEL) was dropped after
+ranking fourth and proving seed-unstable in a still earlier campaign.
 
 \begin{algorithm}[t]
 \caption{\rrebel{} (robust pairwise reward-difference regression)}
@@ -230,7 +250,7 @@ proving seed-unstable in an earlier campaign.
   \ENDIF
   \STATE draw sources $x^{(1..B)}$ and $\lmb^{(b)} \sim \mathcal{U}[0,1]$
   \FOR{each source $b$}
-    \STATE sample $z_1,\dots,z_\Ggrp \sim \pol(\cdot \mid \lmb^{(b)})$
+    \STATE sample $z_1,\dots,z_\Ggrp \sim \pol(\cdot \mid x^{(b)}, \lmb^{(b)})$
     \STATE $r_i \leftarrow \hat{r}_{\lmb^{(b)}}(z_i, x^{(b)})$; standardize to $\tilde{r}_i$ by Eq.~\eqref{eq:rewardprep}
     \STATE $\logratio(z_i) \leftarrow \beta(\log \pol(z_i) - \log \polref(z_i))$
   \ENDFOR

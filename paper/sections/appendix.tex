@@ -1,0 +1,178 @@
+\appendix
+
+\section{Proofs for Section~\ref{sec:theory}}
+\label{app:proofs}
+
+Throughout, fix a context $c$ and suppress it when unambiguous. Every
+discrepancy considered ($\ell_2$, $\ell_1$, Huber, Cauchy) satisfies
+$d(e)\to\infty$ as $|e|\to\infty$, so a policy that assigns zero probability to
+a prompt with positive sampling probability has infinite loss. We therefore
+restrict attention to full-support $\pi$, for which every log-ratio is finite.
+
+\paragraph{Lemma~\ref{lem:gibbs}.}
+Standard; see \citet[App.~A.1]{rafailov2023dpo}. Writing
+$\pi^\star \propto \pi_0 e^{r/\tau}$ with normaliser $Z$, the objective equals
+$\tau\log Z - \tau\,\mathrm{KL}(\pi\|\pi^\star)$, which Gibbs' inequality
+maximizes uniquely at $\pi = \pi^\star$. Taking logarithms,
+$r(z) = \tau\log(\pi^\star(z)/\pi_0(z)) + \tau\log Z$. The last term does not
+depend on $z$ and cancels in Eq.~\eqref{eq:th-diff}. \qed
+
+\paragraph{Theorem~\ref{thm:consistency}.}
+Non-negativity is immediate from $d \ge 0$. Write the residual as
+$e(z,z') = [h(z) - h(z')] - [r(z) - r(z')]/s$ with
+$h = \beta\log(\pi/\pi_0)$.
+($\Leftarrow$) If $\pi = \pi^\star_{\beta s}$, Lemma~\ref{lem:gibbs} with
+$\tau = \beta s$ gives $h(z) - h(z') = [r(z) - r(z')]/s$, so every residual is
+zero and so is the loss.
+($\Rightarrow$) If $\mathcal{L}_{q,s}(\pi) = 0$, then for almost every $c$,
+$d(e(z,z')) = 0$ for $q\otimes q$-almost every pair. Since $\mathcal{Z}$ is
+finite and $q$ has full support, every pair carries positive mass, so
+$e(z,z') = 0$ for \emph{all} $z,z'$. Hence $h(z) - r(z)/s = C$ for some constant
+$C$ (depending on $c$ only), i.e.\
+$\pi(z) = \pi_0(z)\,e^{r(z)/(\beta s)}\,e^{C/\beta}$. Normalization forces
+$e^{C/\beta} = 1/Z$, so $\pi = \pi^\star_{\beta s}$.
+Part (ii) follows because a Gibbs policy at temperature $\beta\sigma$ for reward
+$r$ is the Gibbs policy at temperature $\beta$ for reward $r/\sigma$, which by
+Lemma~\ref{lem:gibbs} maximizes the stated objective. \qed
+
+\paragraph{Lemma~\ref{lem:invariance}.}
+For $r' = a r + b$ with $a > 0$ constant within the context:
+$r'(z) - r'(z') = a\,[r(z) - r(z')]$ and $\sigma_q(r') = a\,\sigma_q(r)$, so the
+standardized difference is unchanged, and so is every residual. The same
+algebra holds for the \emph{sample} standard deviation of a finite group, so the
+implemented loss is invariant too, up to the $\varepsilon = 10^{-8}$ guard in
+its denominator. Without standardization the shift $b$ cancels but the scale
+$a$ does not. \qed
+
+\paragraph{Proposition~\ref{prop:trust}.}
+Let $\mu = \mathbb{E}_{\pi_0}r$ and $\sigma = \sigma_{\pi_0}$, so $r = \mu + \sigma u$
+and $\pi^+ \propto \pi_0 e^{r/(\beta\sigma)} \propto \pi_0 e^{t u}$ with $t = 1/\beta$
+(the constant $\mu/(\beta\sigma)$ is absorbed by the normaliser). The
+normaliser is $e^{\Lambda_u(t)}$, so
+$\mathrm{KL}(\pi^+\|\pi_0) = \mathbb{E}_{\pi^+}[t u] - \Lambda_u(t)$, and the mean
+of $u$ under an exponential tilt is $\Lambda_u'(t)$. This gives
+Eq.~\eqref{eq:th-trust}; both expressions involve only the law of $u$.
+For the constrained characterization, Lemma~\ref{lem:gibbs} (with reward $u$
+and temperature $\beta$) gives, for every $\pi$,
+$\mathbb{E}_\pi u - \beta\,\mathrm{KL}(\pi\|\pi_0) \le
+\mathbb{E}_{\pi^+}u - \beta\,\varepsilon$. So any $\pi$ with
+$\mathrm{KL}(\pi\|\pi_0) \le \varepsilon$ has $\mathbb{E}_\pi u \le
+\mathbb{E}_{\pi^+}u$, and $\mathbb{E}_\pi r = \mu + \sigma\,\mathbb{E}_\pi u$.
+For the expansion, $u$ has mean $0$ and variance $1$, so
+$\Lambda_u(t) = t^2/2 + \gamma t^3/6 + O(t^4)$ and
+$\Lambda_u'(t) = t + \gamma t^2/2 + O(t^3)$, whence
+$t\Lambda_u'(t) - \Lambda_u(t) = t^2/2 + \gamma t^3/3 + O(t^4)$. The plain target
+is the tilt $e^{(\sigma/\beta)u}$, i.e.\ the same formulas with
+$t = \sigma/\beta$. \qed
+
+\paragraph{Proposition~\ref{prop:mirror}.}
+With the reference at $\pi_k$ and the sampler $q = \pi_k$,
+Theorem~\ref{thm:consistency}(ii) says the window's target is the maximizer of
+$\mathbb{E}_\pi r - \beta\sigma_{\pi_k}\mathrm{KL}(\pi\|\pi_k)$. By
+Lemma~\ref{lem:gibbs} this is $\pi_k e^{r/(\beta\sigma_{\pi_k})}$ up to
+normalization, which is Eq.~\eqref{eq:th-mirror}. The mirror-ascent step with
+the negative-entropy mirror map on the linear objective
+$\langle\pi, r\rangle$ is $\arg\max_\pi\, \eta\langle\pi,r\rangle -
+\mathrm{KL}(\pi\|\pi_k) = \pi_k e^{\eta r}/Z$, the same update. Unrolling the
+product gives $\pi_k \propto \pi_0 e^{T_k r}$. Since $\sigma \le R/2$ with
+$R = \max r - \min r$ (Popoviciu), $\eta_j \ge 2/(\beta R)$, so
+$T_k \ge 2k/(\beta R) \to \infty$. As $T\to\infty$ the Gibbs policy
+$\pi_0 e^{Tr}$ concentrates on $\arg\max r$. \qed
+
+\paragraph{Proposition~\ref{prop:balance}.}
+At the window start all log-ratios are zero, so the residual is
+$-[r(z) - r(z')]/s$ with $z, z'$ i.i.d.\ from $q$. For $\ell_2$,
+$\mathbb{E}[(r - r')^2]/s^2 = 2\,\mathrm{Var}_q(r)/s^2$, which is $2\sigma^2$ for
+$s = 1$ and $2$ for $s = \sigma$. For $\ell_1$,
+$\mathbb{E}|r - r'|/s = \sigma\,\mathbb{E}|u - u'|/s$. \qed
+
+\paragraph{Proposition~\ref{prop:symm}.}
+Let $\eta = (\epsilon_i - \epsilon_j)/s$. In case (a) the pair
+$(\epsilon_i, \epsilon_j)$ is exchangeable, so $\eta$ and $-\eta$ have the same
+law. In case (b), $-\eta = [(-\epsilon_i) - (-\epsilon_j)]/s$ has the same law
+as $\eta$ because each $\epsilon$ is symmetric and they are independent.
+Let $\Delta = [r(z_i) - r(z_j)]/s$ and $f(h) = \mathbb{E}\,d(h - \Delta - \eta)$.
+Then $f(\Delta + v) = \mathbb{E}\,d(v - \eta) = \mathbb{E}\,d(v + \eta) =
+\mathbb{E}\,d(-v - \eta) = f(\Delta - v)$, using first the symmetry of $\eta$
+and then the evenness of $d$. A convex function symmetric about $\Delta$ is
+minimized at $\Delta$:
+$f(\Delta) \le \tfrac12 f(\Delta + v) + \tfrac12 f(\Delta - v) = f(\Delta+v)$,
+with strict inequality if $d$ is strictly convex. For $d = |\cdot|$ the
+minimizers are the medians of $\Delta + \eta$, a single point if $\eta$ has
+positive density at $0$. For the pointwise contrast,
+$\arg\min_h \mathbb{E}|h - r - \epsilon| = r + \mathrm{median}(\epsilon)$, and
+$\mathrm{median}(\epsilon) \ne \mathbb{E}\epsilon = 0$ for skewed noise. \qed
+
+\paragraph{Lemma~\ref{lem:bounded}.}
+With $\bar x$ the group mean and $\hat s^2 = \sum_k (x_k - \bar x)^2/(G-1)$,
+$(x_i - x_j)^2 \le 2(x_i - \bar x)^2 + 2(x_j - \bar x)^2
+\le 2\sum_k (x_k - \bar x)^2 = 2(G-1)\hat s^2$. Equality holds when
+$x_i - \bar x = -(x_j - \bar x)$ and every other $x_k = \bar x$. \qed
+
+\paragraph{Proposition~\ref{prop:firstorder} and Corollary~\ref{cor:grpo}.}
+With $\ell_i = \beta[\log\pol(z_i) - \log\polref(z_i)]$,
+$g_i = \nabla_\theta\log\pol(z_i)$, and $\Delta_{ij} = \tilde r_i - \tilde r_j$,
+the implemented loss (mean reduction over the $SP$ pair entries) has gradient
+$\frac{\beta}{SP}\sum\sum_{i<j}\psi(e_{ij})(g_i - g_j)$ with
+$e_{ij} = (\ell_i - \ell_j) - \Delta_{ij}$. At a window start
+$e_{ij} = -\Delta_{ij}$, and $\psi$ is odd, so $\psi(e_{ij}) = -\psi(\Delta_{ij})$.
+Regrouping by index,
+$\sum_{i<j}\psi(\Delta_{ij})(g_i - g_j) = \sum_i g_i\sum_{j\ne i}\psi(\Delta_{ij})$,
+since for $j < i$ the term $-\psi(\Delta_{ji})g_i = \psi(\Delta_{ij})g_i$. This
+is Eq.~\eqref{eq:th-firstorder}.
+For $d(e) = e^2$, $\psi(e) = 2e$ and
+$\sum_{j\ne i}2(\tilde r_i - \tilde r_j) = 2G(\tilde r_i - \overline{\tilde r})$.
+Because $\tilde r = r/\hat s$, this equals $2G(r_i - \bar r)/\hat s = 2GA_i$.
+For $d = |\cdot|$, $\psi = \mathrm{sign}$ (with $\mathrm{sign}(0) = 0$, the
+subgradient autograd uses), and
+$\sum_j \mathrm{sign}(r_i - r_j) = (\mathrm{rank}_i - 1) - (G - \mathrm{rank}_i)$.
+Oddness of $\psi$ gives $\sum_i u_i = 0$.
+For the corollary, the GRPO loss with $\beta_{\mathrm{KL}}=0$ and ratio $\equiv 1$
+is a mean over $SGL$ token entries, with gradient
+$-\frac{1}{SGL}\sum A_i g_i$, using $\sum_t \nabla\log\pol(z_{i,t}) = g_i$.
+The \rrebel{}-$\ell_2$-std gradient is $-\frac{2\beta G}{SP}\sum A_i g_i$, and
+the ratio of the two is $2\beta G^2L/P = 4\beta GL/(G-1)$. Adam maps
+$g \mapsto cg$ to $m\mapsto cm$, $v\mapsto c^2v$, so its step
+$m/(\sqrt v + \epsilon)$ is unchanged up to $\epsilon$. \qed
+
+\section{Numerical verification of the theory}
+\label{app:checks}
+
+\texttt{analysis/theory\_checks.py} tests each statement of
+Section~\ref{sec:theory} on a tabular single-token policy (so that
+$\log\pol(z)$ is available in closed form). Checks 1--3 call the repository's
+own \texttt{\_rrebel\_core} and \texttt{grpo\_v2\_loss}, so they verify the
+\emph{implementation}; the rest compute the idealized quantities exactly. The
+script exits non-zero if any check fails. All $31$ checks pass. The exact
+identities are run with the code's $\varepsilon = 10^{-8}$ standard-deviation
+guard set to zero: with the guard in place, the invariance and gradient-ratio
+checks deviate by $\sim\!10^{-7}$, which is exactly the size of $\varepsilon/\sigma$
+on those toy scales.
+
+\begin{center}
+\small
+\begin{tabular}{p{0.63\textwidth}r}
+\toprule
+Check & max.\ error \\
+\midrule
+Prop.~\ref{prop:firstorder}: first-order gradient identity, $d \in \{\ell_2, \ell_1, \mathrm{Huber}\}$ (autograd vs.\ formula) & $3\times10^{-16}$ \\
+Prop.~\ref{prop:firstorder}: $\ell_1$ advantage $= 2\,\mathrm{rank}-(G+1)$ & $0$ \\
+Cor.~\ref{cor:grpo}: $\ell_2$-std gradient $\parallel$ GRPO gradient ($1-\cos$); norm ratio $=4\beta G/(G-1)$ & $7\times10^{-14}$; $0$ \\
+Lemma~\ref{lem:invariance}: std loss invariant to per-group $r\mapsto ar+b$ & $6\times10^{-16}$ \\
+\quad (control) unstandardized loss changes under the same map & rel.\ $3.6$ \\
+Lemma~\ref{lem:bounded}: max $|\tilde r_i-\tilde r_j|$ over $20{,}000$ heavy-tailed groups $\le\sqrt{30}$; attained & $0$; $0$ \\
+Thm.~\ref{thm:consistency}: KL(minimizer $\|$ predicted Gibbs), perturbed sampler, $d\in\{\ell_2,\ell_1,\mathrm{Huber},\mathrm{Cauchy}\}$, plain and std & $2\times10^{-15}$ \\
+Prop.~\ref{prop:trust}: std-target KL constant over $5.5$ decades of reward scale & $10^{-13}$ \\
+Prop.~\ref{prop:trust}: plain KL $\approx\sigma^2/(2\beta^2)$ at small $\sigma$ (rel.) & $2\times10^{-4}$ \\
+Prop.~\ref{prop:trust}: large-$\beta$ expansion at $\beta=5,10$ (rel.) & $1.2\times10^{-3}$ \\
+Prop.~\ref{prop:trust}: Gaussian shape, exact KL $=1/(2\beta^2)=2$ at $\beta=0.5$ & $2\times10^{-11}$ \\
+Prop.~\ref{prop:symm}: pairwise-$\ell_1$ fit under skewed i.i.d.\ noise (Monte Carlo, $n=4{\times}10^5$) & $9\times10^{-4}$ \\
+\quad (control) pointwise-$\ell_1$ bias under the same noise & $-1.05$ \\
+Prop.~\ref{prop:symm}: pairwise-$\ell_1$ under heteroscedastic symmetric $t_2$ noise & $1.3\times10^{-2}$ \\
+Prop.~\ref{prop:mirror}: std first-window KL and whole trajectory identical across scales $10^{-2}$--$10^{2}$ & $2\times10^{-16}$ \\
+\quad (control) plain: best-prompt mass after $40$ windows, $\sigma=0.01$ vs.\ $\sigma=100$ & $0.03$ vs.\ $1.00$ \\
+\S\ref{sec:th-grpo}: deterministic constant-step Adam, KL to target, Huber vs.\ $\ell_1$ & $3\times10^{-11}$ vs.\ $8\times10^{-9}$ \\
+\S\ref{sec:th-grpo}: sampled groups + noise, stationary jitter, $\ell_1$/Huber ratio & $0.78$ \\
+\bottomrule
+\end{tabular}
+\end{center}

@@ -1,277 +1,331 @@
 \section{Results}
 \label{sec:results}
 
-\subsection{Headline comparison}
-
-Table~\ref{tab:main} reports the matched-step comparison at step $11{,}500$,
-where all fifteen runs are present.
-
-\begin{table}[t]
-\centering
-\input{tables/main_results}
-\caption{Mean reward, content, and sentiment at matched step $11{,}500$ ---
-the largest step at which every arm has all three seeds. Reward is averaged
-over the evaluation set and then over the $\lmb$ grid $\{0,\dots,0.9\}$. All
-quantities are on a $0$--$100$ scale. Note the evaluation set here is the
-$10$-sentence development split, not the held-out test split
-(Section~\ref{sec:setup-exp}).}
-\label{tab:main}
-\end{table}
-
-Three observations, in decreasing order of robustness.
-
-\paragraph{1. The family gap is large and unambiguous.}
-The best \rrebel{} variant scores $39.34$ against $33.36$ for the best GRPO arm:
-a gap of $\mathbf{5.98}$ points, or six times the $1.0$-point noise floor. The
-separation survives at the level of individual runs, which is the strongest form
-the claim can take: the \emph{worst} \rrebel{} seed ($36.82$) beats the
-\emph{best} GRPO seed ($34.65$) by $2.16$ points. There is no overlap between
-the two families' seed distributions, so the ordering does not depend on seed
-selection or on averaging. Averaged over the second half of training
-(steps $\ge 6000$), the same picture holds: $39.37$ and $39.44$ for
-$\ell_1$-std and Huber-std versus $31.11$ and $33.17$ for the two GRPO arms.
-
-\paragraph{2. The top two \rrebel{} variants are tied.}
-$\ell_1$-std ($39.34$) and Huber-std ($39.27$) differ by $0.07$ points, far
-inside the noise floor, and their per-seed ranges overlap almost completely
-($39.0$--$39.9$ versus $38.7$--$40.0$). We therefore report them as tied and
-draw no conclusion about which robust discrepancy is preferable.
-$\ell_1$-ent, at $37.49$, is a genuine $1.85$ points behind --- adding an
-entropy bonus to $\ell_1$-std \emph{hurt}, which is consistent with the claim in
-Section~\ref{sec:rrebel} that \rrebel{} does not need an explicit exploration
-term because its fixed point is already a distribution.
-
-\paragraph{3. GRPO's deficit is in sentiment, not content.}
-The component columns of Table~\ref{tab:main} locate the failure.
-Plain GRPO's content score ($55.92$) is competitive with $\ell_1$-std's
-($56.25$), but its sentiment score is $43.03$ against $53.70$ --- a $10.7$-point
-shortfall that accounts for essentially the entire reward gap. Adding an entropy
-bonus moves GRPO's sentiment up to $50.57$ but at the cost of content, which
-falls to $53.57$, the lowest of any arm. In other words the GRPO arms can
-purchase one objective or the other but cannot hold both at once, which is
-precisely the pathology a $\lmb$-conditioned policy must avoid.
-Figure~\ref{fig:components} shows this as a training-time trajectory: the
-content panels are tightly bunched across all five arms, while the sentiment
-panel separates the families cleanly.
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=0.82\textwidth]{learning_curves.pdf}
-\caption{Mean reward against training step, averaged over three seeds, with the
-band spanning the seed minimum to maximum. The two families separate by step
-$\sim\!2000$ and never re-cross. Blue denotes \rrebel{} variants, orange the
-GRPO arms.}
-\label{fig:learning}
-\end{figure}
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=\textwidth]{components.pdf}
-\caption{The reward gap decomposed. Content (left) is comparable across all
-arms; sentiment (right) is where plain GRPO falls away. Both panels share a
-$y$-scale, so the difference in spread between them is directly comparable.}
-\label{fig:components}
-\end{figure}
-
-\subsection{Learning dynamics}
-
-Figure~\ref{fig:learning} shows that the outcome is not a late-training
-artifact. All arms improve rapidly over the first $\sim\!1500$ steps; the two
-families have separated by step $2000$ and never cross again. The \rrebel{}
-variants climb to roughly $39$--$40$ and then plateau, whereas both GRPO arms
-flatten early --- plain GRPO at $\sim\!31$ and GRPO-plus-entropy at $\sim\!33$
---- and stay flat for the remaining $10{,}000$ steps. The seed bands are also
-informative: GRPO's band is markedly wider (its seeds at step $11{,}500$ span
-$26.33$ to $34.65$, an $8.3$-point spread, versus $36.82$--$40.00$, a
-$3.2$-point spread, across all nine \rrebel{} seeds), so the baseline is both
-worse on average and less reliable.
-
-\paragraph{Plain GRPO does not plateau --- it never learns at all.}
-This distinction matters, and reading Figure~\ref{fig:learning} as ``GRPO
-converges lower'' would be too generous to our own result. Measured from its
-\emph{first} evaluation at step $500$ to step $11{,}500$, the plain GRPO arm
-moves from $30.38$ to $30.19$: a change of $\mathbf{-0.18}$ points over
-$11{,}000$ training steps, inside the noise floor and slightly negative. The
-per-seed deltas are $+0.11$, $+1.09$ and $-1.75$. For comparison, over the same
-interval \rrebel{} ($\ell_1$-std) gains $+6.74$, $+6.23$ and $+7.77$, and
-GRPO-plus-entropy gains $+17.74$, $+3.23$ and $+16.77$. Two corroborating
-diagnostics from the training logs: the logged KL sits at $9.824$ against the
-$k_3$ estimator's analytic ceiling of $9.8249$ for a $50{,}257$-token
-vocabulary --- attained only when the sampled token has probability $\approx 1$
---- and the count of distinct prompt tokens explored per training cycle has a
-median of $5$, which for a $5$-token prompt means a single frozen,
-$\lmb$-independent prompt.
-
-So the plain GRPO number in Table~\ref{tab:main} is the score of a policy that
-collapsed by step $500$ and never moved again. It is a \emph{diagnostic}, not a
-converged baseline, and we do not present it as one: \textbf{the defensible GRPO
-baseline in this paper is the GRPO-plus-entropy arm} at $33.36$, which does
-learn. The headline comparison should be read against that arm --- a $5.98$-point
-gap --- and plain GRPO read as evidence for the collapse mechanism of
-Section~\ref{sec:grpo} rather than as a tuned competitor.
-\todo{re-run plain GRPO with a competent (non-uniform) KL reference, per the
-TODO in Section~\ref{sec:algos-caveat}, before claiming anything about GRPO's
-ceiling as an algorithm.}
-
-\subsection{The baseline was debugged and tuned, and still trails}
-\label{sec:baseline-defense}
-
-The most likely objection to a result of this shape is that the baseline was
-misconfigured. It was, initially --- and fixing it is part of the result. We
-report the full sequence in Figure~\ref{fig:baseline}, all at matched step
-$4500$:
-
-\begin{center}
-\begin{tabular}{lrl}
-\toprule
-GRPO configuration & Mean reward & Change \\
-\midrule
-Rolling reference anchor (defective) & $27.16$ & --- \\
-Pinned reference anchor (Section~\ref{sec:grpo}) & $31.30$ & $+4.14$ \\
-\quad + entropy bonus $\alpha_H = 0.01$ & $33.10$ & $+1.80$ \\
-\midrule
-\rrebel{} (all variants, same step) & $39.26$ & $+6.16$ remaining \\
-\bottomrule
-\end{tabular}
-\end{center}
-
-The first row is the defect described in Section~\ref{sec:grpo}: the KL
-reference was being re-copied from the live policy every $150$ steps, roughly
-eighty times over a run, which zeroed the penalty and its gradient at every
-refresh. Under that configuration GRPO's reward curve was flat from step $500$
-onward, consistent with the entropy collapse that Section~\ref{sec:grpo}
-predicts when the only regularizer is inert. Pinning the anchor is worth
-$+4.14$ points. Giving GRPO the same entropy-bonus lever that $\ell_1$-ent has
-is worth a further $+1.80$.
-
-Both interventions behave as designed, which is evidence that they were
-implemented correctly rather than merely tried. The entropy bonus in particular
-starts \emph{worse} than plain GRPO and only overtakes it from step
-$\sim\!1500$ onward --- the signature of a term that buys exploration at the
-cost of early exploitation.
-
-We must, however, retract one part of the defense. It would be convenient to say
-that the two GRPO arms are two \emph{independent} chances for the baseline, so
-that their agreeing on a $\sim\!31$--$33$ ceiling is strong evidence about GRPO
-as an algorithm. That claim does not survive scrutiny. As
-Section~\ref{sec:algos-caveat} shows, the pinned reference is the uniform
-distribution, so plain GRPO already carries an implicit entropy coefficient of
-$0.04$; the ``GRPO + entropy'' arm merely raises the total to $\approx\!0.05$.
-The two arms are one configuration at two nearby settings of the same
-anti-collapse lever, which is a natural explanation for their landing in the
-same place, and it is \emph{not} independent corroboration. What the table above
-does support is narrower but still real: a diagnosed defect was fixed and was
-worth $+4.14$, an additional exploration lever was worth $+1.80$, and a
-$6$-point gap to \rrebel{} remained after both.
-
-\todo{the direct collapse evidence --- per-checkpoint counts of distinct emitted
-prompts, which during the campaign read $2$--$19$ for defective GRPO against
-$\sim\!97$ for \rrebel{} --- came from the per-$\lmb$ evaluation files and did
-not survive the purge (Section~\ref{sec:provenance}). It is deliberately not
-quoted as a measured result here. The surviving tracker metric
-(\texttt{num\_tokens\_explored}) cannot substitute: it is a per-process
-cumulative set that restarts on every $4$-hour resubmit, so its peak is
-dominated by early-training exploration and does not measure steady-state
-collapse. The rerun regenerates the original statistic; restore this paragraph's
-numbers from it.}
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=0.82\textwidth]{baseline_debug.pdf}
-\caption{The baseline-defense figure. The defective rolling-anchor GRPO (grey)
-is flat at $\sim\!27$; pinning the anchor lifts it to $\sim\!31$ (solid orange);
-adding an entropy bonus reaches $\sim\!33$ (dashed orange). The blue band is the
-envelope over all three \rrebel{} variants and all their seeds. The rolling-anchor
-runs were terminated once the defect was identified, hence their shorter extent.}
-\label{fig:baseline}
-\end{figure}
+% Every number below is a macro from tables/v4_numbers.tex (analysis/full_eval.py)
+% or tables/scale_numbers.tex (analysis/reward_scale_analysis.py), loaded in the
+% preamble of main.tex. Do not type numbers by hand; re-run `make results`.
 
 \subsection{The content--sentiment tradeoff curve}
-\label{sec:tradeoff}
+\label{sec:res-frontier}
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.6\textwidth]{tradeoff.pdf}
-\caption{Content against sentiment at step $11{,}500$. Hollow markers are
-individual seeds, filled markers each arm's mean. \textbf{These are
-$\lmb$-averaged operating points, not a frontier}: each marker collapses the
-whole $\lmb$ grid to one point. The per-$\lmb$ curve is pending
-(Section~\ref{sec:provenance}). Even so, the \rrebel{} points sit up and to the
-right of the GRPO points, i.e.\ better on both objectives simultaneously.}
-\label{fig:tradeoff}
+\includegraphics[width=0.72\textwidth]{frontier.pdf}
+\caption{\textbf{The content--sentiment tradeoff curve} of each trained
+policy on the $\vNsent$-sentence test split (step $12{,}000$). Each marker is
+one content floor $\tau = 100\lmb \in \{0, 5, \dots, 95\}$: the policy's
+greedy prompt for that $\lmb$, scored by expected content $\mathbb{E}[c]$ and
+expected sentiment $\mathbb{E}[s]$ over $N=50$ task-model samples per sentence
+and averaged over sentences and task-model seeds. Crosses are $95\%$ bootstrap
+intervals over sentences. $\tau$ labels mark the Huber-std curve; stacked
+markers are floors at which the policy emits the same prompt. Up and to the
+right is better on both objectives.}
+\label{fig:frontier}
 \end{figure}
 
-The intended headline figure of this paper is the \emph{per-$\lmb$} curve: for
-each arm, the locus of (content, sentiment) pairs obtained as $\lmb$ sweeps
-$0 \to 0.9$, which shows not just that \rrebel{} scores higher but that it
-commands a strictly better frontier. That figure cannot yet be drawn --- the
-per-$\lmb$ evaluation arrays for the completed campaign were lost, as
-Section~\ref{sec:provenance} details, and regenerating them requires
-checkpoints, which are being retrained.
+Figure~\ref{fig:frontier} is the paper's main result: the tradeoff curve each
+policy traces as its conditioning input sweeps the content floor from $0$ to
+$95$. Table~\ref{tab:full} summarizes each curve. All four policies produce a
+genuine curve rather than a point. Expected content rises with the floor for
+every arm (Spearman $\rho \ge \vLoneRho$), and at $\tau = 0$ every arm's
+rewrites are strongly positive (sentiment $76$--$93$). The arms differ in how far the curve
+reaches and how much sentiment it keeps along the way.
 
-Figure~\ref{fig:tradeoff} therefore shows what the surviving data does support:
-each run's single $\lmb$-averaged operating point. This is deliberately
-\emph{not} presented as a frontier. It still carries a real claim --- the
-\rrebel{} points lie up and to the right of the GRPO points, so \rrebel{}
-dominates on both objectives at once rather than trading one for the other ---
-but the shape of each arm's curve, and in particular whether GRPO's curve is
-uniformly dominated or only dominated in the interior of the $\lmb$ range,
-remains open until the rerun completes.
-\todo{replace Figure~\ref{fig:tradeoff} with the true per-$\lmb$ frontier once
-\texttt{slurm/eval\_v4.slurm} has produced
-\texttt{results/v4/*/test/output*.json}; \texttt{analysis/paper\_results.py}
-switches the figure over automatically and reports which version it drew.}
+\paragraph{\rrebel{} Huber-std has the best frontier.}
+Its hypervolume is $\vHuberHV$ against $\vGentHV$ for the best GRPO arm, a
+paired difference of $\vGapHuberGentHV$ points
+($95\%$ CI $[\vGapHuberGentHVLo, \vGapHuberGentHVHi]$). Its mean constrained
+reward is $\vHuberRew$ against $\vGentRew$, a difference of
+$\vGapHuberGentRew$ ($[\vGapHuberGentRewLo, \vGapHuberGentRewHi]$). Both
+intervals exclude zero by a wide margin. The gain is in sentiment
+($+\vGapHuberGentSen$ points averaged over floors) at no cost in content
+($+\vGapHuberGentCon$). Huber-std is also the only arm whose curve extends past
+content $80$: at $\tau = 95$ it reaches $\mathbb{E}[c] = \vHuberConMax$,
+whereas the other three arms saturate below $80$. The dominance is
+near-uniform. If a user may randomize between two of a policy's prompts ---
+which achieves any convex combination of their expected scores --- then
+Huber-std's curve lies above GRPO + entropy's at \emph{every} content level
+(the smallest margin is $\vDomGentMixMin$ points) and above GRPO with the
+base-LM reference everywhere by at least $\vDomGbaseMixMin$ points. Without
+randomization there is one exception: Huber-std has no operating point with
+content between $\vDomGapLo$ and $\vDomGapHi$, because its policy switches prompt
+between adjacent floors there, and GRPO + entropy has a point in that gap
+(Huber-std attains at least GRPO + entropy's sentiment at $\vDomGentStepFrac\%$
+of content levels).
 
+\paragraph{\rrebel{} $\ell_1$-std: a good frontier, badly indexed.}
+The two metrics disagree about $\ell_1$-std, and the disagreement is
+informative. Its hypervolume ($\vLoneHV$) is \emph{higher} than GRPO +
+entropy's (paired difference $+\vGapLoneGentHV$,
+$[\vGapLoneGentHVLo, \vGapLoneGentHVHi]$), so it can reach better operating
+points. Its mean reward ($\vLoneRew$) is \emph{lower}
+($\vGapLoneGentRew$, $[\vGapLoneGentRewLo, \vGapLoneGentRewHi]$), so it
+chooses them badly. The cause is visible in Figure~\ref{fig:control}: from
+$\tau = 50$ upward, $\ell_1$-std emits the same copy prompt for $99$--$100\%$ of
+test sentences (content $\vLoneConMax$, sentiment below $9$). It over-satisfies
+floors of $50$--$75$ by $5$--$29$ points and gives up the sentiment a prompt
+matched to each floor would have kept. Hypervolume scores the set of operating points a
+policy can reach; the constrained reward scores whether the policy picks the
+right point for the floor it is given. For a $\lmb$-conditioned policy the
+second is the point of the exercise. Section~\ref{sec:res-dynamics} shows that
+this is a late-training regression for this run.
 
-\subsection{Results at step 12{,}000}
+\paragraph{The base-LM reference makes GRPO worse, not better.}
+Anchoring GRPO's KL to the pretrained backbone gives it a genuine trust region
+(Section~\ref{sec:algos-caveat}). It also produces the weakest arm by a wide
+margin: hypervolume $\vGbaseHV$ and reward $\vGbaseRew$, which is
+$\vGapGentGbaseRew$ points below GRPO + entropy
+($[\vGapGentGbaseRewLo, \vGapGentGbaseRewHi]$). Even at $\tau = 0$ its best
+rewrites score $76$ on sentiment against $91$--$93$ for the other arms. The
+reason is visible in Table~\ref{tab:prompts}. The reward-optimal prompts are
+lists of sentiment words and copy instructions, far from the natural text the
+backbone assigns high probability to, and a KL penalty toward that backbone
+holds the policy close to natural-sounding prompts that are poor at the task.
+The earlier concern about GRPO was that its uniform anchor gave it no trust
+region. The evidence here, at $\beta_{\mathrm{KL}} = 0.04$, is that a competent
+anchor is not what GRPO was missing in this problem, and that \rrebel{}'s
+advantage over GRPO does not depend on the uniform-anchor confound.
 
 \begin{table}[t]
 \centering
-\input{tables/results_12000}
-\caption{The same quantities at step $12{,}000$, the nominal end of training.
-Three runs have no evaluation at this step (Section~\ref{sec:provenance}), so
-the seed counts differ by arm; the ordering and the size of the family gap are
-unchanged from Table~\ref{tab:main}.}
-\label{tab:12000}
+\small
+\setlength{\tabcolsep}{4pt}
+\resizebox{\textwidth}{!}{\input{tables/full_results}}
+\caption{Summary of each arm's test-split tradeoff curve (step $12{,}000$,
+$\vNsent$ sentences, $\vNlam$ floors). \emph{Reward}: the constrained reward
+averaged over sentences and floors. \emph{Hypervolume}: area dominated by the
+curve in the $100\times100$ (content, sentiment) box, in percent. Content and
+sentiment are averaged over floors. \emph{Floors met}: floors with
+$\mathbb{E}[c] \ge \tau$. $P(c\ge\tau)$: per-sample probability of meeting
+the floor, averaged over floors. \emph{Prompts}/$\tau$: median number of
+distinct prompts emitted across the test sentences at a floor. Brackets are
+$95\%$ bootstrap intervals over sentences. Paired differences between arms are
+in Table~\ref{tab:pairwise}.}
+\label{tab:full}
 \end{table}
 
-Table~\ref{tab:12000} reports the nominal end of training. The conclusions do
-not change: $\ell_1$-std ($39.47$) and Huber-std ($39.30$) remain tied within
-noise, $\ell_1$-ent trails at $37.80$, and the GRPO arms sit at $32.68$ and
-$30.91$. Because three runs are missing their $12{,}000$ evaluation, this table
-is seed-unbalanced across arms and Table~\ref{tab:main} is the comparison we
-rely on.
+\begin{table}[t]
+\centering
+\small
+\resizebox{\textwidth}{!}{\input{tables/pairwise}}
+\caption{Paired differences $a - b$ on the test split (step $12{,}000$), with
+$95\%$ bootstrap intervals over test sentences. Each bootstrap resample uses
+the same sentences for both arms, so the interval reflects only
+how the arms \emph{differ} on the same inputs.}
+\label{tab:pairwise}
+\end{table}
 
-\subsection{Data provenance, and what is missing}
-\label{sec:provenance}
+\subsection{Does the policy honour the constraint?}
+\label{sec:res-control}
 
-Reporting this honestly requires a note on provenance, because it also bounds
-what can currently be reproduced.
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{control.pdf}
+\caption{\textbf{Does the floor control the policy?} Test split, step
+$12{,}000$. \textbf{Left:} expected content against the floor; the dotted line
+is $\mathbb{E}[c] = \tau$, so points below it miss the floor in expectation.
+\textbf{Middle:} expected sentiment. \textbf{Right:} probability that an
+individual task-model sample meets the floor, the quantity the constrained
+reward penalizes. Bands are $95\%$ bootstrap intervals over sentences.}
+\label{fig:control}
+\end{figure}
 
-The campaign ran to completion, but its artifacts were subsequently destroyed:
-the scratch filesystem holding all checkpoints and all per-$\lmb$ evaluation
-files was purged, leaving zero checkpoints and zero evaluation files. Every
-number in this paper was therefore recovered from the experiment tracker's
-retained scalar history, by a reconstruction that is validated three ways per
-run and refuses to emit data if any check fails: surviving true-step markers
-must agree with the reconstructed step, the distinct-step count must be
-consistent with the final step, and the reconstructed step grid must be
-perfectly regular. All fifteen runs pass. Two consequences:
+A $\lmb$-conditioned policy is only useful if the floor it is given
+controls what it does. Figure~\ref{fig:control} plots, against the floor,
+the three quantities that matter: the expected content the policy delivers,
+the sentiment it keeps, and the per-sample probability that a rewrite meets
+the floor.
 
-\begin{enumerate}\itemsep2pt
-  \item \textbf{The per-$\lmb$ arrays are gone and are not recoverable from the
-        tracker}, because the evaluation routine averages over the $\lmb$ grid
-        \emph{before} logging. This is why Section~\ref{sec:tradeoff} shows
-        operating points rather than a frontier. One seed per arm is being
-        retrained specifically to regenerate them.
-  \item \textbf{Three runs lack a step-$12{,}000$ evaluation.} Their final
-        training cycle ran while the tracker was unreachable; the trainer's
-        fallback keeps training without logging, so that cycle's evaluations
-        were written only to the since-purged disk copies. This is why step
-        $11{,}500$, not $12{,}000$, is the balanced comparison point.
-\end{enumerate}
+\paragraph{All four policies are controllable, but coarsely.}
+Expected content increases with the floor for every arm (left panel), so the
+conditioning input works. It is not a smooth dial, however. Every curve is a
+staircase with a few flat treads: each arm has learned a handful of prompt
+``modes'' and switches between them as the floor crosses thresholds
+(Section~\ref{sec:res-prompts}). Within a tread, raising the floor changes
+nothing.
 
-Two process changes follow, and are already in place: evaluation artifacts are
-now copied off the purgeable filesystem after every training cycle, and the
-recovery-and-validation script is committed alongside the exported data so that
-every table in this paper can be regenerated from a single command.
+\paragraph{Where the constraint is met and where it is not.}
+All arms meet the floor in expectation for $\tau \le 40$. Above that they part
+ways. GRPO with the base-LM reference tracks the floor most tightly, staying
+within $6$ points of it for $\tau = 30$--$60$ (slightly above, then slightly
+below from $\tau = 45$), but at low sentiment. Huber-std's hybrid prompt holds a
+tread at $\mathbb{E}[c] \approx 57$--$63$ for floors $35$--$70$, missing floors
+of $60$--$80$ by $2$--$7$ points in expectation; above that it switches to a copy
+prompt that reaches content $85$--$90$, meets $\tau = 85$, and misses $90$ and $95$
+by $1$--$5$ points. GRPO + entropy's tread at $\approx\!63$ misses every floor from
+$\tau = 65$, by up to $17$ points at the top. $\ell_1$-std meets every floor up to
+$75$ (\vLoneMet{} of \vNlam{} in total, the most of any arm) only because its
+single high-content mode over-satisfies them, at the sentiment cost described
+above. The right panel shows the per-sample view that the constrained reward
+actually optimizes: no arm keeps $P(c \ge \tau)$ above $0.9$ beyond
+$\tau = 10$,
+and the arms trade constraint satisfaction against sentiment differently
+across the range. Section~\ref{sec:theory} anticipated this. The reward is a
+per-sample penalty, a surrogate for a chance constraint, not a guarantee that
+the expected content clears the floor, and with a penalty constant of only
+$0.01$ a policy can profitably accept some violations in exchange for
+sentiment.
+
+\subsection{What the policies learned}
+\label{sec:res-prompts}
+
+\begin{table}[t]
+\centering
+\setlength{\tabcolsep}{4pt}
+\input{tables/prompts}
+\caption{The greedy prompt each trained policy emits at five floors, for the
+first test sentence. Prompts are input-conditioned, but at a given floor every
+arm emits only a few distinct prompts across all $\vNsent$ test sentences
+(Table~\ref{tab:full}), so these are representative. Prompts are decoded with
+the policy's tokenizer and shown verbatim; \texttt{[RLO]} is an invisible
+Unicode right-to-left-override character (U+202E), and \texttt{\textbackslash n}
+a newline.}
+\label{tab:prompts}
+\end{table}
+
+Table~\ref{tab:prompts} shows what the policies actually say, and it makes
+the staircases of Figure~\ref{fig:control} concrete.
+
+\paragraph{The policies learned an interpretable prompt library.}
+At $\tau = 0$, where only sentiment matters, the three arms without a base-LM
+anchor independently converge on nearly the same prompt: a list of effusive
+words and closing quotation marks (\texttt{Awesome!!" gorgeous." loving}),
+which primes the task model to continue with praise. At high floors they
+converge on \emph{copy instructions} built from words like \texttt{Example},
+\texttt{Replace} and \texttt{Compare}, which make the task model reproduce the
+source. In between, Huber-std finds a hybrid (\texttt{Positive praise (\% contrasts}),
+and that hybrid is the tread at $\mathbb{E}[c] \approx 57$ with $46$ sentiment
+that gives Huber-std its lead in the middle of the curve. $\ell_1$-std has no
+such hybrid: its $\tau = 30$ prompt is already built from copy-style words
+(\texttt{Results}, \texttt{outcomes}, \texttt{contrasting}), and from
+$\tau = 40$ it switches to the pure copy prompt (for $57\%$ of sentences at
+$\tau = 40$, and $99$--$100\%$ from $\tau = 50$).
+
+\paragraph{Input conditioning goes unused.}
+Although the policy reads the source sentence, at a given floor the
+\rrebel{} policies emit a median of \vLonePrompts{} distinct prompts across
+the $\vNsent$ test sentences (at most \vHuberPromptsMax), and GRPO + entropy a
+median of \vGentPrompts{} (at most \vGentPromptsMax). All three have learned
+what is essentially a \emph{$\lmb$-indexed library} of a few prompts, not a
+per-sentence prompt. GRPO with the base-LM reference is the exception, with a
+median of \vGbasePrompts{} distinct prompts (at most \vGbasePromptsMax). At
+low and middle floors these are natural-text fragments (\texttt{It great Love
+it!}, \texttt{I love to say}) of the kind its KL anchor favours. At high floors it has found a degenerate but effective trick: an
+invisible control character followed by newlines, which is close to an empty
+prompt and simply makes the task model copy the source. This per-floor count
+of distinct prompts is the direct collapse measurement that the v3 campaign
+lost to the filesystem purge (Section~\ref{sec:provenance}). It shows that
+none of the v4 policies collapsed to a single $\lmb$-independent prompt: each
+uses several prompts across the range of floors.
+
+\subsection{Learning dynamics on the test split}
+\label{sec:res-dynamics}
+
+\begin{figure}[t]
+\centering
+\IfFileExists{figures/test_learning.pdf}{\includegraphics[width=0.9\textwidth]{test_learning.pdf}}{\fbox{\parbox{0.8\textwidth}{\centering test-split learning curves pending}}}
+\caption{\textbf{Test-split learning curves.} Each arm's checkpoints at
+\vLcNsteps{} matched steps, evaluated with the full protocol (one task-model
+seed; across five seeds the reward's standard deviation is \vLoneSeedSD).
+\textbf{Left:} mean constrained reward. \textbf{Right:} hypervolume of the
+tradeoff curve. Rings mark the checkpoint each arm's $10$-sentence
+\emph{development} score would select, without reference to test data.}
+\label{fig:dynamics}
+\end{figure}
+
+Figure~\ref{fig:dynamics} evaluates every arm's checkpoints at \vLcNsteps{}
+matched steps (\vLcFirst--\vLcLast) with the same test protocol, which shows
+how the step-$12{,}000$ picture came about.
+
+\paragraph{The gap between the families is not a late-training artifact.}
+Huber-std leads GRPO + entropy at every evaluated checkpoint, by
+\vLcHuberGentMin--\vLcHuberGentMax{} reward points. Its reward plateaus by
+mid-training, while its hypervolume continues to grow (from \vHuberHVfirst{}
+at the first checkpoint to \vHuberHV{} at the end). GRPO + entropy improves
+slowly throughout (reward \vGentLcMin--\vGentLcMax, hypervolume
+\vGentHVfirst{} to \vGentHV) and never approaches the \rrebel{} curves. GRPO
+with the base-LM reference is flat in reward (\vGbaseLcMin--\vGbaseLcMax),
+and its hypervolume shrinks late in training.
+
+\paragraph{The $\ell_1$-std run regresses late, and the regression is in indexing.}
+$\ell_1$-std peaks at step \vLonePeakStep{} with reward \vLonePeakRew,
+level with Huber-std, and then loses \vLoneDrop{} points by step
+$12{,}000$. It stays ahead of GRPO + entropy at \vLcLoneGentPosSteps{} of the
+\vLcNsteps{} checkpoints. Its hypervolume, however, stays within
+\vLoneHVmin--\vLoneHVmax{} throughout. The set of operating points it can reach
+does not shrink; what degrades is \emph{which} point it assigns to each floor.
+Late in training the policy spreads its copy prompt to more and more floors
+(Section~\ref{sec:res-frontier}), trading sentiment for surplus content.
+The training-time development-set monitor shows the same peak and decline, so
+this is not a test-split artifact. We do not know how typical it is. None of
+the three v3 $\ell_1$-std seeds declined on their development set
+(Section~\ref{sec:seed-replication}), and we have no mechanism: the obvious
+candidate, $\ell_1$'s non-vanishing gradient near the fit, is ruled out in
+Section~\ref{sec:th-grpo}. We report it as a property of this run.
+
+\paragraph{Early stopping on the development set.}
+A practitioner would not ship the last checkpoint blind, and the
+development-set scores logged during training allow a fair selection rule
+that never touches test data: pick each arm's checkpoint with the best
+development score among the evaluated steps. This selects step
+\vLoneDevStep{} for $\ell_1$-std (test reward \vLoneDevRew), \vHuberDevStep{}
+for Huber-std (\vHuberDevRew), \vGentDevStep{} for GRPO + entropy
+(\vGentDevRew) and \vGbaseDevStep{} for the base-LM-reference arm
+(\vGbaseDevRew). Under this protocol both \rrebel{} variants beat both GRPO
+arms, by at least \vDevFamilyGap{} reward points, and the $\ell_1$-std
+regression disappears from the comparison.
+
+\subsection{How much the reward scale varies across contexts}
+\label{sec:res-scale}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{reward_scale.pdf}
+\caption{\textbf{Reward scale varies by orders of magnitude across contexts}
+(\rrebel{} $\ell_1$-std at step \sProbeFinal; $40$ test sources $\times$ $10$
+floors, $G = 16$ prompts per group drawn by the training sampler).
+\textbf{Left:} in-group reward standard deviation $\hat\sigma(x,\lmb)$ by floor
+(boxes: interquartile range; whiskers: 5th--95th percentile).
+\textbf{Right:} the one-window KL radius that Proposition~\ref{prop:trust}
+assigns to each group, computed with the group's own empirical distribution as
+the reference (so it is capped at $\log G = \sLogG$ nats, a point mass). Under
+the plain target, one global $\beta$ leaves some contexts unmoved and
+collapses others; under the standardized target, the radii concentrate.}
+\label{fig:scale}
+\end{figure}
+
+Section~\ref{sec:th-std} argued that standardization matters when the
+reward's scale varies across contexts. To measure that variation directly, we
+drew groups exactly as a training step does ($G = 16$ prompts per
+$(x,\lmb)$, top-$k=200$ sampling, $N=50$ task-model samples per prompt), from
+\rrebel{} $\ell_1$-std checkpoints at steps \sProbeSteps, for $40$ test sources
+and $10$ floors each. Figure~\ref{fig:scale} shows the result.
+
+\paragraph{The scale spans two to three orders of magnitude.}
+Across groups, the in-group standard deviation $\hat\sigma$ varies by a factor
+of \sRangeQ{} between its 5th and 95th percentiles. The variation is
+systematic in $\lmb$. At the final probed checkpoint the median $\hat\sigma$ is
+\sSigZeroFin{} at $\tau = 0$, peaks at \sSigMaxFin{} for low-to-middle floors,
+and falls to \sSigNinetyFin{} at $\tau = 90$: a \sTauRatioFin-fold spread in
+median alone. The mechanism is the two-branch reward. Where most samples meet
+the floor, rewards are sentiment scores spread over tens of points. Where few
+do, they are penalties of size $0.01\times$ the shortfall. The contexts with the
+tightest floors, where few prompts are feasible, are exactly the ones with the
+smallest reward differences.
+
+\paragraph{One global temperature cannot serve all contexts.}
+Applying Proposition~\ref{prop:trust} group by group quantifies the
+consequence. With the plain target $\polref e^{r/\beta}$ and our
+$\beta = 0.5$, \sPlainStuck{} of groups would move less than $0.01$ nats in a
+window --- no learning --- while \sPlainCollapse{} would jump to within
+$0.27$ nats of a point mass. Raising $\beta$ to rescue the second set freezes more
+of the first, and lowering it does the reverse. With the standardized target,
+\sStdStuck{} of groups fall below $0.01$ nats and \sStdCollapse{} come near the
+point-mass cap; the median radius is \sStdMedKL{} nats. This is the practical
+content of Theorem~\ref{thm:consistency}(ii) and Proposition~\ref{prop:trust}:
+in a $\lmb$-conditioned problem, dividing by the in-group standard deviation is
+what lets a single $\beta$ mean the same thing at every point on the curve.
+Every \rrebel{} arm we train uses standardization, so this is a measurement of
+the problem, not an ablation of the method.
+
+\input{sections/results_v3}
