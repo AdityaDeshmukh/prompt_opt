@@ -375,38 +375,157 @@ def _style(ax):
 def figures(S, steps):
     import matplotlib; matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import matplotlib.transforms  # noqa: F401  (Bbox for label collision checks)
+    import matplotlib.text  # noqa: F401
     plt.rcParams.update({"font.size": 8, "axes.labelsize": 8, "axes.labelcolor": INK, "text.color": INK,
                          "xtick.labelsize": 7, "ytick.labelsize": 7})
 
-    # ---- frontier ----------------------------------------------------------
-    # drawn at print size (0.72 textwidth ~ 4.7in) so fonts are not scaled down
-    fig, ax = plt.subplots(figsize=(4.8, 3.75))
+    # ---- frontier, in the style of the original draft ----------------------
+    # Draft figures: both axes on the full 0-100 scale, one curve per method,
+    # and per-method panels with a tau label on each point. Two fixes over the
+    # draft: points where the policy reuses one prompt (and so lands on the same
+    # spot) get ONE range label instead of overlapping labels, and every label
+    # is collision-checked against the axes and the labels already placed.
+    def frontier_axes(ax, title=None):
+        ax.set_xlim(0, 100); ax.set_ylim(0, 100)
+        ax.set_xticks(range(0, 101, 20)); ax.set_yticks(range(0, 101, 20))
+        ax.set_xlabel("Expected content score"); ax.set_ylabel("Expected sentiment score")
+        ax.set_aspect("equal", adjustable="box")
+        if title:
+            ax.set_title(title, fontsize=9)
+        _style(ax)
+
+    def tau_clusters(tau, c, s, radius=2.0):
+        """Group consecutive floors whose points (nearly) coincide: a point joins
+        the current group if it is within `radius` of the group's last point and
+        within 2*radius of its first (so a gentle slope cannot chain forever)."""
+        d = lambda i, j: ((c[i] - c[j]) ** 2 + (s[i] - s[j]) ** 2) ** 0.5
+        groups = []
+        for i in range(len(tau)):
+            if groups and d(i, groups[-1][-1]) < radius and d(i, groups[-1][0]) < 2 * radius:
+                groups[-1].append(i)
+            else:
+                groups.append([i])
+        return groups
+
+    def label_taus(ax, tau, c, s, color):
+        fig = ax.figure
+        fig.canvas.draw()
+        rend = fig.canvas.get_renderer()
+        axbox = ax.get_window_extent(rend)
+        # obstacles: every marker of this curve, so a label never sits beside a
+        # point it does not name
+        placed = []
+        pts = [ax.transData.transform((xi, yi)) for xi, yi in zip(c, s)]
+        for px, py in pts:
+            placed.append(matplotlib.transforms.Bbox.from_extents(px - 3.5, py - 3.5, px + 3.5, py + 3.5))
+
+        def box_dist(bb, p):
+            dx = max(bb.x0 - p[0], 0, p[0] - bb.x1); dy = max(bb.y0 - p[1], 0, p[1] - bb.y1)
+            return (dx * dx + dy * dy) ** 0.5
+        # offsets in points. Adjacent positions first (no leader, as in the
+        # draft), outside the descending curve before inside it; if none is
+        # free, farther positions drawn with a thin leader line to the point.
+        near = [(5, 3, "left", "bottom"), (6, -1, "left", "center"), (-5, 3, "right", "bottom"),
+                (5, -6, "left", "top"), (-5, -5, "right", "top"), (-6, 0, "right", "center"),
+                (0, 7, "center", "bottom"), (0, -8, "center", "top")]
+        far = [(r * dx, r * dy, ha, va) for r in (1, 1.6)
+               for dx, dy, ha, va in [(14, 12, "left", "bottom"), (-14, 12, "right", "bottom"),
+                                      (14, -14, "left", "top"), (-14, -14, "right", "top"),
+                                      (18, 0, "left", "center"), (-18, 0, "right", "center"),
+                                      (0, 16, "center", "bottom"), (0, -16, "center", "top")]]
+        near2 = [(1.7 * dx, 1.7 * dy, ha, va) for dx, dy, ha, va in near]
+        cands = [(o, False) for o in near] + [(o, False) for o in near2] + [(o, True) for o in far]
+        for g in tau_clusters(tau, c, s):
+            ts = [int(round(tau[i])) for i in g]
+            if not any(t % 10 == 0 for t in ts):
+                continue                      # label multiples of 10, as in the draft
+            txt = f"$\\tau$={ts[0]}" if len(ts) == 1 else f"$\\tau$={ts[0]}\u2013{ts[-1]}"
+            x, y = float(np.mean([c[i] for i in g])), float(np.mean([s[i] for i in g]))
+            for (dx, dy, ha, va), leader in cands:
+                t = ax.annotate(txt, (x, y), xytext=(dx, dy), textcoords="offset points",
+                                ha=ha, va=va, fontsize=6.5, color=INK2, zorder=5,
+                                arrowprops=(dict(arrowstyle="-", lw=0.5, color=INK2,
+                                                 shrinkA=1, shrinkB=3) if leader else None))
+                # text-only extent: an Annotation's own extent includes its
+                # leader line, which always touches the point it names
+                t.update_positions(rend)   # Text.get_window_extent does not do this itself
+                bb = matplotlib.text.Text.get_window_extent(t, rend).expanded(1.04, 1.1)
+                inside = (bb.x0 >= axbox.x0 and bb.x1 <= axbox.x1 and bb.y0 >= axbox.y0 and bb.y1 <= axbox.y1)
+                # an unleadered label must be nearer its own point(s) than any
+                # other marker, or a reader will attach it to the wrong point
+                own = min(box_dist(bb, pts[i]) for i in g)
+                others = [box_dist(bb, pts[j]) for j in range(len(pts)) if j not in g]
+                unambiguous = leader or not others or own + 3.0 < min(others)
+                if inside and unambiguous and not any(bb.overlaps(o) for o in placed):
+                    placed.append(bb)
+                    break
+                t.remove()
+            else:
+                # nothing fits: never drop a label silently -- use the first
+                # in-axes leadered position even if it touches another label
+                for (dx, dy, ha, va), leader in cands:
+                    if not leader:
+                        continue
+                    t = ax.annotate(txt, (x, y), xytext=(dx, dy), textcoords="offset points",
+                                    ha=ha, va=va, fontsize=6.5, color=INK2, zorder=5,
+                                    arrowprops=dict(arrowstyle="-", lw=0.5, color=INK2, shrinkA=1, shrinkB=3))
+                    t.update_positions(rend)
+                    bb = matplotlib.text.Text.get_window_extent(t, rend)
+                    if bb.x0 >= axbox.x0 and bb.x1 <= axbox.x1 and bb.y0 >= axbox.y0 and bb.y1 <= axbox.y1:
+                        placed.append(bb)
+                        break
+                    t.remove()
+
+    fr = {arm: S["arms"][arm]["frontier"] for arm, *_ in ARMS}
+
+    # (a) all methods on one plot (draft Fig. 3)
+    fig, ax = plt.subplots(figsize=(4.4, 4.0))
     for arm, label, color, ls, mk in ARMS:
-        f = S["arms"][arm]["frontier"]
-        c, s = np.array(f["content"]), np.array(f["sentiment"])
-        ax.errorbar(c, s, xerr=[c - f["content_lo"], np.array(f["content_hi"]) - c],
-                    yerr=[s - f["sentiment_lo"], np.array(f["sentiment_hi"]) - s],
-                    fmt="none", ecolor=color, elinewidth=0.7, alpha=0.55, zorder=2)
-        ax.plot(c, s, ls=ls, color=color, lw=1.8, marker=mk, ms=5, mec="white", mew=0.7,
+        c, s_ = np.array(fr[arm]["content"]), np.array(fr[arm]["sentiment"])
+        ax.plot(c, s_, ls=ls, color=color, lw=1.6, marker=mk, ms=4.5, mec="white", mew=0.6,
                 label=label, zorder=3)
-    # tau labels on the best arm only (selective direct labels)
-    # label multiples of 10, skipping any point too close to one already
-    # labelled (plateaus stack several tau on nearly the same point)
-    ref = S["best_rrebel"]
-    f = S["arms"][ref]["frontier"]
-    placed = []
-    for t, c, s in zip(f["tau"], f["content"], f["sentiment"]):
-        if int(round(t)) % 10 or any((c - c0) ** 2 + (s - s0) ** 2 < 5.0 ** 2 for c0, s0 in placed):
-            continue
-        placed.append((c, s))
-        ax.annotate(f"$\\tau$={t:g}", (c, s), xytext=(5, 4), textcoords="offset points",
-                    fontsize=7.5, color=INK2)
-    ax.set_xlabel("expected content score  $\\mathbb{E}[c]$")
-    ax.set_ylabel("expected sentiment score  $\\mathbb{E}[s]$")
-    ax.set_xlim(15, 100); ax.set_ylim(0, 100)
-    _style(ax); ax.legend(frameon=False, fontsize=7.5, loc="upper right", handlelength=2.6)
-    fig.tight_layout(); fig.savefig(os.path.join(FIG, "frontier.pdf")); fig.savefig(os.path.join(FIG, "frontier.png"), dpi=120)
+    frontier_axes(ax)
+    ax.legend(frameon=False, fontsize=7, loc="upper right", handlelength=2.6)
+    fig.tight_layout(); fig.savefig(os.path.join(FIG, "frontier.pdf")); fig.savefig(os.path.join(FIG, "frontier.png"), dpi=130)
     plt.close(fig)
+
+    # (b) one panel per method with tau labels (draft Figs. 4-5); the other
+    # methods are drawn as faint grey context lines
+    def one_panel(ax, arm, label, color, ls, mk):
+        for other, *_ in ARMS:
+            if other != arm:
+                ax.plot(fr[other]["content"], fr[other]["sentiment"], color="#c9c8c3", lw=0.9, zorder=1)
+        f = fr[arm]; c, s_ = np.array(f["content"]), np.array(f["sentiment"])
+        ax.errorbar(c, s_, xerr=[c - f["content_lo"], np.array(f["content_hi"]) - c],
+                    yerr=[s_ - f["sentiment_lo"], np.array(f["sentiment_hi"]) - s_],
+                    fmt="none", ecolor=color, elinewidth=0.6, alpha=0.6, zorder=2)
+        ax.plot(c, s_, ls=ls, color=color, lw=1.5, marker=mk, ms=4, mec="white", mew=0.5, zorder=3)
+        frontier_axes(ax, label)
+        label_taus(ax, np.array(f["tau"]), c, s_, color)
+
+    fig, axs = plt.subplots(2, 2, figsize=(6.4, 6.3))
+    for ax, (arm, label, color, ls, mk) in zip(axs.flat, ARMS):
+        one_panel(ax, arm, label, color, ls, mk)
+    fig.tight_layout(h_pad=1.2, w_pad=1.5)
+    # re-place labels after the final layout (tight_layout moves the axes)
+    for ax, (arm, label, color, ls, mk) in zip(axs.flat, ARMS):
+        for t in list(ax.texts):
+            t.remove()
+        f = fr[arm]
+        label_taus(ax, np.array(f["tau"]), np.array(f["content"]), np.array(f["sentiment"]), color)
+    fig.savefig(os.path.join(FIG, "frontier_panels.pdf")); fig.savefig(os.path.join(FIG, "frontier_panels.png"), dpi=130)
+    plt.close(fig)
+    # the same panels as stand-alone figures, for slides or a different layout
+    for arm, label, color, ls, mk in ARMS:
+        fig, ax = plt.subplots(figsize=(3.6, 3.5))
+        one_panel(ax, arm, label, color, ls, mk)
+        fig.tight_layout()
+        for t in list(ax.texts):
+            t.remove()
+        label_taus(ax, np.array(fr[arm]["tau"]), np.array(fr[arm]["content"]), np.array(fr[arm]["sentiment"]), color)
+        fig.savefig(os.path.join(FIG, f"frontier_{arm}.pdf"))
+        plt.close(fig)
 
     # ---- control: three small multiples vs tau ----------------------------
     fig, axs = plt.subplots(1, 3, figsize=(6.6, 2.7))  # print size: full text width

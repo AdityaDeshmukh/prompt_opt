@@ -10,22 +10,35 @@
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.72\textwidth]{frontier.pdf}
-\caption{\textbf{The content--sentiment tradeoff curve} of each trained
-policy on the $\vNsent$-sentence test split (step $12{,}000$). Each marker is
+\includegraphics[width=0.62\textwidth]{frontier.pdf}
+\caption{\textbf{Sentiment--content tradeoff curves} of the four trained
+policies on the $\vNsent$-sentence test split (step $12{,}000$). Each marker is
 one content floor $\tau = 100\lmb \in \{0, 5, \dots, 95\}$: the policy's
-greedy prompt for that $\lmb$, scored by expected content $\mathbb{E}[c]$ and
-expected sentiment $\mathbb{E}[s]$ over $N=50$ task-model samples per sentence
-and averaged over sentences and task-model seeds. Crosses are $95\%$ bootstrap
-intervals over sentences. $\tau$ labels mark the Huber-std curve; stacked
-markers are floors at which the policy emits the same prompt. Up and to the
-right is better on both objectives.}
+greedy prompt for that floor, scored by expected content and expected sentiment
+(over $N=50$ task-model samples per sentence, averaged over sentences and five
+task-model seeds). Up and to the right is better on both objectives. Figure~\ref{fig:frontier-panels}
+labels each curve by floor and shows $95\%$ intervals.}
 \label{fig:frontier}
+\end{figure}
+
+\begin{figure}[!tp]
+\centering
+\includegraphics[width=0.86\textwidth]{frontier_panels.pdf}
+\caption{\textbf{Each policy's tradeoff curve, labelled by content floor.} One
+panel per method, with the other three methods in grey for reference. Labels
+give the floor $\tau$ for every multiple of $10$. Where the policy emits the same
+prompt at consecutive floors, their points coincide and share one range label
+(e.g.\ $\tau = 50$--$95$ for $\ell_1$-std). Thin lines connect a label to its
+point where it could not be placed alongside. Error bars are $95\%$ bootstrap
+intervals over test sentences, mostly smaller than the markers.}
+\label{fig:frontier-panels}
 \end{figure}
 
 Figure~\ref{fig:frontier} is the paper's main result: the tradeoff curve each
 policy traces as its conditioning input sweeps the content floor from $0$ to
-$95$. Table~\ref{tab:full} summarizes each curve. All four policies produce a
+$95$. Figure~\ref{fig:frontier-panels} shows the same curves one method at a
+time, with each point labelled by its floor, and Table~\ref{tab:full}
+summarizes each curve. All four policies produce a
 genuine curve rather than a point. Expected content rises with the floor for
 every arm (Spearman $\rho \ge \vLoneRho$), and at $\tau = 0$ every arm's
 rewrites are strongly positive (sentiment $76$--$93$). The arms differ in how far the curve

@@ -28,6 +28,10 @@
             urlcolor=blue!55!black]{hyperref}
 
 \graphicspath{{figures/}}
+% let tall result figures sit on text pages instead of drifting to the end
+\renewcommand{\topfraction}{0.9}
+\renewcommand{\textfraction}{0.08}
+\renewcommand{\floatpagefraction}{0.75}
 
 \theoremstyle{plain}
 \newtheorem{theorem}{Theorem}
