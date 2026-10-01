@@ -135,6 +135,96 @@ the ratio of the two is $2\beta G^2L/P = 4\beta GL/(G-1)$. Adam maps
 $g \mapsto cg$ to $m\mapsto cm$, $v\mapsto c^2v$, so its step
 $m/(\sqrt v + \epsilon)$ is unchanged up to $\epsilon$. \qed
 
+\paragraph{Lemma~\ref{lem:cluster}.}
+The point for a floor is $\frac1n\sum_x(\bar c(x,z^\star(x,\lmb)),
+\bar s(x,z^\star(x,\lmb)))$, a function of the assignment
+$x \mapsto z^\star(x,\lmb)$ alone. If the assignment does not depend on $x$,
+there are at most $K$ assignments. If $z^\star$ maximizes a reward that is
+continuous in $\lmb$, the maximizer can change between two floors only if the
+order of two prompts' rewards changes between them, that is, only if some
+difference $r_\lmb(x,z) - r_\lmb(x,z')$ changes sign. \qed
+
+\paragraph{Proposition~\ref{prop:eps}.}
+$\{\pi : C(\pi) \ge \tau\}$ is the intersection of the simplex with one
+half-space, and $S$ is linear, so an optimum is attained at a vertex of this
+polytope. Its vertices are point masses on prompts with $\bar c_z \ge \tau$ and
+two-point mixtures lying on the hyperplane $C(\pi) = \tau$, which gives the
+support bound. The set of attainable $(C(\pi), S(\pi))$ is the convex hull of
+the points $(\bar c_z, \bar s_z)$, so $\max\{S : C = t\}$ is the upper concave
+envelope $U(t)$, and $V(\tau) = \max_{t \ge \tau} U(t)$. Now let $\tau > c_0$
+and suppose an optimal $\pi$ had $C(\pi) > \tau$. Let $z_0$ be a prompt of
+maximal sentiment, so $\bar c_{z_0} \le c_0 < \tau$. If $S(\pi) <
+\bar s_{z_0}$, the mixture $(1-\epsilon)\pi + \epsilon\delta_{z_0}$ is still
+feasible for small $\epsilon$ and has larger $S$, a contradiction. Otherwise
+$\pi$ is supported on maximal-sentiment prompts, so $C(\pi) \le c_0 < \tau$, also
+a contradiction. Hence $C(\pi) = \tau$ and $V(\tau) = U(\tau)$. $U$ is
+concave, so $V$ is concave and continuous on the interior of
+$(c_0, c_{\max}]$. It is continuous at $c_{\max}$ because $U$ is upper
+semicontinuous on a polytope. It is non-increasing because the feasible sets are
+nested. For $\tau \le c_0$ the maximal-sentiment policy is feasible, so
+$V(\tau) = U(c_0)$. \qed
+
+\paragraph{Proposition~\ref{prop:penalty}.}
+(i) $S$ is linear, $(\tau - C)_+^2$ is a convex function of a linear map, and
+$\mathrm{KL}(\cdot\,\|\,\pi_0)$ is strictly convex, so the objective is
+strictly concave and has a unique maximizer. The maximizer is interior,
+because the KL term's derivative diverges at the boundary. Stationarity on the
+simplex reads
+$\bar s_z + \nu(\tau - C(\pi))_+\,\bar c_z - \beta(\log\frac{\pi_z}{\pi_{0,z}} + 1) =
+\text{const}$, which is the Gibbs form with $\mu = \nu(\tau - C(\pi))_+$.
+Along the Gibbs family, $\frac{d}{d\mu}C(\pi_\mu) =
+\mathrm{Var}_{\pi_\mu}(\bar c)/\beta \ge 0$. Hence
+$h(\mu) = \mu - \nu(\tau - C(\pi_\mu))_+$ is strictly increasing, with
+$h(0) \le 0$ and $h(\mu) \to \infty$, so it has exactly one root $\mu_\nu$. At
+the root, $(\tau - C)_+ = \mu_\nu/\nu$. If $C(\pi_0) \ge \tau$ then
+$\mu_\nu = \mu^\star = 0$. Otherwise suppose $\mu_\nu > \mu^\star$: by
+monotonicity $C(\pi_{\mu_\nu}) \ge C(\pi_{\mu^\star}) = \tau$, so
+$\mu_\nu = \nu(\tau - C)_+ = 0$, a contradiction. Hence $\mu_\nu \le \mu^\star$.
+(ii) The attainable pairs are the convex hull of the points, and $F$ depends
+on $\pi$ only through $(C,S)$, so $\max F = \max_t\,[\,U(t) - \frac{\nu}{2}(\tau
+- t)_+^2\,]$. This is the maximum of a concave function of one variable. For
+$t > \tau$ it equals $U(t)$, which is non-increasing for $t \ge c_0$, so the
+maximizer satisfies $t^\star \le \tau$ when $\tau > c_0$. The first-order
+condition $0 \in \partial U(t^\star) + \nu(\tau - t^\star)$ gives the
+shortfall. Realizing $U(t^\star)$ needs at most two prompts, as in
+Proposition~\ref{prop:eps}.
+(iii) $\partial F/\partial\pi_z = \bar s_z - \nu(\tau - C)_+\cdot(-\bar c_z)$. In
+Eq.~\eqref{eq:reward-exp}, $\mu_g$ and $\tau$ are constant within a group, so
+$r_i$ differs from $\bar s_{z_i} + \mu_g\bar c_{z_i}$ by the per-group constant
+$-\mu_g\tau$. The implementation's division by $1 + \mu_g$ is a per-group
+positive scale. Both are removed by standardization, by
+Lemma~\ref{lem:invariance}. \qed
+
+\section{Choosing the multiplier: a simulation}
+\label{app:sim}
+
+\texttt{analysis/constraint\_sim.py} simulates \rrebel{}-std on the real
+statistics of the $48$ prompts that account for at least $98\%$ of the four
+Reward~I policies' test-split choices. It uses their per-sentence mean content
+and sentiment and their per-sample spread over $N=50$ task-model samples, on
+five randomly chosen test sentences. Each window moves $\log\pi$ a
+fraction (the \emph{step}) of the way to the window's target
+$\pi\,e^{\tilde r/\beta}$, $\beta = 0.5$, with $\tilde r$ standardized within
+groups of $G = 16$ prompts drawn from $\pi$. The full target corresponds to
+step~$1$. The measured logit growth of the trained Reward~I policies
+corresponds to a step of about $0.05$. Table~\ref{tab:sim} reports, over the
+binding floors $\tau = 30$--$90$, the mean and worst distance of
+$\mathbb{E}[c]$ from the floor, the number of distinct points among the $20$
+floors, the hypervolume, and the largest standard deviation of $\mathbb{E}[c]$
+over the last $20$ windows (``late wobble''). The proportional rule, with
+$\nu = 5$, is the rule used in our experiments.
+
+\begin{table}[h]
+\centering
+\small
+\resizebox{\textwidth}{!}{\input{tables/constraint_sim}}
+\caption{Multiplier rules for the expectation floor, simulated on the real
+prompt statistics. The exact projection overshoots to the copy prompt, and dual
+ascent keeps oscillating. The proportional (quadratic-penalty) multiplier tracks
+the floor closely at both step sizes.}
+\label{tab:sim}
+\end{table}
+
 \section{Numerical verification of the theory}
 \label{app:checks}
 
@@ -143,7 +233,7 @@ Section~\ref{sec:theory} on a tabular single-token policy (so that
 $\log\pol(z)$ is available in closed form). Checks 1--3 call the repository's
 own \texttt{\_rrebel\_core} and \texttt{grpo\_v2\_loss}, so they verify the
 \emph{implementation}; the rest compute the idealized quantities exactly. The
-script exits non-zero if any check fails. All $31$ checks pass. The exact
+script exits non-zero if any check fails. All $40$ checks pass. The exact
 identities are run with the code's $\varepsilon = 10^{-8}$ standard-deviation
 guard set to zero: with the guard in place, the invariance and gradient-ratio
 checks deviate by $\sim\!10^{-7}$, which is exactly the size of $\varepsilon/\sigma$
@@ -173,6 +263,10 @@ Prop.~\ref{prop:mirror}: std first-window KL and whole trajectory identical acro
 \quad (control) plain: best-prompt mass after $40$ windows, $\sigma=0.01$ vs.\ $\sigma=100$ & $0.03$ vs.\ $1.00$ \\
 \S\ref{sec:th-grpo}: deterministic constant-step Adam, KL to target, Huber vs.\ $\ell_1$ & $3\times10^{-11}$ vs.\ $8\times10^{-9}$ \\
 \S\ref{sec:th-grpo}: sampled groups + noise, stationary jitter, $\ell_1$/Huber ratio & $0.78$ \\
+Prop.~\ref{prop:eps}: optimum certified by an LP dual; binding floor met with equality; support $\le 2$ ($2{,}000$ random menus) & $3\times10^{-14}$; $10^{-14}$; $2$ \\
+Prop.~\ref{prop:penalty}(i): fixed point satisfies KKT; equals the exponentiated-gradient maximizer ($\nu=1$, KL) & $2\times10^{-9}$; $5\times10^{-16}$ \\
+Prop.~\ref{prop:penalty}(i): $(\tau-C)_+ = \mu_\nu/\nu$; $\mu_\nu \le \mu^\star$, $\nu\in\{1,5,50\}$ & $9\times10^{-13}$; $0$ \\
+Prop.~\ref{prop:penalty}(iii): std loss unchanged by the $(1+\mu_g)$ rescaling and $\tau$ shift of Reward~II & $0$ \\
 \bottomrule
 \end{tabular}
 \end{center}

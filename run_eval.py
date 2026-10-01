@@ -28,8 +28,8 @@ def main(config: "DictConfig"):
     config.save_dir = os.path.join(output_dir, config.save_dir)
     trainer = ScoreTrainer(algo_module, train_dataset, test_dataset, config)
     eval_save_dir = os.path.join(config.save_dir, config.get('eval_subdir', "test"))
-    if not os.path.exists(eval_save_dir):
-        os.makedirs(eval_save_dir)
+    # exist_ok: concurrent array tasks of one run race on this mkdir
+    os.makedirs(eval_save_dir, exist_ok=True)
     # name the result by checkpoint step so evals at different steps coexist
     out_name = "output.json"
     if config.checkpoint_path:

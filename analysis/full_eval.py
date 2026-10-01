@@ -1,6 +1,10 @@
-"""Analysis of the v4 FULL test-split evaluation (slurm/eval_full.slurm).
+"""Analysis of a FULL test-split evaluation campaign (slurm/eval_full.slurm).
 
-Inputs : results/v4/v4_<arm>_seed0/test_full/output.step.<N>.seed<S>.json
+    --campaign v4 : per-sample-floor reward, legacy top-3 prompt decoding
+    --campaign v5 : expectation-floor reward, prompts SAMPLED from the policy
+                    (outputs get a _v5 suffix, macros a \w prefix instead of \v)
+
+Inputs : results/<c>/<c>_<arm>_seed0/test_full/output.step.<N>.seed<S>.json
          (per-(sentence, lambda) rows; 500 test sentences x 20 lambdas)
 Outputs: paper/figures/frontier.pdf      expected sentiment vs expected content
          paper/figures/control.pdf       content / sentiment / feasibility vs tau
@@ -45,19 +49,39 @@ ARMS = [
 LABEL = {a[0]: a[1] for a in ARMS}
 FINAL = 12000
 B = 2000
+# Floors that bind for every arm: above every arm's unconstrained content
+# (~26-28 at tau = 0) and below the copy-prompt ceiling (~90). Calibration of
+# E[c|tau] against tau is measured on these.
+BIND = (30.0, 90.0)
+CAMP, SFX, MP = "v4", "", "v"          # set by --campaign: name, file suffix, macro prefix
 
 
-def path(arm, step, seed):
-    return os.path.join(ROOT, "results", "v4", f"v4_{arm}_seed0", "test_full",
+def set_campaign(c):
+    global CAMP, SFX, MP
+    CAMP, SFX, MP = c, ("" if c == "v4" else f"_{c}"), ("v" if c == "v4" else "w")
+
+
+def path(arm, step, seed, camp=None):
+    camp = camp or CAMP
+    return os.path.join(ROOT, "results", camp, f"{camp}_{arm}_seed0", "test_full",
                         f"output.step.{step}.seed{seed}.json")
 
 
 def inventory():
     inv = defaultdict(dict)
-    for p in glob.glob(os.path.join(ROOT, "results/v4/v4_*_seed0/test_full/output.step.*.seed*.json")):
-        m = re.search(r"v4_(.+?)_seed0/test_full/output\.step\.(\d+)\.seed(\d+)\.json$", p)
+    for p in glob.glob(os.path.join(ROOT, f"results/{CAMP}/{CAMP}_*_seed0/test_full/output.step.*.seed*.json")):
+        m = re.search(CAMP + r"_(.+?)_seed0/test_full/output\.step\.(\d+)\.seed(\d+)\.json$", p)
         inv[(m.group(1), int(m.group(2)))][int(m.group(3))] = p
     return inv
+
+
+def distinct_points(c, s, radius=2.0):
+    """Floors whose points do not (nearly) coincide with the previous floor's."""
+    n, last = 0, None
+    for ci_, si_ in zip(c, s):
+        if last is None or np.hypot(ci_ - last[0], si_ - last[1]) >= radius:
+            n, last = n + 1, (ci_, si_)
+    return n
 
 
 def load(p):
@@ -131,13 +155,28 @@ def metrics(A, idx=None):
     C, S, R, F = (A[k][sl] for k in ("content", "style", "score", "feasible"))
     ec, es = C.mean(1), S.mean(1)
     tau = 100 * A["lams"]
+    b = (tau >= BIND[0] - 1e-9) & (tau <= BIND[1] + 1e-9)
     return {
+        "calib": float(np.abs(ec[b] - tau[b]).mean()),        # mean |E[c|tau] - tau|, binding floors
+        "short": float(np.clip(tau[b] - ec[b], 0, None).mean()),  # mean shortfall below the floor
+        "sbind": float(es[b].mean()),                           # sentiment kept at the binding floors
         "reward": R.mean(), "content": C.mean(), "sentiment": S.mean(),
         "hv": hypervolume(ec, es),
         "met": float((ec >= tau - 1e-9).sum()),        # of len(tau) floors met in expectation
         "feasible": F.mean(),                           # P(content >= tau), per sample
         "ec": ec, "es": es, "ef": F.mean(1),
     }
+
+
+MKEYS = ("reward", "content", "sentiment", "hv", "met", "feasible", "calib", "short", "sbind")
+
+
+def modal_prompt(run, i):
+    """Most frequent prompt at floor index i across the test sentences, with
+    its share -- the representative prompt when prompts are sampled."""
+    from collections import Counter
+    (p, n), = Counter(tuple(x) for x in run["prompts"][i]).most_common(1)
+    return {"prompt": detok(p), "share": n / len(run["prompts"][i])}
 
 
 def spearman(x, y):
@@ -168,7 +207,9 @@ def tex_escape(s):
            '"': "{\\textquotedbl}", "<": r"\textless{}", ">": r"\textgreater{}",
            "\n": r"{\textbackslash}n", "\u2212": r"$-$", "\u00d7": r"$\times$",
            "\u202e": r"\textnormal{[RLO]}"}
-    out = "".join(rep.get(ch, ch) for ch in s)
+    # any other non-ASCII character (v5 prompts contain e.g. Japanese kana) is
+    # shown as its code point, since pdflatex cannot typeset it
+    out = "".join(rep.get(ch, ch if ord(ch) < 128 else f"\\textnormal{{\\scriptsize[U+{ord(ch):04X}]}}") for ch in s)
     bad = [ch for ch in out if ord(ch) > 127]
     assert not bad, f"unmapped non-ASCII in prompt: {[hex(ord(c)) for c in bad]}"
     return out
@@ -187,9 +228,11 @@ def fmt(c, nd=1):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--status", action="store_true")
+    ap.add_argument("--campaign", default="v4", choices=["v4", "v5"])
     ap.add_argument("--allow-partial", action="store_true",
                     help="build outputs even if some arms have <5 seeds (drafting only)")
     a = ap.parse_args()
+    set_campaign(a.campaign)
     inv = inventory()
     print("inventory (arm, step): seeds")
     for (arm, step), seeds in sorted(inv.items()):
@@ -226,18 +269,21 @@ def main():
         idx = rng.integers(0, n_src, n_src)
         for arm in avg:
             m = metrics(avg[arm], idx)
-            for k in ("reward", "content", "sentiment", "hv", "met", "feasible"):
+            for k in MKEYS:
                 boot[arm][k].append(m[k])
             boot[arm]["ec"].append(m["ec"]); boot[arm]["es"].append(m["es"]); boot[arm]["ef"].append(m["ef"])
 
-    summary = {"n_sentences": int(n_src), "lambdas": lams.tolist(), "seeds": have, "arms": {}}
+    summary = {"campaign": CAMP, "n_sentences": int(n_src), "lambdas": lams.tolist(), "seeds": have,
+               "bind": list(BIND), "arms": {}}
     for arm in avg:
         p, bs = point[arm], boot[arm]
         dp = distinct_prompts(runs[arm][0])
         # Monte-Carlo noise floor: seed-to-seed SD of the full-test-set reward
         seed_rewards = [r["score"].mean() for r in runs[arm]]
         summary["arms"][arm] = {
-            **{k: ci(bs[k], p[k]) for k in ("reward", "content", "sentiment", "hv", "met", "feasible")},
+            **{k: ci(bs[k], p[k]) for k in MKEYS},
+            "distinct_points": distinct_points(p["ec"], p["es"]),
+            "seed_hv": [float(hypervolume(r["content"].mean(1), r["style"].mean(1))) for r in runs[arm]],
             "frontier": {"tau": tau.tolist(), "content": p["ec"].tolist(), "sentiment": p["es"].tolist(),
                          "feasible": p["ef"].tolist(),
                          "content_lo": np.percentile(bs["ec"], 2.5, 0).tolist(),
@@ -249,21 +295,26 @@ def main():
             "spearman_tau_content": spearman(tau, p["ec"]),
             "monotone_violations": int((np.diff(p["ec"]) < 0).sum()),
             "distinct_prompts": dp, "distinct_prompts_median": float(np.median(dp)),
+            "distinct_prompts_total": len({" ".join(p) for row in runs[arm][0]["prompts"] for p in row}),
             "seed_rewards": seed_rewards,
             "prompt_flip_frac_vs_seed0": flips[arm],
             "seed_sd": float(np.std(seed_rewards, ddof=1)) if len(seed_rewards) > 1 else None,
             "example_prompts": {f"{t:g}": detok(runs[arm][0]["prompts"][i][0]) for i, t in enumerate(tau)},
+            "modal_prompts": {f"{t:g}": modal_prompt(runs[arm][0], i) for i, t in enumerate(tau)},
         }
     # paired differences against the best GRPO arm and within families
-    best_grpo = max(("grpo_ent", "grpo_baseref"), key=lambda k: point[k]["reward"])
-    best_rr = max(("rrebel_l1_std", "rrebel_huber_std"), key=lambda k: point[k]["reward"])
+    # "best" = the campaign's own objective: per-sample reward for v4, hypervolume
+    # of the expected-value curve for v5 (which does not optimize the former)
+    key = "reward" if CAMP == "v4" else "hv"
+    best_grpo = max(("grpo_ent", "grpo_baseref"), key=lambda k: point[k][key])
+    best_rr = max(("rrebel_l1_std", "rrebel_huber_std"), key=lambda k: point[k][key])
     pairs = [(best_rr, best_grpo), ("rrebel_l1_std", "rrebel_huber_std"), ("grpo_ent", "grpo_baseref"),
              ("rrebel_huber_std", best_grpo), ("rrebel_l1_std", best_grpo)]
     pairs = list(dict.fromkeys(pairs))
     summary["pairwise"] = []
     for x, y in pairs:
         row = {"a": x, "b": y}
-        for k in ("reward", "content", "sentiment", "hv", "feasible"):
+        for k in ("reward", "content", "sentiment", "hv", "feasible", "calib", "sbind"):
             d = np.array(boot[x][k]) - np.array(boot[y][k])
             row[k] = ci(d, point[x][k] - point[y][k])
             row[k]["p_le_0"] = float((d <= 0).mean())
@@ -305,7 +356,9 @@ def main():
     for s in steps:
         for arm, *_ in ARMS:
             m = metrics(seed_avg([load(inv[(arm, s)][0])]))
-            lc[arm][s] = {"reward": float(m["reward"]), "hv": float(m["hv"]),
+            lc[arm][s] = {"reward": float(m["reward"]), "hv": float(m["hv"]), "calib": float(m["calib"]),
+                          "short": float(m["short"]), "sbind": float(m["sbind"]),
+                          "distinct": distinct_points(m["ec"], m["es"]),
                           "content": float(m["content"]), "sentiment": float(m["sentiment"])}
     summary["learning_curve_seed0"] = lc
 
@@ -314,9 +367,9 @@ def main():
     # steps), among steps that also have a checkpoint and a test eval, and
     # report that checkpoint's TEST metrics. Selection never sees test data.
     dev = {}
-    for arm, *_ in ARMS:
+    for arm, *_ in (ARMS if CAMP == "v4" else []):
         scores = {}
-        for f in glob.glob(os.path.join(ROOT, f"results/v4/v4_{arm}_seed0/eval/outputs.step.*.json")):
+        for f in glob.glob(os.path.join(ROOT, f"results/{CAMP}/{CAMP}_{arm}_seed0/eval/outputs.step.*.json")):
             st = int(re.search(r"step\.(\d+)", f).group(1))
             try:
                 scores[st] = float(np.mean(json.load(open(f))["mean_scores"]))
@@ -331,11 +384,44 @@ def main():
                     "test": lc[arm][best], "candidates": sorted(int(c) for c in cand)}
     summary["dev_selected"] = dev
 
-    json.dump(summary, open(os.path.join(ROOT, "results", "v4", "full_eval_summary.json"), "w"), indent=1)
+    json.dump(summary, open(os.path.join(ROOT, "results", CAMP, "full_eval_summary.json"), "w"), indent=1)
     print_summary(summary)
     figures(summary, steps)
     tables(summary)
     macros(summary)
+    if CAMP != "v4":
+        compare_campaigns(summary)
+
+
+def compare_campaigns(S):
+    """Per-sample floor (v4) vs expectation floor (v5): where each floor's point
+    sits relative to E[c] = tau, and how many distinct points the curve has."""
+    f4 = os.path.join(ROOT, "results", "v4", "full_eval_summary.json")
+    if not os.path.exists(f4):
+        print("no v4 summary; skipping the v4-vs-v5 comparison"); return
+    S4 = json.load(open(f4))
+    import matplotlib; matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    plt.rcParams.update({"font.size": 8, "axes.labelsize": 8, "axes.labelcolor": INK, "text.color": INK})
+    fig, axs = plt.subplots(1, 2, figsize=(6.6, 2.75), sharey=True)
+    for ax, SS, title in ((axs[0], S4, "per-sample floor (v4 reward)"),
+                          (axs[1], S, "expectation floor (v5 reward)")):
+        ax.axvspan(*BIND, color=GRID, alpha=0.45, lw=0, zorder=0)
+        ax.axhline(0, color=INK2, lw=0.9, ls=":", zorder=1)
+        for arm, label, color, ls, mk in ARMS:
+            f = SS["arms"][arm]["frontier"]
+            t = np.array(f["tau"]); g = np.array(f["content"]) - t
+            ax.plot(t, g, ls=ls, color=color, lw=1.3, marker=mk, ms=3.2, mec="white", mew=0.5, label=label, zorder=3)
+        ax.set_title(title, fontsize=8); ax.set_xlabel("content floor $\\tau$"); ax.set_xlim(-2, 97)
+        _style(ax)
+    axs[0].set_ylabel("$\\mathbb{E}[c] - \\tau$")
+    axs[1].text(60, -14, "binding floors\n$\\tau = 30$--$90$", color=INK2, fontsize=6.5, ha="center")
+    h, l = axs[0].get_legend_handles_labels()
+    fig.legend(h, l, loc="upper center", ncol=4, frameon=False, fontsize=6.5, handlelength=2.4, bbox_to_anchor=(0.5, 1.02))
+    fig.tight_layout(rect=(0, 0, 1, 0.9))
+    fig.savefig(os.path.join(FIG, "compare_v4_v5.pdf")); fig.savefig(os.path.join(FIG, "compare_v4_v5.png"), dpi=130)
+    plt.close(fig)
+    print("wrote", os.path.join(FIG, "compare_v4_v5.pdf"))
 
 
 def print_summary(S):
@@ -487,7 +573,7 @@ def figures(S, steps):
                 label=label, zorder=3)
     frontier_axes(ax)
     ax.legend(frameon=False, fontsize=7, loc="upper right", handlelength=2.6)
-    fig.tight_layout(); fig.savefig(os.path.join(FIG, "frontier.pdf")); fig.savefig(os.path.join(FIG, "frontier.png"), dpi=130)
+    fig.tight_layout(); fig.savefig(os.path.join(FIG, f"frontier{SFX}.pdf")); fig.savefig(os.path.join(FIG, f"frontier{SFX}.png"), dpi=130)
     plt.close(fig)
 
     # (b) one panel per method with tau labels (draft Figs. 4-5); the other
@@ -514,7 +600,7 @@ def figures(S, steps):
             t.remove()
         f = fr[arm]
         label_taus(ax, np.array(f["tau"]), np.array(f["content"]), np.array(f["sentiment"]), color)
-    fig.savefig(os.path.join(FIG, "frontier_panels.pdf")); fig.savefig(os.path.join(FIG, "frontier_panels.png"), dpi=130)
+    fig.savefig(os.path.join(FIG, f"frontier_panels{SFX}.pdf")); fig.savefig(os.path.join(FIG, f"frontier_panels{SFX}.png"), dpi=130)
     plt.close(fig)
     # the same panels as stand-alone figures, for slides or a different layout
     for arm, label, color, ls, mk in ARMS:
@@ -524,7 +610,7 @@ def figures(S, steps):
         for t in list(ax.texts):
             t.remove()
         label_taus(ax, np.array(fr[arm]["tau"]), np.array(fr[arm]["content"]), np.array(fr[arm]["sentiment"]), color)
-        fig.savefig(os.path.join(FIG, f"frontier_{arm}.pdf"))
+        fig.savefig(os.path.join(FIG, f"frontier_{arm}{SFX}.pdf"))
         plt.close(fig)
 
     # ---- control: three small multiples vs tau ----------------------------
@@ -545,13 +631,15 @@ def figures(S, steps):
     h, l = axs[0].get_legend_handles_labels()
     fig.legend(h, l, loc="upper center", ncol=5, frameon=False, fontsize=6.5, handlelength=2.4,
                bbox_to_anchor=(0.5, 1.0))
-    fig.tight_layout(rect=(0, 0, 1, 0.9)); fig.savefig(os.path.join(FIG, "control.pdf")); fig.savefig(os.path.join(FIG, "control.png"), dpi=120)
+    fig.tight_layout(rect=(0, 0, 1, 0.9)); fig.savefig(os.path.join(FIG, f"control{SFX}.pdf")); fig.savefig(os.path.join(FIG, f"control{SFX}.png"), dpi=120)
     plt.close(fig)
 
     # ---- learning curves on test -----------------------------------------
     if len(steps) >= 2:
         fig, axs = plt.subplots(1, 2, figsize=(5.9, 2.75))  # print size: 0.9 text width
-        for ax, (k, yl) in zip(axs, [("reward", "mean constrained reward"), ("hv", "hypervolume (% of box)")]):
+        lc_specs = ([("reward", "mean constrained reward"), ("hv", "hypervolume (% of box)")] if CAMP == "v4" else
+                    [("hv", "hypervolume (% of box)"), ("calib", "mean $|\\mathbb{E}[c]-\\tau|$, $\\tau=30$--$90$")])
+        for ax, (k, yl) in zip(axs, lc_specs):
             for arm, label, color, ls, mk in ARMS:
                 lc = S["learning_curve_seed0"][arm]
                 xs = sorted(int(s) for s in lc)
@@ -562,14 +650,17 @@ def figures(S, steps):
             d = S.get("dev_selected", {}).get(arm)
             if d:
                 axs[0].plot([d["step"]], [d["test"]["reward"]], "o", ms=11, mfc="none", mec=color, mew=1.2, zorder=1)
-        axs[0].plot([], [], "o", ms=8, mfc="none", mec=INK2, mew=1.1, label="dev-selected checkpoint")
+        if S.get("dev_selected"):
+            axs[0].plot([], [], "o", ms=8, mfc="none", mec=INK2, mew=1.1, label="dev-selected checkpoint")
         h, l = axs[0].get_legend_handles_labels()
         fig.legend(h, l, loc="upper center", ncol=3, frameon=False, fontsize=6.5, handlelength=2.4,
                    bbox_to_anchor=(0.5, 1.0))
-        fig.tight_layout(rect=(0, 0, 1, 0.84)); fig.savefig(os.path.join(FIG, "test_learning.pdf")); fig.savefig(os.path.join(FIG, "test_learning.png"), dpi=120); plt.close(fig)
+        fig.tight_layout(rect=(0, 0, 1, 0.84)); fig.savefig(os.path.join(FIG, f"test_learning{SFX}.pdf")); fig.savefig(os.path.join(FIG, f"test_learning{SFX}.png"), dpi=120); plt.close(fig)
 
 
 def tables(S):
+    if CAMP != "v4":
+        return tables_v5(S)
     n = len(S["lambdas"])
     rows = []
     for arm, label, *_ in ARMS:
@@ -577,14 +668,14 @@ def tables(S):
         rows.append(f"{label} & {fmt(m['reward'])} & {fmt(m['hv'])} & {fmt(m['content'])} & "
                     f"{fmt(m['sentiment'])} & ${m['met']['point']:.0f}/{n}$ & "
                     f"${m['feasible']['point']:.2f}$ & ${m['distinct_prompts_median']:.0f}$ \\\\")
-    with open(os.path.join(TAB, "full_results.tex"), "w") as fh:
+    with open(os.path.join(TAB, f"full_results{SFX}.tex"), "w") as fh:
         fh.write("% generated by analysis/full_eval.py -- do not edit by hand\n")
         fh.write("\\begin{tabular}{lccccccc}\n\\toprule\n")
         fh.write("Arm & Reward & Hypervolume & Content & Sentiment & Floors met & "
                  "$P(c\\geq\\tau)$ & Prompts/$\\tau$ \\\\\n\\midrule\n")
         fh.write("\n".join(rows[:2]) + "\n\\midrule\n" + "\n".join(rows[2:]) + "\n\\bottomrule\n\\end{tabular}\n")
 
-    with open(os.path.join(TAB, "pairwise.tex"), "w") as fh:
+    with open(os.path.join(TAB, f"pairwise{SFX}.tex"), "w") as fh:
         fh.write("% generated by analysis/full_eval.py -- do not edit by hand\n")
         fh.write("\\begin{tabular}{llccc}\n\\toprule\n$a$ & $b$ & $\\Delta$ reward & $\\Delta$ hypervolume & $\\Delta$ sentiment \\\\\n\\midrule\n")
         for r in S["pairwise"]:
@@ -595,7 +686,7 @@ def tables(S):
     taus = ["0", "30", "50", "70", "90"]
     short = {"rrebel_l1_std": r"R-REBEL $\ell_1$-std", "rrebel_huber_std": "R-REBEL Huber-std",
              "grpo_ent": "GRPO + entropy", "grpo_baseref": "GRPO, base-LM ref."}
-    with open(os.path.join(TAB, "prompts.tex"), "w") as fh:
+    with open(os.path.join(TAB, f"prompts{SFX}.tex"), "w") as fh:
         fh.write("% generated by analysis/full_eval.py -- do not edit by hand\n")
         fh.write("\\begin{tabular}{r" + ">{\\raggedright\\arraybackslash\\ttfamily\\footnotesize}p{0.205\\textwidth}" * len(ARMS) + "}\n\\toprule\n")
         fh.write("$\\tau$ & " + " & ".join("\\normalfont\\small " + short[a] for a, *_ in ARMS) + " \\\\\n\\midrule\n")
@@ -603,7 +694,53 @@ def tables(S):
             cells = [tex_escape(S["arms"][a]["example_prompts"][t]) for a, *_ in ARMS]
             fh.write(f"${t}$ & " + " & ".join(cells) + " \\\\[2pt]\n")
         fh.write("\\bottomrule\n\\end{tabular}\n")
-    print(f"\nwrote tables -> {TAB}/{{full_results,pairwise,prompts}}.tex")
+    print(f"\nwrote tables -> {TAB}/{{full_results,pairwise,prompts}}{SFX}.tex")
+
+
+SHORT = {"rrebel_l1_std": r"R-REBEL $\ell_1$-std", "rrebel_huber_std": "R-REBEL Huber-std",
+         "grpo_ent": "GRPO + entropy", "grpo_baseref": "GRPO, base-LM ref."}
+
+
+def breakable(tex):
+    """Allow a line break before an internal capital of a long camel-case
+    token (e.g. delighted|Interstitial), which a narrow tt column cannot fit."""
+    return re.sub(r"(?<=[a-z])(?=[A-Z][a-z]{3,})", r"\\allowbreak{}", tex)
+
+
+def tables_v5(S):
+    """Expectation-floor campaign: the curve's calibration and spread are the
+    point, so they get columns; the per-sample reward is kept for reference."""
+    n = len(S["lambdas"])
+    rows = []
+    for arm, label, *_ in ARMS:
+        m = S["arms"][arm]
+        rows.append(f"{label} & {fmt(m['hv'])} & {fmt(m['calib'])} & {fmt(m['short'])} & {fmt(m['sbind'])} & "
+                    f"${m['distinct_points']}/{n}$ & ${m['distinct_prompts_median']:.0f}$ & {fmt(m['reward'])} \\\\")
+    with open(os.path.join(TAB, f"full_results{SFX}.tex"), "w") as fh:
+        fh.write("% generated by analysis/full_eval.py -- do not edit by hand\n")
+        fh.write("\\begin{tabular}{lccccccc}\n\\toprule\n")
+        fh.write("Arm & Hypervolume & $|\\mathbb{E}[c]-\\tau|$ & Shortfall & Sentiment & Distinct points & "
+                 "Prompts/$\\tau$ & Per-sample reward \\\\\n\\midrule\n")
+        fh.write("\n".join(rows[:2]) + "\n\\midrule\n" + "\n".join(rows[2:]) + "\n\\bottomrule\n\\end{tabular}\n")
+    with open(os.path.join(TAB, f"pairwise{SFX}.tex"), "w") as fh:
+        fh.write("% generated by analysis/full_eval.py -- do not edit by hand\n")
+        fh.write("\\begin{tabular}{llccc}\n\\toprule\n$a$ & $b$ & $\\Delta$ hypervolume & "
+                 "$\\Delta$ sentiment & $\\Delta\\,|\\mathbb{E}[c]-\\tau|$ \\\\\n\\midrule\n")
+        f2 = lambda c: f"${c['point']:+.2f}$\\,{{\\scriptsize$[{c['lo']:+.2f},{c['hi']:+.2f}]$}}"
+        for r in S["pairwise"]:
+            fh.write(f"{LABEL[r['a']]} & {LABEL[r['b']]} & {f2(r['hv'])} & {f2(r['sbind'])} & {f2(r['calib'])} \\\\\n")
+        fh.write("\\bottomrule\n\\end{tabular}\n")
+    taus = ["0", "30", "50", "70", "90"]
+    with open(os.path.join(TAB, f"prompts{SFX}.tex"), "w") as fh:
+        fh.write("% generated by analysis/full_eval.py -- do not edit by hand\n")
+        fh.write("\\begin{tabular}{r" + ">{\\raggedright\\arraybackslash\\ttfamily\\footnotesize}p{0.205\\textwidth}" * len(ARMS) + "}\n\\toprule\n")
+        fh.write("$\\tau$ & " + " & ".join("\\normalfont\\small " + SHORT[a] for a, *_ in ARMS) + " \\\\\n\\midrule\n")
+        for t in taus:
+            cells = [breakable(tex_escape(S["arms"][a]["modal_prompts"][t]["prompt"]))
+                     + f" \\normalfont\\scriptsize({100 * S['arms'][a]['modal_prompts'][t]['share']:.0f}\\%)" for a, *_ in ARMS]
+            fh.write(f"${t}$ & " + " & ".join(cells) + " \\\\[2pt]\n")
+        fh.write("\\bottomrule\n\\end{tabular}\n")
+    print(f"\nwrote tables -> {TAB}/{{full_results,pairwise,prompts}}{SFX}.tex")
 
 
 MACRO_ARM = {"rrebel_l1_std": "Lone", "rrebel_huber_std": "Huber", "grpo_ent": "Gent", "grpo_baseref": "Gbase"}
@@ -614,7 +751,8 @@ def macros(S):
     """paper/tables/v4_numbers.tex: one \\newcommand per number the text quotes."""
     L = ["% generated by analysis/full_eval.py -- do not edit by hand"]
     def m(name, val):
-        L.append(f"\\newcommand{{\\{name}}}{{{val}}}")
+        assert name[0] == "v", name
+        L.append(f"\\newcommand{{\\{MP + name[1:]}}}{{{val}}}")
     m("vNsent", S["n_sentences"]); m("vNlam", len(S["lambdas"]))
     m("vNseeds", min(len(v) for v in S["seeds"].values()))
     m("vSeedSDmax", f"{max(S['arms'][a]['seed_sd'] for a in MACRO_ARM):.2f}")
@@ -624,8 +762,17 @@ def macros(S):
         for k, K in (("reward", "Rew"), ("hv", "HV"), ("content", "Con"), ("sentiment", "Sen")):
             m(f"v{A}{K}", f"{a[k]['point']:.1f}"); m(f"v{A}{K}Lo", f"{a[k]['lo']:.1f}"); m(f"v{A}{K}Hi", f"{a[k]['hi']:.1f}")
         m(f"v{A}Met", f"{a['met']['point']:.0f}"); m(f"v{A}Feas", f"{a['feasible']['point']:.2f}")
+        for k, K in (("calib", "Calib"), ("short", "Short"), ("sbind", "Sbind")):
+            m(f"v{A}{K}", f"{a[k]['point']:.1f}"); m(f"v{A}{K}Lo", f"{a[k]['lo']:.1f}"); m(f"v{A}{K}Hi", f"{a[k]['hi']:.1f}")
+        m(f"v{A}Distinct", a["distinct_points"])
+        fgap = np.array(a["frontier"]["content"]) - np.array(a["frontier"]["tau"])
+        bm = (np.array(a["frontier"]["tau"]) >= BIND[0]) & (np.array(a["frontier"]["tau"]) <= BIND[1])
+        m(f"v{A}GapMin", f"{fgap[bm].min():.1f}"); m(f"v{A}GapMax", f"{fgap[bm].max():.1f}")
+        m(f"v{A}SenZero", f"{a['frontier']['sentiment'][0]:.1f}")
+        m(f"v{A}HVseedSD", f"{np.std(a['seed_hv'], ddof=1):.2f}" if len(a["seed_hv"]) > 1 else "--")
         m(f"v{A}Prompts", f"{a['distinct_prompts_median']:.0f}")
         m(f"v{A}PromptsMax", f"{max(a['distinct_prompts'])}")
+        m(f"v{A}PromptsTotal", a["distinct_prompts_total"])
         m(f"v{A}Rho", f"{a['spearman_tau_content']:.2f}")
         m(f"v{A}SeedSD", f"{a['seed_sd']:.2f}" if a['seed_sd'] is not None else "--")
         fl = a.get("prompt_flip_frac_vs_seed0") or [0.0]
@@ -637,6 +784,7 @@ def macros(S):
             lc = S["learning_curve_seed0"][arm].get(st) or S["learning_curve_seed0"][arm].get(str(st))
             if lc:
                 m(f"v{A}Rew{T}", f"{lc['reward']:.1f}"); m(f"v{A}HV{T}", f"{lc['hv']:.1f}")
+                m(f"v{A}Calib{T}", f"{lc['calib']:.1f}")
         d = S.get("dev_selected", {}).get(arm)
         if d:
             m(f"v{A}DevStep", f"{d['step']:,}".replace(",", "{,}")); m(f"v{A}DevRew", f"{d['test']['reward']:.1f}")
@@ -651,9 +799,16 @@ def macros(S):
     gHG = [LC["rrebel_huber_std"][t]["reward"] - LC["grpo_ent"][t]["reward"] for t in common]
     m("vLcHuberGentMin", f"{min(gHG):.1f}"); m("vLcHuberGentMax", f"{max(gHG):.1f}")
     # first checkpoint from which Huber-std leads GRPO+entropy at every later one
-    lead = next(i for i in range(len(common)) if all(g > 0 for g in gHG[i:]))
-    m("vLcLeadFrom", f"{common[lead]:,}".replace(",", "{,}"))
-    m("vLcLeadMin", f"{min(gHG[lead:]):.1f}"); m("vLcLeadMax", f"{max(gHG[lead:]):.1f}")
+    lead = next((i for i in range(len(common)) if all(g > 0 for g in gHG[i:])), None)
+    if lead is not None:
+        m("vLcLeadFrom", f"{common[lead]:,}".replace(",", "{,}"))
+        m("vLcLeadMin", f"{min(gHG[lead:]):.1f}"); m("vLcLeadMax", f"{max(gHG[lead:]):.1f}")
+    # the same, on hypervolume (the v5 headline metric)
+    hHG = [LC["rrebel_huber_std"][t]["hv"] - LC["grpo_ent"][t]["hv"] for t in common]
+    leadh = next((i for i in range(len(common)) if all(g > 0 for g in hHG[i:])), None)
+    if leadh is not None:
+        m("vLcHVLeadFrom", f"{common[leadh]:,}".replace(",", "{,}"))
+        m("vLcHVLeadMin", f"{min(hHG[leadh:]):.1f}"); m("vLcHVLeadMax", f"{max(hHG[leadh:]):.1f}")
     m("vLcFirstGapAbs", f"{abs(gHG[0]):.1f}")
     early = [LC[a][common[0]]["reward"] for a in ("rrebel_l1_std", "rrebel_huber_std", "grpo_ent")]
     m("vLcFirstSpread", f"{max(early) - min(early):.1f}")
@@ -668,6 +823,13 @@ def macros(S):
         r = [LC[a][t]["reward"] for t in common]
         m(f"v{A}LcMin", f"{min(r):.1f}"); m(f"v{A}LcMax", f"{max(r):.1f}")
         m(f"v{A}HVfirst", f"{LC[a][common[0]]['hv']:.1f}")
+        h = [LC[a][t]["hv"] for t in common]
+        m(f"v{A}HVLcMin", f"{min(h):.1f}"); m(f"v{A}HVLcMax", f"{max(h):.1f}")
+        pkh = max(common, key=lambda t: LC[a][t]["hv"])
+        m(f"v{A}HVPeakStep", f"{pkh:,}".replace(",", "{,}")); m(f"v{A}HVPeak", f"{LC[a][pkh]['hv']:.1f}")
+        m(f"v{A}CalibFirst", f"{LC[a][common[0]]['calib']:.1f}")
+        cl = [LC[a][t]["calib"] for t in common[1:]]          # after the first checkpoint
+        m(f"v{A}CalibLcMin", f"{min(cl):.1f}"); m(f"v{A}CalibLcMax", f"{max(cl):.1f}")
     dsel = S.get("dev_selected", {})
     if dsel:
         rr = min(dsel[a]["test"]["reward"] for a in ("rrebel_l1_std", "rrebel_huber_std"))
@@ -683,8 +845,29 @@ def macros(S):
         n = f"vGap{MACRO_ARM[r['a']]}{MACRO_ARM[r['b']]}"
         for k, K in (("reward", "Rew"), ("hv", "HV"), ("sentiment", "Sen"), ("content", "Con")):
             m(f"{n}{K}", f"{r[k]['point']:.1f}"); m(f"{n}{K}Lo", f"{r[k]['lo']:.1f}"); m(f"{n}{K}Hi", f"{r[k]['hi']:.1f}")
-    open(os.path.join(TAB, "v4_numbers.tex"), "w").write("\n".join(L) + "\n")
-    print(f"wrote {len(L) - 1} macros -> {TAB}/v4_numbers.tex")
+    # slope of each curve's upper concave envelope over the binding floors, in
+    # sentiment points per content point: Prop. "What Reward II converges to"
+    # predicts a shortfall of |slope|/nu
+    slopes = []
+    for arm in MACRO_ARM:
+        f = S["arms"][arm]["frontier"]
+        H = upper_hull(np.array(f["content"]), np.array(f["sentiment"]))
+        for (c1, s1), (c2, s2) in zip(H[:-1], H[1:]):
+            if c2 > BIND[0] and c1 < BIND[1] and c2 > c1:
+                slopes.append(abs((s2 - s1) / (c2 - c1)))
+    m("vSlopeMed", f"{np.median(slopes):.1f}"); m("vSlopeMax", f"{max(slopes):.1f}")
+    gaps = []
+    for arm in MACRO_ARM:
+        f = S["arms"][arm]["frontier"]; t = np.array(f["tau"])
+        b = (t >= BIND[0]) & (t <= BIND[1]); gaps += list((np.array(f["content"]) - t)[b])
+    m("vGapAllMax", f"{max(gaps):.0f}"); m("vGapAllMinAbs", f"{abs(min(gaps)):.0f}")
+    m("vSlopeMin", f"{min(slopes):.1f}")
+    for r in S["pairwise"]:
+        n = f"vGap{MACRO_ARM[r['a']]}{MACRO_ARM[r['b']]}"
+        for k, K in (("calib", "Calib"), ("sbind", "Sbind")):
+            m(f"{n}{K}", f"{r[k]['point']:.1f}"); m(f"{n}{K}Lo", f"{r[k]['lo']:.1f}"); m(f"{n}{K}Hi", f"{r[k]['hi']:.1f}")
+    open(os.path.join(TAB, f"{CAMP}_numbers.tex"), "w").write("\n".join(L) + "\n")
+    print(f"wrote {len(L) - 1} macros -> {TAB}/{CAMP}_numbers.tex")
 
 
 if __name__ == "__main__":

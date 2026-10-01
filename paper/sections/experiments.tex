@@ -31,68 +31,73 @@ reference. The two $\beta$s are not comparable quantities: one is a regression
 scale in Eq.~\eqref{eq:logratio}, the other a KL coefficient in
 Eq.~\eqref{eq:grpo}.
 
-\paragraph{Arms (main campaign, v4).}
+\paragraph{Arms and campaigns.}
 Four arms, one training seed each, all trained to $12{,}000$ steps:
 \rrebel{} $\ell_1$-std, \rrebel{} Huber-std, GRPO + entropy
 ($\alpha_H = 0.01$, uniform anchor), and GRPO with a base-LM reference
-(Section~\ref{sec:algos-caveat}). Because v4 has a single training seed per arm,
-training-seed variation comes from the earlier three-seed campaign (v3), which
-used the same code, hyperparameters and step budget
+(Section~\ref{sec:algos-caveat}). The \textbf{main campaign (v5)} trains them
+with Reward~II, the floor on expected content (Eq.~\ref{eq:reward-exp}, $\nu =
+5$). The \textbf{comparison campaign (v4)} trained the same four arms with
+Reward~I, the floor on every sample (Eq.~\ref{eq:reward}). Code,
+hyperparameters, budget and scheduling are otherwise identical, so the
+comparison isolates the reward. Because each campaign has a single training
+seed per arm, training-seed variation comes from an earlier three-seed campaign
+(v3), which used Reward~I and the same code, hyperparameters and step budget
 (Section~\ref{sec:seed-replication}).
 
 \paragraph{Evaluation protocol.}
-All v4 numbers are on the \textbf{held-out Yelp test split ($500$ sentences)},
-evaluated after training. At test time the policy decodes its prompt
-\emph{greedily} for each $(x,\lmb)$. We sweep $\lmb$ over the $20$-point grid
-$\{0, 0.05, \dots, 0.95\}$ (every point lies inside the training range), and
-each prompt is scored by averaging $N = 50$ task-model samples. We report
-\emph{expected} content $\mathbb{E}[c]$ and \emph{expected} sentiment
-$\mathbb{E}[s]$ per $\lmb$, each averaged over task-model samples and test
-sentences. Scorers run in \texttt{float32}.
-The prompt is deterministic given $(x,\lmb)$, so the main randomness is the
-task model's. We therefore repeat the final-checkpoint evaluation with
-\textbf{five task-model seeds}, averaging over seeds first and then over
-sentences. Evaluations ran on whichever eligible GPU was free. On a given GPU
-model the greedy prompts are bit-identical across seeds. Across GPU models,
-floating-point differences flip near-tied greedy choices for up to
-\vHuberFlipMax\% (Huber-std) and \vGentFlipMax\% (GRPO + entropy) of the
-(sentence, floor) prompts, and for up to \vGbaseFlipMax\% for GRPO with the
-base-LM reference, whose prompt distribution is flatter. These flips are
-between near-equivalent prompts: across the five seeds, each arm's mean reward
-varies by at most \vSeedRangeMax{} points (standard deviation at most
-\vSeedSDmax). The five-seed average therefore also averages over this
-hardware variation. For comparison, re-running a $10$-sentence development
-evaluation moved its score by $1.1$ points.
+All v4 and v5 numbers are on the \textbf{held-out Yelp test split ($500$
+sentences)}, evaluated after training. We sweep $\lmb$ over the $20$-point grid
+$\{0, 0.05, \dots, 0.95\}$ (every point lies inside the training range). For
+each $(x,\lmb)$ the policy supplies one prompt, which is scored by averaging
+$N = 50$ task-model samples, and we report expected content
+$\mathbb{E}[c\mid\tau]$ and expected sentiment $\mathbb{E}[s\mid\tau]$ as in
+Eq.~\eqref{eq:curve}. Scorers run in \texttt{float32}.
+\emph{How the prompt is chosen} differs between the campaigns. In v5 it is
+\textbf{sampled from the policy}, with the training sampler (top-$k = 200$), so
+that averaging over sentences estimates the expectation over prompts that
+Eq.~\eqref{eq:curve} and Proposition~\ref{prop:eps} call for. In v4 it came
+from the codebase's legacy decoder. That decoder is labelled greedy but in fact
+samples each token from the top three, which for these peaked policies returns
+the most likely prompt almost always (Section~\ref{sec:res-diagnosis}).
+We repeat the final-checkpoint evaluation with \textbf{five seeds}, averaging
+over seeds first and then over sentences. In v5 each seed redraws both the
+prompts and the task model's samples. In v4 the prompt sampler had a fixed
+seed, so prompts were identical across seeds on a given GPU model and differed
+across GPU models only through the random stream. At v4's final checkpoint,
+each arm's mean reward varies across seeds by at most \vSeedRangeMax{} points
+(standard deviation at most \vSeedSDmax). For comparison, re-running a
+$10$-sentence development evaluation moved its score by $1.1$ points.
 \textbf{Confidence intervals} are $95\%$ percentile bootstraps over test
 sentences ($2{,}000$ resamples). The same resampled sentences are used for
 every arm, so differences between arms are \emph{paired}. Resampling
-seed-averaged per-sentence values captures both sentence-to-sentence variation
-and residual Monte Carlo noise, because the latter is independent per sentence.
+seed-averaged per-sentence values captures sentence-to-sentence variation as
+well as the residual randomness of prompts and task-model samples, because the
+latter is independent per sentence.
 
 \paragraph{Metrics.}
-Besides the frontier itself, we summarize each arm by:
+Besides the curve itself, we summarize each arm by:
 \begin{itemize}[itemsep=1pt,topsep=2pt]
-  \item \emph{mean reward}: the constrained reward of Eq.~\eqref{eq:reward}
-        averaged over sentences and the $\lmb$ grid (the training objective,
-        Eq.~\eqref{eq:objective});
-  \item \emph{hypervolume}: the area dominated by the $20$ frontier points in the
-        (content, sentiment) plane, with reference point $(0,0)$, as a percentage
-        of the $100\times100$ box. This is the standard scalar summary of a
-        tradeoff curve and does not depend on the reward's penalty
-        constant;
-  \item \emph{floors met}: the number of grid points at which
-        $\mathbb{E}[c] \ge \tau$;
-  \item $P(c \ge \tau)$: the per-sample probability that a rewrite meets its
-        floor, averaged over the grid. This is the quantity the constrained
-        reward actually penalizes;
+  \item \emph{hypervolume}: the area dominated by the $20$ points in the
+        (content, sentiment) plane, with reference point $(0,0)$, as a
+        percentage of the $100\times100$ box. This is the standard scalar
+        summary of a tradeoff curve, and it depends on neither reward;
+  \item \emph{calibration}: the mean of $|\mathbb{E}[c\mid\tau] - \tau|$, and
+        the mean shortfall $(\tau - \mathbb{E}[c\mid\tau])_+$, over the
+        \emph{binding} floors $\tau = 30$--$90$. These lie above every arm's
+        unconstrained content and below the copy prompts' ceiling;
+  \item \emph{distinct points}: the number of floors whose point does not
+        coincide, within $2$ points, with the previous floor's. This is a
+        direct measure of clustering;
   \item \emph{prompts per $\tau$}: the median, over the grid, of the number of
-        distinct prompts the policy emits across the $500$ test sentences. This
-        is a direct measure of input-dependence and of collapse.
+        distinct prompts the policy emits across the $500$ test sentences;
+  \item \emph{per-sample reward}: Reward~I averaged over sentences and floors,
+        the training objective of v4. For v5 it is reported for reference only.
 \end{itemize}
 
 \paragraph{Test-split learning curves.}
-Each arm's checkpoints at steps $3000$, $6000$ and $9000$ are evaluated with the
-same protocol (one task-model seed), giving matched test-split learning curves.
+Each arm's checkpoints every $1{,}500$ steps are evaluated with the same
+protocol (one seed), giving matched test-split learning curves.
 
 \paragraph{Supporting campaign (v3): training-seed replication on a small dev set.}
 The earlier campaign trained five arms $\times$ three seeds with the same code
@@ -100,7 +105,7 @@ and budget. Its in-training evaluation ran on the \textbf{development split
 capped at $10$ sentences}, a speed hack in the data loader, and its checkpoints
 were later lost to a filesystem purge. Its scores survive only as the
 experiment tracker's scalar history (Section~\ref{sec:provenance}). These are
-$10$-sentence dev numbers, not test numbers. We use them only for what v4
+$10$-sentence dev numbers, not test numbers. We use them only for what v4 and v5
 cannot provide, namely the spread across \emph{training} seeds.
 
 \paragraph{Compute.}

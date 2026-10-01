@@ -116,5 +116,14 @@ input_conditioning: true
 prompt_length: 5 # Max output token length of the LM model
 prompt_infer_batch_size: 16
 source_str: "<|endoftext|>"
+# Constraint form of the lambda-indexed reward (tst_score.py):
+#   sample      = Eq. (reward): floor on EVERY task-LM sample, 0.01 penalty (v2-v4)
+#   expectation = floor on the policy's EXPECTED content E_pi[c|x,lambda] via a
+#                 quadratic penalty; per-group multiplier kappa*(tau - mean_g c)_+ (v5)
+reward_constraint: "sample"
+constraint_kappa: 5.0
+# Eval prompt decoding (ScoreLossModule.infer): top3 (legacy: one top-3 draw),
+# argmax (true greedy), sample (one draw from the training top_k sampler)
+eval_decode: "top3"
 eval_lmbdas: null  # list overrides the default 10-point eval grid (0.0..0.9)
 eval_subdir: "test"  # run_eval.py output subfolder

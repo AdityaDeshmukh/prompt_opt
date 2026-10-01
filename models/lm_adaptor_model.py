@@ -254,7 +254,12 @@ class LMAdaptorModel(BaseModel):
                       source_texts: List[str],
                       max_new_tokens: Optional[int],
                       eos_token_id: Optional[int],
+                      argmax: bool = False,
                       **kwargs):
+        """NOTE: with argmax=False (the default, and every eval up to v4) this
+        is NOT greedy: it samples from the top-3-truncated policy -- the argmax
+        line has been commented out since the repo's first commit. argmax=True
+        is the true greedy decode."""
         if eos_token_id is not None:
             raise NotImplementedError(
                 "Only support fixed length prompt for now")
@@ -264,8 +269,11 @@ class LMAdaptorModel(BaseModel):
         sample_ids, sample_logits = [], []
         for i in range(max_new_tokens):
             logits = self._adapted_logits(lmbda, cache['state'])
-            sampling_logits = _top_k_logits(logits, k=3)
-            actions = D.Categorical(logits=sampling_logits).sample()
+            if argmax:
+                actions = logits.argmax(dim=-1)
+            else:
+                sampling_logits = _top_k_logits(logits, k=3)
+                actions = D.Categorical(logits=sampling_logits).sample()
             sample_ids.append(actions.unsqueeze(dim=1))
             sample_logits.append(logits.unsqueeze(dim=1))
             cache = self._step_cache(cache, actions)
@@ -308,7 +316,8 @@ class LMAdaptorModel(BaseModel):
             return self.greedy_search(lmbda = lmbda,
                                       source_texts=source_texts,
                                       max_new_tokens=max_new_tokens,
-                                      eos_token_id=eos_token_id)
+                                      eos_token_id=eos_token_id,
+                                      argmax=kwargs.get('argmax', False))
         elif is_sample_gen_mode:
             return self.sample(lmbda = lmbda,
                                source_texts=source_texts,

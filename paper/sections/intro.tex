@@ -37,11 +37,25 @@ reward's scale varies enormously across the contexts a single policy must
 serve. We measure that this multi-objective problem is squarely in that
 regime.
 
+A second question is which reward the curve calls for. The curve plots
+\emph{expected} content against \emph{expected} sentiment, one point per floor.
+The obvious reward, used in our earlier campaigns, instead applies the floor to
+each sampled rewrite. We show that this mismatch has visible consequences:
+each floor's point lands far from $\mathbb{E}[c] = \tau$, and with a policy that
+has settled on a few prompts, many floors land on the same point. A floor on
+the policy's expected content, imposed through a quadratic penalty, removes
+both problems in theory and in practice. It also exposes the limits of the
+expected-value curve itself. The cheapest way to deliver intermediate expected
+content is a mixture of verbatim copies and unrelated positive sentences, and
+the trained policies find it.
+
 \paragraph{Contributions.}
 \begin{itemize}\itemsep2pt
   \item A $\lmb$-conditioned prompt policy for multi-objective controlled
-        rewriting, trained against a constrained reward in which $\lmb$ sets a
-        content floor (Section~\ref{sec:setup}).
+        rewriting, and a reward that matches its tradeoff curve: a floor on the
+        policy's expected content, implemented as a per-rollout Lagrangian
+        reward whose multiplier is estimated from each group of samples
+        (Section~\ref{sec:setup}).
   \item A theory of \rrebel{}-std (Section~\ref{sec:theory}). Its population
         minimizer is a KL-regularized optimum for any discrepancy and any
         full-support sampler, with group standardization turning one global
@@ -49,19 +63,29 @@ regime.
         same trust-region radius, and a lagged reference performs mirror ascent
         with standardized steps. Pairwise differencing symmetrizes reward
         noise, so robust discrepancies do not bias the target. GRPO without a KL
-        term is the special case of \rrebel{}-$\ell_2$-std with lag one. Every
-        statement is proved and checked numerically against the implementation.
+        term is the special case of \rrebel{}-$\ell_2$-std with lag one. For the
+        constraint, we show why a per-sample floor clusters the curve, that the
+        expectation floor's optimum puts every binding floor on the line
+        $\mathbb{E}[c] = \tau$, and that \rrebel{}'s fixed point under the new
+        reward falls short of it only by the frontier's slope over the penalty
+        weight. Every statement is proved and checked numerically.
   \item A held-out test-split evaluation of the full tradeoff curve for two
         \rrebel{} and two GRPO variants (Section~\ref{sec:results}):
-        $\vNsent$ sentences, $\vNlam$ content floors, repeated task-model
-        seeds, and paired bootstrap intervals. \rrebel{} with a Huber
-        discrepancy has the best curve (hypervolume $\vHuberHV$ against
-        $\vGentHV$, reward $\vHuberRew$ against $\vGentRew$). We also report
-        how well each policy honours its floor, what prompts it learned, how its
-        curve evolved over training, and a direct measurement of the reward-scale
-        variation that motivates standardization.
-  \item Two negative results that bound the comparison. A GRPO baseline
-        anchored to the pretrained backbone, with a genuine trust region, is the
-        weakest arm. And the $\ell_1$ variant's curve regresses late in
-        training, which development-set early stopping avoids.
+        $\wNsent$ sentences, $\wNlam$ floors, five evaluation seeds, and paired
+        bootstrap intervals. \rrebel{} with a Huber discrepancy has the best
+        curve (hypervolume $\wHuberHV$ against $\wGentHV$), tracks the floor
+        to within $\wHuberCalib$ points on average, and has $\wHuberDistinct$
+        distinct points among $\wNlam$ floors.
+  \item A measurement of what the expectation floor costs
+        (Section~\ref{sec:res-cost}). At the middle floors, rewrites become
+        bimodal, split between copies and unrelated positive sentences, and the
+        share of rewrites that are both positive and above the floor halves
+        for Huber-std, from $\exFourHuberSuccess\%$ to $\exFiveHuberSuccess\%$.
+  \item A diagnosis of the per-sample floor on the same four arms
+        (Section~\ref{sec:res-diagnosis}). The trained policies are lookup tables
+        of a few prompts whose switch points are set by feasibility, and the
+        late-training regression of one arm is explained by its copy prompt
+        taking over ever lower floors. The diagnosis also shows that a GRPO
+        baseline anchored to the pretrained backbone is the weakest arm under
+        either reward.
 \end{itemize}

@@ -29,9 +29,35 @@ The two are in genuine tension: copying $x$ verbatim maximizes $c$ and leaves
 $s$ at the source value, while emitting a generic positive sentence maximizes
 $s$ and destroys $c$.
 
-\paragraph{A $\lmb$-indexed \emph{constrained} reward.}
-Rather than a linear scalarization, the objectives are combined as a
-constraint. For $\lmb \in [0,1]$, define
+\paragraph{The tradeoff curve.}
+$\lmb \in [0,1]$ indexes a content floor $\tau = 100\lmb$. For each floor, the
+curve has one point: the expected content and expected sentiment that the
+policy delivers when told that floor,
+\begin{equation}
+  \bigl(\,\mathbb{E}[c \mid \tau],\; \mathbb{E}[s \mid \tau]\,\bigr),
+  \qquad
+  \mathbb{E}[\,\cdot \mid \tau] = \mathbb{E}_{x}\,
+  \mathbb{E}_{z\sim\pol(\cdot\mid x,\lmb)}\,
+  \mathbb{E}_{y\sim\lm(\cdot\mid \texttt{template}(z,x))}[\,\cdot\,].
+  \label{eq:curve}
+\end{equation}
+Sweeping $\lmb$ from $0$ (no content requirement --- pure sentiment) to $1$
+(near-verbatim content required) traces the curve. The natural problem this
+curve depicts is the $\varepsilon$-constraint program: for every floor, the
+most sentiment that can be had with the floor met in expectation,
+\begin{equation}
+  \max_{\pi(\cdot\mid x,\lmb)}\; \mathbb{E}[s \mid x, \tau]
+  \quad\text{s.t.}\quad \mathbb{E}[c \mid x, \tau] \ge \tau
+  \qquad\text{for every } (x,\lmb).
+  \label{eq:epsconstraint}
+\end{equation}
+We study two ways of turning this into a reward. Write $\bar c(x,z)$ and
+$\bar s(x,z)$ for a prompt's expected content and sentiment over the task
+model's samples.
+
+\paragraph{Reward I: a floor on every sample.}
+The reward used in our earlier campaigns puts the floor on each individual
+rewrite,
 \begin{equation}
   \Rlam(z,x) \;=\;
   \begin{cases}
@@ -40,24 +66,55 @@ constraint. For $\lmb \in [0,1]$, define
   \end{cases}
   \label{eq:reward}
 \end{equation}
-so $\lmb$ sets a \emph{content floor} at $100\lmb$: reward equals the sentiment
-score wherever the floor is met, and otherwise degrades to a small negative
-penalty proportional to the shortfall. Sweeping $\lmb$ from $0$ (no content
-requirement --- pure sentiment) to $1$ (near-verbatim content required) traces
-the tradeoff curve. The penalty branch is scaled by $0.01$ so that violation is
-weakly informative rather than a flat rejection, which keeps the objective
-differentiable-in-expectation and gives the policy a gradient to climb back
-into the feasible region.
-
-Because $\lm$ is stochastic, the reward used for learning is a Monte Carlo
-average over $N = 50$ task-model samples per (prompt, source) pair,
+so that reward equals the sentiment score wherever the floor is met and
+degrades to a small penalty proportional to the shortfall otherwise. Because
+$\lm$ is stochastic, the reward used for learning is a Monte Carlo average over
+$N = 50$ task-model samples per (prompt, source) pair,
 \begin{equation}
   \hat{r}_{\lmb}(z,x) \;=\; \frac{1}{N}\sum_{n=1}^{N} \Rlam(z, x; y_n),
-  \qquad y_n \sim \lm(\cdot \mid \texttt{template}(z,x)),
+  \qquad y_n \sim \lm(\cdot \mid \texttt{template}(z,x)).
   \label{eq:mcreward}
 \end{equation}
-which is what every algorithm below consumes as its scalar reward. We write
-$\tau = 100\lmb$ for the content floor when discussing results.
+Its expectation is $\mathbb{E}[s\,\mathbf{1}\{c\ge\tau\}] -
+0.01\,\mathbb{E}[(\tau-c)_+]$: sentiment weighted by the \emph{probability}
+that a sample meets the floor. This is a surrogate for a chance constraint, not
+for Eq.~\eqref{eq:epsconstraint}. Nothing in it ties $\mathbb{E}[c\mid\tau]$ to
+$\tau$, and Section~\ref{sec:th-constraint} shows that, combined with a policy
+that settles on a few prompts, it is what makes the floors of the resulting
+curve cluster and miss the line $\mathbb{E}[c]=\tau$.
+
+\paragraph{Reward II: a floor on the expected content.}
+The reward behind our main results imposes Eq.~\eqref{eq:epsconstraint}
+through a quadratic penalty on the shortfall of the \emph{policy's} expected
+content,
+\begin{equation}
+  \max_{\pi(\cdot\mid x,\lmb)}\;
+  \mathbb{E}_{z\sim\pi}[\bar s(x,z)]
+  \;-\; \frac{\nu}{2}\,\Bigl(\tau - \mathbb{E}_{z\sim\pi}[\bar c(x,z)]\Bigr)_+^{2}.
+  \label{eq:penalty}
+\end{equation}
+Its gradient with respect to $\pi$ is that of a \emph{linear} per-rollout
+reward, $\bar s + \mu\,\bar c$, with multiplier
+$\mu = \nu\,(\tau - \mathbb{E}_\pi[\bar c])_+$. Every training group already
+contains $\Ggrp$ prompts drawn from $\pi(\cdot\mid x,\lmb)$, so the group's
+mean content is an unbiased estimate of $\mathbb{E}_\pi[\bar c \mid x,\lmb]$.
+Prompt $z_i$ of a group therefore receives
+\begin{equation}
+  r_i \;=\; \hat s_i + \mu_g\,(\hat c_i - \tau),
+  \qquad
+  \mu_g \;=\; \nu\,\Bigl(\tau - \tfrac{1}{\Ggrp}\textstyle\sum_{j=1}^{\Ggrp} \hat c_j\Bigr)_{\!+},
+  \label{eq:reward-exp}
+\end{equation}
+where $\hat s_i, \hat c_i$ are the $N$-sample means. When the group already
+meets the floor on average, $\mu_g = 0$ and the reward is plain sentiment. When
+it falls short, content is weighted in proportion to the shortfall. We use
+$\nu = 5$. The implementation divides $r_i$ by $1+\mu_g$ to keep its range
+bounded; under group standardization this rescaling, and the shift by
+$-\mu_g\tau$, have no effect (Lemma~\ref{lem:invariance}). Reward~II is linear in
+$\hat s$ and $\hat c$, so its Monte Carlo estimate is unbiased, unlike the
+indicator in Eq.~\eqref{eq:reward}. Section~\ref{sec:th-constraint} derives what
+it converges to, and why the multiplier is set this way rather than by an exact
+projection or by dual ascent.
 
 \paragraph{Objective: one policy for the whole curve.}
 During training $\lmb$ is drawn afresh per source, $\lmb \sim \mathcal{U}[0,1]$,
@@ -68,10 +125,13 @@ frontier is traced by varying the conditioning input rather than by retraining:
   \max_{\theta}\;
   \mathbb{E}_{\lmb \sim \mathcal{U}[0,1]}\;
   \mathbb{E}_{x}\;
-  \mathbb{E}_{z \sim \pol(\cdot \mid x, \lmb)}\bigl[\hat{r}_{\lmb}(z,x)\bigr].
+  \mathbb{E}_{z \sim \pol(\cdot \mid x, \lmb)}\bigl[\hat r_{\lmb}(z,x)\bigr]
   \label{eq:objective}
 \end{equation}
-This conditioning is what makes the problem multi-objective rather than a set of
-independent single-objective runs, and it is the reason entropy collapse is
-especially damaging here: a policy that collapses onto one prompt becomes
-$\lmb$-independent and degenerates to a single point instead of a curve.
+for Reward~I, and the $\lmb$- and $x$-average of Eq.~\eqref{eq:penalty} for
+Reward~II, whose gradient the per-rollout reward of Eq.~\eqref{eq:reward-exp}
+supplies. This conditioning is what makes the problem
+multi-objective rather than a set of independent single-objective runs, and it
+is the reason entropy collapse is especially damaging here: a policy that
+collapses onto one prompt becomes $\lmb$-independent and degenerates to a single
+point instead of a curve.

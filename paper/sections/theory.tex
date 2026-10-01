@@ -6,7 +6,7 @@ This section develops the theory behind \rrebel{} with group standardization
 Section~\ref{sec:results}. The approach follows DPO~\citep{rafailov2023dpo}:
 start from the KL-regularized objective, use its closed-form optimum to turn a
 statement about rewards into a statement about log-ratios, and then ask what a
-given loss on those log-ratios converges to. We answer four questions.
+given loss on those log-ratios converges to. We answer five questions.
 \emph{What is the target?} (\S\ref{sec:th-target}): for \emph{any} discrepancy
 $d$ and \emph{any} full-support sampler, the population minimizer is a
 KL-regularized optimum; standardization changes only its temperature.
@@ -17,7 +17,11 @@ this problem that scale varies by orders of magnitude across $\lmb$.
 a pair symmetrizes reward noise, so robust losses do not bias the target.
 \emph{How does it relate to GRPO?} (\S\ref{sec:th-grpo}): GRPO without a KL
 term is \emph{exactly} \rrebel{}-$\ell_2$-std with the reference refreshed every
-step.
+step. \emph{Which constraint should the reward impose?}
+(\S\ref{sec:th-constraint}): the tradeoff curve plots expectations, and a floor
+on every sample does not target them. A floor on the policy's expected
+content does, and its optimum puts each floor's point on the line
+$\mathbb{E}[c] = \tau$.
 
 Proofs are in Appendix~\ref{app:proofs}. Every statement is also checked
 numerically, by a script that runs the repository's actual loss code on a
@@ -236,7 +240,7 @@ where every sampled prompt has nearly the same reward as noise. With
 standardization, every context starts from the same loss.
 
 \paragraph{How large is the scale variation in this problem?}
-The constrained reward of Eq.~\eqref{eq:reward} has two branches on very
+Reward~I (Eq.~\ref{eq:reward}) has two branches on very
 different scales. Where the content floor is met, the reward is a sentiment
 score on $[0,100]$. Where it is not, the reward is $0.01\times$ the shortfall,
 typically $|r| \lesssim 0.5$. Which branch
@@ -376,6 +380,121 @@ barely moves in $40$ windows at $\sigma = 0.01$.}
 \label{fig:theory-toy}
 \end{figure}
 
+% ---------------------------------------------------------------------------
+\subsection{Which constraint should the reward impose?}
+\label{sec:th-constraint}
+
+The results so far concern how \rrebel{}-std optimizes a given reward. This
+subsection asks which reward the tradeoff curve of Eq.~\eqref{eq:curve}
+calls for. Fix a context $(x,\lmb)$ and its floor $\tau = 100\lmb$, and
+suppress them from the notation. Let $\mathcal{M} \subseteq \mathcal{Z}$ be a
+finite set of prompts with expected content $\bar c_z$ and sentiment $\bar s_z$,
+and for a distribution $\pi$ on $\mathcal{M}$ write
+$C(\pi) = \mathbb{E}_\pi[\bar c_z]$ and $S(\pi) = \mathbb{E}_\pi[\bar s_z]$.
+The curve's point for floor $\tau$ is the average over sentences of
+$(C(\pi), S(\pi))$.
+
+\begin{lemma}[A deterministic choice from a few prompts clusters the curve]
+\label{lem:cluster}
+Suppose the policy is deterministic, emitting $z^\star(x,\lmb) \in \mathcal{M}$
+with $|\mathcal{M}| = K$. If $z^\star$ does not depend on $x$, the curve has at
+most $K$ distinct points. If $z^\star(x,\lmb) = \arg\max_{z\in\mathcal{M}}
+r_\lmb(x,z)$ for a reward continuous in $\lmb$, the assignment is piecewise
+constant in $\lmb$: two floors share a point unless some
+$r_\lmb(x,z) - r_\lmb(x,z')$ changes sign between them.
+\end{lemma}
+
+For Reward~I, $r_\lmb(z) = \mathbb{E}_z[s\,\mathbf{1}\{c\ge\tau\}] -
+0.01\,\mathbb{E}_z[(\tau - c)_+]$. A crossing happens where the
+feasibility-weighted sentiments of two prompts cross, which depends on how each
+prompt's \emph{per-sample} content is spread around $\tau$, not on where its
+mean lies. Nothing places the crossings at $\bar c = \tau$. The trained
+policies of Section~\ref{sec:res-diagnosis} are in exactly this regime.
+
+\begin{proposition}[The $\varepsilon$-constraint over distributions]
+\label{prop:eps}
+Let $c_0$ be the largest content among the prompts of maximal sentiment and
+$c_{\max} = \max_z \bar c_z$. For $\tau \le c_{\max}$ the value
+$V(\tau) = \max\{S(\pi) : C(\pi) \ge \tau\}$ equals the upper concave envelope
+of the points $\{(\bar c_z, \bar s_z)\}$ evaluated at $\max(\tau, c_0)$. An
+optimal $\pi$ mixes at most two prompts. For every binding floor,
+$\tau \in (c_0, c_{\max}]$, \emph{every} optimal $\pi$ has $C(\pi) = \tau$
+exactly, and $V$ is concave, continuous and non-increasing there.
+\end{proposition}
+
+So the curve that Eq.~\eqref{eq:epsconstraint} calls for has the properties one
+would want of a tradeoff curve: each binding floor has its own point, and that
+point lies on the line $\mathbb{E}[c] = \tau$. Floors below $c_0$ are inactive and
+correctly share the point of the most positive policy. The price is that the
+optimum generally \emph{randomizes} between two prompts whenever $\tau$ falls
+between their contents. A deterministic policy attains $V$ only at the
+envelope's vertices, and Lemma~\ref{lem:cluster} applies to it.
+
+\begin{proposition}[What Reward~II converges to]
+\label{prop:penalty}
+Let $F(\pi) = S(\pi) - \frac{\nu}{2}\bigl(\tau - C(\pi)\bigr)_+^2$, the
+per-context objective of Eq.~\eqref{eq:penalty}, and let $\pi_\mu$ denote the
+Gibbs policy $\pi_0\,e^{(\bar s + \mu \bar c)/\beta}/Z$.
+\begin{enumerate}[label=(\roman*),itemsep=1pt,topsep=2pt]
+  \item \emph{One window.} $F(\pi) - \beta\,\mathrm{KL}(\pi\,\|\,\pi_0)$ has a
+        unique maximizer, $\pi_{\mu_\nu}$, where $\mu_\nu$ is the unique solution
+        of $\mu = \nu\,(\tau - C(\pi_\mu))_+$. Its shortfall is
+        $(\tau - C(\pi_{\mu_\nu}))_+ = \mu_\nu/\nu \le \mu^\star/\nu$, where
+        $\mu^\star$ is the multiplier of the KL-regularized constrained problem
+        ($C(\pi_{\mu^\star}) = \tau$). The shortfall therefore vanishes as
+        $\nu \to \infty$.
+  \item \emph{Across windows.} The maximizers of $F$ itself mix at most two
+        prompts and have $C(\pi) = t^\star$ with
+        $\tau - t^\star = |U'(t^\star)|/\nu$ for $\tau > c_0$, where $U$ is the
+        upper concave envelope of Proposition~\ref{prop:eps} and $U'$ its slope.
+  \item \emph{The reward.} The functional gradient of $F$ at $\pi$ is
+        $\bar s_z + \mu\,\bar c_z$ with $\mu = \nu(\tau - C(\pi))_+$. Reward~II
+        (Eq.~\ref{eq:reward-exp}) is this gradient with $C(\pi)$ estimated by the
+        group mean, up to a per-group affine map that standardization removes
+        (Lemma~\ref{lem:invariance}).
+\end{enumerate}
+\end{proposition}
+
+By Theorem~\ref{thm:consistency}, each reference window of \rrebel{}-std moves
+the policy toward the Gibbs tilt of its reward at temperature $\beta\sigma$, so
+part (i) describes a converged window (with $\beta\sigma$ in place of $\beta$),
+and part (ii) the limit of the mirror-ascent iteration of
+Proposition~\ref{prop:mirror}. In either case the policy's expected content
+sits at the floor up to a shortfall of slope$/\nu$. With $\nu = 5$, and the
+measured curves' envelope slopes of $\wSlopeMin$--$\wSlopeMax$ sentiment points
+per content point over the binding floors (Section~\ref{sec:res-control}), that
+is a fraction of a content point.
+
+\paragraph{How the curve must be evaluated.}
+The point of Eq.~\eqref{eq:curve} averages over prompts drawn from the policy.
+Averaging evaluation rows in which one prompt is \emph{sampled} per
+$(x,\lmb)$ estimates it without bias. Evaluating the policy's most likely prompt
+does so only when the policy is deterministic. Under
+Proposition~\ref{prop:eps} the optimal policy is not deterministic, and
+evaluating its mode would reinstate the clustering of Lemma~\ref{lem:cluster}.
+Our Reward~II evaluation therefore samples prompts from the training sampler
+(Section~\ref{sec:setup-exp}).
+
+\paragraph{Why a proportional multiplier.}
+Two textbook alternatives to Eq.~\eqref{eq:reward-exp} fail with standardized
+rewards. The first is an \emph{exact per-group projection}: choose the content
+weight so that the group's own window target meets the floor exactly. Under
+standardization a window moves the policy a fixed distance whatever the reward
+differences (Proposition~\ref{prop:trust}). With the policy's mass on two
+prompts, the projection can only choose which of the two to favour, and it
+overshoots. The second is \emph{dual ascent} on a multiplier per context, which
+integrates the violation and oscillates against the same fixed-size steps. A
+proportional multiplier has neither problem: it is the gradient of the smooth
+penalty $F$, so the iteration has the fixed point of
+Proposition~\ref{prop:penalty}. It is the proportional term of a PID-Lagrangian
+controller, without the integral term. We simulated all three on the real prompt
+statistics of the trained Reward~I policies
+(Appendix~\ref{app:sim}). With realistic step sizes the proportional rule keeps
+$\mathbb{E}[c]$ within \simPfiveCalib{} points of the floor on average (worst
+\simPfiveWorst), against \simProjCalib{} for the sampled projection,
+\simDualCalib{} for dual ascent (worst \simDualWorst, with sustained
+oscillation) and \simExactCalib{} for the exact projection.
+
 \paragraph{What the theory does not cover.}
 The results are about idealized, population-level quantities, and four gaps
 separate them from the implementation.
@@ -390,10 +509,8 @@ exact only at refresh steps.
 (iii) Each window runs $150$ Adam steps rather than being solved exactly, and
 optimizer state is reset at every scheduler resume (Section~\ref{sec:limitations}),
 so Proposition~\ref{prop:mirror} describes an idealized trajectory.
-(iv) The theory concerns maximizing the constrained reward $r_\lmb$. It does
-\emph{not} guarantee that the expected content of the chosen prompt meets
-$100\lmb$: the reward penalizes each task-model sample that violates the floor,
-which makes it a surrogate for a chance constraint rather than an
-expected-value constraint. Whether the trained policies honour the constraint
-is therefore an empirical question, and Section~\ref{sec:res-frontier}
-measures it directly.
+(iv) Proposition~\ref{prop:penalty} describes converged windows of a
+nonparametric policy. A $\lmb$-conditioned network shares parameters across
+floors, each window runs a finite number of steps, and the multiplier is
+estimated from $16$ prompts, so how closely the trained policies meet their
+floors is an empirical question. Section~\ref{sec:res-control} measures it.

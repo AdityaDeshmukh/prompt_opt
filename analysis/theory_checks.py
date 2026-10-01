@@ -318,6 +318,144 @@ def check_self_limiting(V=12, beta=0.5, steps=6000, lr=3e-3, seed=7):
         FAILS.append("self-limiting (stochastic)")
     return err, jh, jl
 
+# --------------------------------------------------------------------------
+# Constraint theory (Section "Which constraint should the reward impose?")
+# Check C1 (Prop. "eps-constraint over distributions"): on a finite menu the
+# best expected sentiment subject to E[c] >= tau is attained by mixing <= 2
+# prompts, meets the floor with EQUALITY when it binds, and is certified
+# optimal by an LP dual (mu*, v): s_z + mu*(c_z - tau) <= v for all z, with
+# equality on the support -- an independent optimality proof, not a re-run of
+# the construction.
+# --------------------------------------------------------------------------
+def eps_constraint_opt(c, s, tau):
+    """Best mixture by enumeration of single prompts and pairs bracketing tau."""
+    best, sol = -np.inf, None
+    for i in range(len(c)):
+        if c[i] >= tau and s[i] > best:
+            best, sol = s[i], {i: 1.0}
+    lo, hi = np.where(c < tau)[0], np.where(c >= tau)[0]
+    for i in lo:
+        for j in hi:
+            a = (c[j] - tau) / (c[j] - c[i])
+            v = a * s[i] + (1 - a) * s[j]
+            if v > best:
+                best, sol = v, {i: a, j: 1 - a}
+    return best, sol
+
+
+def check_eps_constraint(trials=2000, K=12, seed=11):
+    rng = np.random.default_rng(seed)
+    worst_dual, worst_eq, max_supp = 0.0, 0.0, 0
+    for _ in range(trials):
+        c = rng.uniform(10, 95, K); s = np.clip(100 - c + rng.normal(0, 15, K), 0, 100)
+        c0 = c[s == s.max()].max()        # largest content among the most positive prompts
+        tau = rng.uniform(c0, c.max())      # a binding floor
+        v, sol = eps_constraint_opt(c, s, tau)
+        supp = list(sol); max_supp = max(max_supp, len(supp))
+        cm = sum(w * c[i] for i, w in sol.items())
+        worst_eq = max(worst_eq, abs(cm - tau))
+        # dual certificate: the multiplier is the slope of the chord used
+        mu = 0.0 if len(supp) == 1 else (s[supp[0]] - s[supp[1]]) / (c[supp[1]] - c[supp[0]])
+        lag = s + mu * (c - tau)
+        worst_dual = max(worst_dual, max(0.0, lag.max() - v), abs(lag[supp].max() - v), max(0.0, -mu))
+    report("eps-constraint optimum certified by an LP dual (max violation)", worst_dual, 1e-9)
+    report("eps-constraint optimum meets a binding floor with equality, |E[c]-tau|", worst_eq, 1e-9)
+    ok = max_supp <= 2
+    print(f"[{'PASS' if ok else 'FAIL'}] eps-constraint optimum mixes at most 2 prompts (max support {max_supp})")
+    if not ok:
+        FAILS.append("support<=2")
+
+
+# --------------------------------------------------------------------------
+# Check C2 (Prop. "penalized fixed point"): the maximizer of
+#   J(pi) = E_pi[s] - (nu/2)(tau - E_pi[c])_+^2 - beta KL(pi || pi0)
+# is the Gibbs policy pi0 exp((s + mu c)/beta) with mu = nu (tau - E_pi[c])_+,
+# found by 1-D bisection; it matches direct autograd maximization of J; its
+# multiplier never exceeds mu*, the multiplier of the KL-regularized constrained
+# problem, so the shortfall is <= mu*/nu.
+# --------------------------------------------------------------------------
+def _gibbs(p0, s, c, mu, beta):
+    lw = np.log(p0) + (s + mu * c) / beta
+    w = np.exp(lw - lw.max()); return w / w.sum()
+
+
+def fixed_point(p0, s, c, tau, nu, beta):
+    lo, hi = 0.0, 1e4               # g(mu) = mu - nu (tau - C(pi_mu))_+ is increasing
+    for _ in range(200):
+        mid = (lo + hi) / 2
+        if mid - nu * max(0.0, tau - _gibbs(p0, s, c, mid, beta) @ c) < 0: lo = mid
+        else: hi = mid
+    return (lo + hi) / 2
+
+
+def check_penalized_fixed_point(trials=30, K=10, beta=0.5, seed=12):
+    rng = np.random.default_rng(seed)
+    kl_max, rel_max, bound_viol, kkt_max, conv = 0.0, 0.0, 0.0, 0.0, []
+    for t in range(trials):
+        c = rng.uniform(10, 95, K); s = np.clip(100 - c + rng.normal(0, 15, K), 0, 100)
+        p0 = rng.dirichlet(np.ones(K)); tau = rng.uniform(40, 85)
+        # mu*: KL-regularized constrained problem, C(pi_mu*) = tau (bisection)
+        lo, hi = 0.0, 1e4
+        for _ in range(200):
+            mid = (lo + hi) / 2
+            if _gibbs(p0, s, c, mid, beta) @ c < tau: lo = mid
+            else: hi = mid
+        mu_star = (lo + hi) / 2
+        for nu in (1.0, 5.0, 50.0):
+            mu = fixed_point(p0, s, c, tau, nu, beta); pi = _gibbs(p0, s, c, mu, beta)
+            short = tau - pi @ c
+            rel_max = max(rel_max, abs(max(0.0, short) - mu / nu) / max(1.0, mu / nu))
+            bound_viol = max(bound_viol, max(0.0, mu - mu_star))
+            if t < 10 and nu in (1.0, 50.0):
+                conv.append((nu, short, mu_star / nu))
+            # J is concave, so the KKT condition is a sufficient optimality
+            # certificate: grad J must be constant across prompts (pi > 0 on all)
+            g_ = s + nu * max(0.0, tau - pi @ c) * c - beta * (np.log(pi) - np.log(p0))
+            kkt_max = max(kkt_max, float(g_.max() - g_.min()))
+            if t < 6 and nu == 1.0:
+                # independent: exponentiated-gradient ascent on J from pi0 (only
+                # grad J, never the closed form); its step is stable at nu = 1
+                q = p0.copy()
+                for it in range(400000):
+                    grad = s + nu * max(0.0, tau - q @ c) * c - beta * (np.log(q) - np.log(p0))
+                    lq = np.log(q) + 2e-3 * grad
+                    q_new = np.exp(lq - lq.max()); q_new /= q_new.sum()
+                    if np.abs(q_new - q).max() < 1e-15:
+                        q = q_new; break
+                    q = q_new
+                kl_max = max(kl_max, float((pi * (np.log(pi) - np.log(q))).sum()))
+    report("penalized objective: fixed point satisfies KKT (spread of grad J)", kkt_max, 1e-6)
+    report("penalized objective: fixed point = exponentiated-gradient maximizer (nu=1), KL", abs(kl_max), 1e-8)
+    report("penalized objective: shortfall = mu/nu (rel.)", rel_max, 1e-8)
+    report("penalized objective: mu_nu <= mu* (max excess)", bound_viol, 1e-8)
+    ok = all(sh <= b + 1e-9 for _, sh, b in conv)
+    print(f"[{'PASS' if ok else 'FAIL'}] shortfall <= mu*/nu on every instance; "
+          f"median shortfall nu=1: {np.median([x[1] for x in conv if x[0] == 1.0]):.3f}, "
+          f"nu=50: {np.median([x[1] for x in conv if x[0] == 50.0]):.4f}")
+    if not ok:
+        FAILS.append("shortfall bound")
+
+
+# --------------------------------------------------------------------------
+# Check C3 (Lemma "invariance" applied to the v5 reward): the std loss is the
+# same for r = s + mu_g (c - tau) and for its per-group rescaling by 1/(1+mu_g)
+# used in tst_score.py, so only the content weight mu_g matters.
+# --------------------------------------------------------------------------
+def check_v5_reward_invariance(S=5, G=16, V=30, seed=13):
+    g = torch.Generator().manual_seed(seed)
+    theta = torch.randn(S, V, generator=g); ref = theta + 0.3 * torch.randn(S, V, generator=g)
+    acts = torch.randint(0, V, (S * G, 1), generator=g)
+    cc = 100 * torch.rand(S, G, generator=g); ss = 100 * torch.rand(S, G, generator=g)
+    tau = 100 * torch.rand(S, 1, generator=g); mu = 5 * torch.clamp(tau - cc.mean(1, keepdim=True), min=0)
+    lam = tau.view(-1) / 100
+    lg, lg_ = theta.repeat_interleave(G, 0).unsqueeze(1), ref.repeat_interleave(G, 0).unsqueeze(1)
+    L = [_rrebel_core(lmbda=lam, logits=lg, logits_=lg_, actions=acts, scores_tensor=x.reshape(-1),
+                      num_src=S, d_kind='huber', beta=0.5, score_scale=0.1, reward_std_scale=True,
+                      ent_coef=0.0)[0].item()
+         for x in (ss + mu * cc, (ss + mu * (cc - tau)) / (1 + mu))]
+    report("v5 reward: std loss unchanged by the (1+mu) rescaling and tau shift", abs(L[0] - L[1]) / abs(L[0]), 1e-9)
+
+
 def make_figure(path, kl_std, kl_plain, md):
     import matplotlib; matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -354,6 +492,7 @@ if __name__ == "__main__":
     check_first_order(); check_invariance(); check_bounded(); check_consistency()
     kls_std, kls_plain = check_trust_region(); check_symmetrization(); md = check_mirror_descent()
     check_self_limiting()
+    check_eps_constraint(); check_penalized_fixed_point(); check_v5_reward_invariance()
     if a.fig:
         make_figure(a.fig, kls_std, kls_plain, md)
     print("\nALL CHECKS PASSED" if not FAILS else f"\n{len(FAILS)} FAILED: {FAILS}")

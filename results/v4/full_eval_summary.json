@@ -1,4 +1,5 @@
 {
+ "campaign": "v4",
  "n_sentences": 500,
  "lambdas": [
   0.0,
@@ -52,6 +53,10 @@
    4
   ]
  },
+ "bind": [
+  30.0,
+  90.0
+ ],
  "arms": {
   "rrebel_l1_std": {
    "reward": {
@@ -84,6 +89,29 @@
     "lo": 0.7526667694068645,
     "hi": 0.7695401294970214
    },
+   "calib": {
+    "point": 17.876667158214865,
+    "lo": 17.494521723249868,
+    "hi": 18.271989652768642
+   },
+   "short": {
+    "point": 1.2623381614098206,
+    "lo": 1.1111898850983817,
+    "hi": 1.440167525587822
+   },
+   "sbind": {
+    "point": 15.397418388315119,
+    "lo": 14.33803582438068,
+    "hi": 16.58572992611391
+   },
+   "distinct_points": 9,
+   "seed_hv": [
+    46.67665228258896,
+    46.79033533843192,
+    46.59426182097912,
+    46.657852833153626,
+    46.74969112745013
+   ],
    "frontier": {
     "tau": [
      0.0,
@@ -331,6 +359,7 @@
     1
    ],
    "distinct_prompts_median": 1.5,
+   "distinct_prompts_total": 7,
    "seed_rewards": [
     29.005994474152715,
     29.087331648698285,
@@ -367,6 +396,88 @@
     "90": "Examples Replace Example Replace Replace",
     "95": "Examples Replace Example Replace Replace"
    },
+   "modal_prompts": {
+    "0": {
+     "prompt": "Awesome!!\" gorgeous.\" loving",
+     "share": 1.0
+    },
+    "5": {
+     "prompt": "Awesome!!\" gorgeous.\" loving",
+     "share": 0.956
+    },
+    "10": {
+     "prompt": "Awesome.\" Beautiful.\" loving",
+     "share": 0.9
+    },
+    "15": {
+     "prompt": "Awesome.\" Beautiful.\" loving",
+     "share": 0.988
+    },
+    "20": {
+     "prompt": "Awesome.\" Beautiful.\" impressed",
+     "share": 0.938
+    },
+    "25": {
+     "prompt": "Awesome.\" Beautiful.\" impressed",
+     "share": 0.894
+    },
+    "30": {
+     "prompt": "Results \\( outcomes contrasting (=",
+     "share": 0.558
+    },
+    "35": {
+     "prompt": "Results \\( outcomes contrasting (=",
+     "share": 0.74
+    },
+    "40": {
+     "prompt": "Examples Replace Example Replace Replace",
+     "share": 0.566
+    },
+    "45": {
+     "prompt": "Examples Replace Example Replace Replace",
+     "share": 0.892
+    },
+    "50": {
+     "prompt": "Examples Replace Example Replace Replace",
+     "share": 0.994
+    },
+    "55": {
+     "prompt": "Examples Replace Example Replace Replace",
+     "share": 1.0
+    },
+    "60": {
+     "prompt": "Examples Replace Example Replace Replace",
+     "share": 1.0
+    },
+    "65": {
+     "prompt": "Examples Replace Example Replace Replace",
+     "share": 1.0
+    },
+    "70": {
+     "prompt": "Examples Replace Example Replace Replace",
+     "share": 1.0
+    },
+    "75": {
+     "prompt": "Examples Replace Example Replace Replace",
+     "share": 1.0
+    },
+    "80": {
+     "prompt": "Examples Replace Example Replace Replace",
+     "share": 1.0
+    },
+    "85": {
+     "prompt": "Examples Replace Example Replace Replace",
+     "share": 1.0
+    },
+    "90": {
+     "prompt": "Examples Replace Example Replace Replace",
+     "share": 1.0
+    },
+    "95": {
+     "prompt": "Examples Replace Example Replace Replace",
+     "share": 1.0
+    }
+   },
    "hv_mix": 52.301527712182754
   },
   "rrebel_huber_std": {
@@ -400,6 +511,29 @@
     "lo": 0.6663009096913505,
     "hi": 0.6850367694998104
    },
+   "calib": {
+    "point": 7.79359761780959,
+    "lo": 7.489280454798841,
+    "hi": 8.111403261070626
+   },
+   "short": {
+    "point": 1.8120322180527921,
+    "lo": 1.4866156756929285,
+    "hi": 2.155282508618291
+   },
+   "sbind": {
+    "point": 36.80627606590825,
+    "lo": 34.9379554064029,
+    "hi": 38.755974988565356
+   },
+   "distinct_points": 13,
+   "seed_hv": [
+    49.997560678861404,
+    50.083378220475296,
+    50.03321707987154,
+    50.07963099381451,
+    49.96862676508065
+   ],
    "frontier": {
     "tau": [
      0.0,
@@ -647,6 +781,7 @@
     2
    ],
    "distinct_prompts_median": 2.0,
+   "distinct_prompts_total": 11,
    "seed_rewards": [
     33.78401197416402,
     33.71400475298758,
@@ -683,6 +818,88 @@
     "90": "Example \u00d7 grep Example \u00d7",
     "95": "Example \u00d7 grep Example \u00d7"
    },
+   "modal_prompts": {
+    "0": {
+     "prompt": "Awesome!!\" wonderful.\" loving",
+     "share": 0.82
+    },
+    "5": {
+     "prompt": "Awesome!!\" terrific.\" loving",
+     "share": 0.914
+    },
+    "10": {
+     "prompt": "Awesome!!\" terrific.\" loving",
+     "share": 0.98
+    },
+    "15": {
+     "prompt": "Awesome!!\" terrific.\" impressed",
+     "share": 0.988
+    },
+    "20": {
+     "prompt": "Awesome!!\" terrific.\" impressed",
+     "share": 0.978
+    },
+    "25": {
+     "prompt": "Awesome!!\" terrific.\" impressed",
+     "share": 0.856
+    },
+    "30": {
+     "prompt": "Positive praise (% contrasts (\u2212",
+     "share": 0.694
+    },
+    "35": {
+     "prompt": "Positive praise (% contrasts (\u2212",
+     "share": 0.986
+    },
+    "40": {
+     "prompt": "Positive praise (% contrasts (\u2212",
+     "share": 1.0
+    },
+    "45": {
+     "prompt": "Positive praise (% contrasts (\u2212",
+     "share": 1.0
+    },
+    "50": {
+     "prompt": "Positive praise (% contrasts (\u2212",
+     "share": 0.92
+    },
+    "55": {
+     "prompt": "Positive praise (\u2212 contrasts (\u2212",
+     "share": 0.586
+    },
+    "60": {
+     "prompt": "Positive praise (\u2212 contrasts (\u2212",
+     "share": 0.93
+    },
+    "65": {
+     "prompt": "Positive praise (\u2212 contrasts (\u2212",
+     "share": 0.79
+    },
+    "70": {
+     "prompt": "Positive praise (\u2212 contrasts (\u2212",
+     "share": 0.5
+    },
+    "75": {
+     "prompt": "Sample conditional contrasts (\u2212 contrasts",
+     "share": 0.634
+    },
+    "80": {
+     "prompt": "Sample conditional contrasts (\u2212 contrasts",
+     "share": 0.496
+    },
+    "85": {
+     "prompt": "Example \u00d7 grep Example \u00d7",
+     "share": 0.774
+    },
+    "90": {
+     "prompt": "Example \u00d7 grep Example \u00d7",
+     "share": 0.926
+    },
+    "95": {
+     "prompt": "Example \u00d7 grep Example \u00d7",
+     "share": 0.99
+    }
+   },
    "hv_mix": 55.680651992823826
   },
   "grpo_ent": {
@@ -716,6 +933,29 @@
     "lo": 0.6407598701067939,
     "hi": 0.6602662303676959
    },
+   "calib": {
+    "point": 8.884870298282918,
+    "lo": 8.581190424117672,
+    "hi": 9.186183406859552
+   },
+   "short": {
+    "point": 2.8073060238177967,
+    "lo": 2.4147023553950953,
+    "hi": 3.177536333453837
+   },
+   "sbind": {
+    "point": 29.355658973384593,
+    "lo": 27.913505912130955,
+    "hi": 30.853876101454727
+   },
+   "distinct_points": 11,
+   "seed_hv": [
+    43.99235902016171,
+    43.9631464360905,
+    43.922236460559,
+    44.0214855829921,
+    43.92683157968763
+   ],
    "frontier": {
     "tau": [
      0.0,
@@ -963,6 +1203,7 @@
     3
    ],
    "distinct_prompts_median": 5.0,
+   "distinct_prompts_total": 39,
    "seed_rewards": [
     30.6659900656417,
     30.57450126208955,
@@ -999,6 +1240,88 @@
     "90": "Example Compare Example CompareExample",
     "95": "Example Compare Example CompareExample"
    },
+   "modal_prompts": {
+    "0": {
+     "prompt": "Awesome!\" beautiful!!\" gorgeous",
+     "share": 0.996
+    },
+    "5": {
+     "prompt": "Awesome!\" beautiful!!\" gorgeous",
+     "share": 0.996
+    },
+    "10": {
+     "prompt": "Awesome!\" beautiful!!\" gorgeous",
+     "share": 0.968
+    },
+    "15": {
+     "prompt": "Awesome.\" beautiful!!\" gorgeous",
+     "share": 0.562
+    },
+    "20": {
+     "prompt": "Awesome.\" beautiful .\" gorgeous",
+     "share": 0.582
+    },
+    "25": {
+     "prompt": "Awesome.\" beautiful .\" gorgeous",
+     "share": 0.992
+    },
+    "30": {
+     "prompt": "Awesome.\" beautiful .\" gorgeous",
+     "share": 0.934
+    },
+    "35": {
+     "prompt": "Awesome.\" beautiful .\" gorgeous",
+     "share": 0.48
+    },
+    "40": {
+     "prompt": "=(=(Example comparison Compare",
+     "share": 0.93
+    },
+    "45": {
+     "prompt": "=(=(Example comparison Compare",
+     "share": 0.992
+    },
+    "50": {
+     "prompt": "=(=(Example comparison Compare",
+     "share": 0.984
+    },
+    "55": {
+     "prompt": "=(=(Example comparison Compare",
+     "share": 0.99
+    },
+    "60": {
+     "prompt": "=(=(Example comparison Compare",
+     "share": 0.982
+    },
+    "65": {
+     "prompt": "=(=(Example comparison Compare",
+     "share": 0.966
+    },
+    "70": {
+     "prompt": "=(=(Example comparison Compare",
+     "share": 0.89
+    },
+    "75": {
+     "prompt": "=(=(Example comparison Compare",
+     "share": 0.634
+    },
+    "80": {
+     "prompt": "Example Compare Example CompareExample",
+     "share": 0.668
+    },
+    "85": {
+     "prompt": "Example Compare Example CompareExample",
+     "share": 0.896
+    },
+    "90": {
+     "prompt": "Example Compare Example CompareExample",
+     "share": 0.968
+    },
+    "95": {
+     "prompt": "Example Compare Example CompareExample",
+     "share": 0.99
+    }
+   },
    "hv_mix": 51.04627799557025
   },
   "grpo_baseref": {
@@ -1032,6 +1355,29 @@
     "lo": 0.6221596299716458,
     "hi": 0.6394499198925457
    },
+   "calib": {
+    "point": 3.636565215616959,
+    "lo": 3.456429502716252,
+    "hi": 3.854819988720785
+   },
+   "short": {
+    "point": 2.293939681045826,
+    "lo": 1.951641038324652,
+    "hi": 2.68110452181302
+   },
+   "sbind": {
+    "point": 23.37011971684282,
+    "lo": 22.418450968573147,
+    "hi": 24.42762002739237
+   },
+   "distinct_points": 12,
+   "seed_hv": [
+    33.87204773548407,
+    33.96732873317435,
+    33.94802030119532,
+    33.924100643643804,
+    33.82558455306314
+   ],
    "frontier": {
     "tau": [
      0.0,
@@ -1279,6 +1625,7 @@
     3
    ],
    "distinct_prompts_median": 18.0,
+   "distinct_prompts_total": 171,
    "seed_rewards": [
     22.72787863847614,
     22.731321580041723,
@@ -1315,6 +1662,88 @@
     "90": "\u202e\n\n\n",
     "95": "\u202e\n\n\n"
    },
+   "modal_prompts": {
+    "0": {
+     "prompt": "It great Love it!\"",
+     "share": 0.96
+    },
+    "5": {
+     "prompt": "It great Love it!\"",
+     "share": 0.932
+    },
+    "10": {
+     "prompt": "It great Love it!\"",
+     "share": 0.94
+    },
+    "15": {
+     "prompt": "It great Love it!\"",
+     "share": 0.938
+    },
+    "20": {
+     "prompt": "It great Love it!\"",
+     "share": 0.882
+    },
+    "25": {
+     "prompt": "It great Love it!\"",
+     "share": 0.768
+    },
+    "30": {
+     "prompt": "It great Love it!\"",
+     "share": 0.496
+    },
+    "35": {
+     "prompt": "It great love it Love",
+     "share": 0.336
+    },
+    "40": {
+     "prompt": "<|endoftext|>I love to say",
+     "share": 0.296
+    },
+    "45": {
+     "prompt": "<|endoftext|>I love to say",
+     "share": 0.442
+    },
+    "50": {
+     "prompt": "<|endoftext|>I love to say",
+     "share": 0.464
+    },
+    "55": {
+     "prompt": "<|endoftext|>I love to say",
+     "share": 0.46
+    },
+    "60": {
+     "prompt": "\u202e\n\n\n",
+     "share": 0.344
+    },
+    "65": {
+     "prompt": "\u202e\n\n\n",
+     "share": 0.668
+    },
+    "70": {
+     "prompt": "\u202e\n\n\n",
+     "share": 0.876
+    },
+    "75": {
+     "prompt": "\u202e\n\n\n",
+     "share": 0.96
+    },
+    "80": {
+     "prompt": "\u202e\n\n\n",
+     "share": 0.978
+    },
+    "85": {
+     "prompt": "\u202e\n\n\n",
+     "share": 0.982
+    },
+    "90": {
+     "prompt": "\u202e\n\n\n",
+     "share": 0.982
+    },
+    "95": {
+     "prompt": "\u202e\n\n\n",
+     "share": 0.996
+    }
+   },
    "hv_mix": 42.936071962528196
   }
  },
@@ -1350,6 +1779,18 @@
     "point": 0.025105599442869497,
     "lo": 0.01990177951312807,
     "hi": 0.03023766939017183,
+    "p_le_0": 0.0
+   },
+   "calib": {
+    "point": -1.0912726804733275,
+    "lo": -1.389233794884685,
+    "hi": -0.7666011027816442,
+    "p_le_0": 1.0
+   },
+   "sbind": {
+    "point": 7.4506170925236574,
+    "lo": 6.583545647395003,
+    "hi": 8.3853760765149,
     "p_le_0": 0.0
    },
    "sentiment_gap_by_tau": {
@@ -1454,6 +1895,18 @@
     "hi": 0.091323869765591,
     "p_le_0": 0.0
    },
+   "calib": {
+    "point": 10.083069540405274,
+    "lo": 9.640697030281626,
+    "hi": 10.498745875637669,
+    "p_le_0": 0.0
+   },
+   "sbind": {
+    "point": -21.408857677593133,
+    "lo": -22.76171730276731,
+    "hi": -20.071737873356252,
+    "p_le_0": 1.0
+   },
    "sentiment_gap_by_tau": {
     "point": [
      0.7829013999938894,
@@ -1554,6 +2007,18 @@
     "point": 0.019666800248250293,
     "lo": 0.01296191025078855,
     "hi": 0.026827250236505753,
+    "p_le_0": 0.0
+   },
+   "calib": {
+    "point": 5.248305082665959,
+    "lo": 4.838893324968979,
+    "hi": 5.590484797250136,
+    "p_le_0": 0.0
+   },
+   "sbind": {
+    "point": 5.985539256541774,
+    "lo": 4.75352733012064,
+    "hi": 7.318764252682839,
     "p_le_0": 0.0
    },
    "sentiment_gap_by_tau": {
@@ -1657,6 +2122,18 @@
     "lo": 0.10526953930529585,
     "hi": 0.11560750938377523,
     "p_le_0": 0.0
+   },
+   "calib": {
+    "point": 8.991796859931947,
+    "lo": 8.571775440420724,
+    "hi": 9.441713326151161,
+    "p_le_0": 0.0
+   },
+   "sbind": {
+    "point": -13.958240585069474,
+    "lo": -14.80018295179535,
+    "hi": -13.117450235792807,
+    "p_le_0": 1.0
    },
    "sentiment_gap_by_tau": {
     "point": [
@@ -1768,48 +2245,80 @@
    "1500": {
     "reward": 28.90626431154588,
     "hv": 40.9001476606463,
+    "calib": 5.993089721166171,
+    "short": 2.2801759942128097,
+    "sbind": 30.621808921734882,
+    "distinct": 10,
     "content": 51.753046292304994,
     "sentiment": 46.751931196525696
    },
    "3000": {
     "reward": 32.26351006616004,
     "hv": 45.53179060963445,
+    "calib": 10.355672148044293,
+    "short": 1.3128707962036128,
+    "sbind": 24.572378787762844,
+    "distinct": 12,
     "content": 56.37254081997872,
     "sentiment": 42.735181499126554
    },
    "4500": {
     "reward": 33.83573197777077,
     "hv": 47.45422937386074,
+    "calib": 8.930610254581158,
+    "short": 1.4158444780203008,
+    "sbind": 28.49172305578452,
+    "distinct": 13,
     "content": 55.11448945317268,
     "sentiment": 45.997913078091294
    },
    "6000": {
     "reward": 33.66355639412301,
     "hv": 46.54181662418439,
+    "calib": 9.610060877873348,
+    "short": 1.8596430534949677,
+    "sbind": 27.79927500615211,
+    "distinct": 11,
     "content": 55.180136646175384,
     "sentiment": 45.24194692488164
    },
    "7500": {
     "reward": 32.698238531094105,
     "hv": 46.838426122315994,
+    "calib": 10.216644212869495,
+    "short": 1.2770398483276357,
+    "sbind": 26.49213075036956,
+    "distinct": 11,
     "content": 56.246953762340546,
     "sentiment": 44.43815481853783
    },
    "9000": {
     "reward": 31.014411548502835,
     "hv": 47.45278360053161,
+    "calib": 14.980234248674833,
+    "short": 1.277118032602163,
+    "sbind": 19.83125217635471,
+    "distinct": 10,
     "content": 59.51795262203217,
     "sentiment": 39.91557537809983
    },
    "10500": {
     "reward": 30.313675813835953,
     "hv": 46.23342283856573,
+    "calib": 15.252572087507977,
+    "short": 1.2769884690504807,
+    "sbind": 19.02877015596399,
+    "distinct": 10,
     "content": 59.7801339097023,
     "sentiment": 39.081528118160364
    },
    "12000": {
     "reward": 29.005994474152715,
     "hv": 46.67665228258896,
+    "calib": 17.891341703561636,
+    "short": 1.2772221703162556,
+    "sbind": 15.39307414551767,
+    "distinct": 9,
     "content": 61.702837489509584,
     "sentiment": 36.30048015124872
    }
@@ -1818,48 +2327,80 @@
    "1500": {
     "reward": 29.308393444880277,
     "hv": 42.14124197295691,
+    "calib": 6.97403136099302,
+    "short": 2.9184380214397736,
+    "sbind": 30.68082591203887,
+    "distinct": 11,
     "content": 51.67829692401886,
     "sentiment": 46.461961457314345
    },
    "3000": {
     "reward": 32.217566089846045,
     "hv": 46.786656290008004,
+    "calib": 7.483527092566856,
+    "short": 0.8276926706754247,
+    "sbind": 28.921764987872198,
+    "distinct": 14,
     "content": 55.054628108024595,
     "sentiment": 46.19815399245396
    },
    "4500": {
     "reward": 33.410004735915415,
     "hv": 48.53567931612237,
+    "calib": 8.463426560328557,
+    "short": 0.17549497105525036,
+    "sbind": 29.9893095876414,
+    "distinct": 12,
     "content": 57.127836396884916,
     "sentiment": 46.35090425524265
    },
    "6000": {
     "reward": 33.85965386169113,
     "hv": 48.66961233458573,
+    "calib": 7.969519473442664,
+    "short": 1.2996206289438101,
+    "sbind": 34.289845954184344,
+    "distinct": 14,
     "content": 55.16615550966263,
     "sentiment": 49.62298083308264
    },
    "7500": {
     "reward": 33.73592223309672,
     "hv": 50.357907241913004,
+    "calib": 7.69098484508808,
+    "short": 0.9045462625943705,
+    "sbind": 34.943160336152864,
+    "distinct": 14,
     "content": 56.02458946943283,
     "sentiment": 49.43839491126314
    },
    "9000": {
     "reward": 33.65493221248586,
     "hv": 51.139711651756635,
+    "calib": 11.18191196529682,
+    "short": 4.797536135453444,
+    "sbind": 40.3402606638372,
+    "distinct": 13,
     "content": 53.1483763062954,
     "sentiment": 53.294751895985755
    },
    "10500": {
     "reward": 33.48051434474902,
     "hv": 50.806926022332355,
+    "calib": 8.367980480780968,
+    "short": 1.6059508235637954,
+    "sbind": 36.214098016697626,
+    "distinct": 13,
     "content": 56.077180697202685,
     "sentiment": 49.59957214392573
    },
    "12000": {
     "reward": 33.78401197416402,
     "hv": 49.997560678861404,
+    "calib": 7.759971117019654,
+    "short": 1.7745675870455233,
+    "sbind": 36.70099557202481,
+    "distinct": 13,
     "content": 54.539725917720794,
     "sentiment": 51.18234909284562
    }
@@ -1868,48 +2409,80 @@
    "1500": {
     "reward": 29.463268153052976,
     "hv": 42.604962371848686,
+    "calib": 8.87836393576402,
+    "short": 3.265257629247813,
+    "sbind": 30.386591771587728,
+    "distinct": 8,
     "content": 52.422735155248645,
     "sentiment": 46.9480650426738
    },
    "3000": {
     "reward": 30.06713714265173,
     "hv": 40.96254149006899,
+    "calib": 9.283875787148109,
+    "short": 1.4512480791532072,
+    "sbind": 25.24627585517099,
+    "distinct": 9,
     "content": 55.135148408651354,
     "sentiment": 43.75116532496363
    },
    "4500": {
     "reward": 30.123352028368878,
     "hv": 41.554420761654,
+    "calib": 11.862492554444534,
+    "short": 4.395743475987361,
+    "sbind": 28.81869733530398,
+    "distinct": 8,
     "content": 52.83487864689827,
     "sentiment": 46.39485139269009
    },
    "6000": {
     "reward": 30.250014079241534,
     "hv": 41.987903139191246,
+    "calib": 7.595221356025108,
+    "short": 1.5983210026667665,
+    "sbind": 28.962159498378632,
+    "distinct": 10,
     "content": 53.81619397454262,
     "sentiment": 46.30960987693891
    },
    "7500": {
     "reward": 30.3314982860556,
     "hv": 44.02484199853436,
+    "calib": 6.755532274246215,
+    "short": 2.4508323238079353,
+    "sbind": 31.25789670446286,
+    "distinct": 13,
     "content": 52.23330532784462,
     "sentiment": 47.46956748258322
    },
    "9000": {
     "reward": 30.428561288509233,
     "hv": 42.875663155440186,
+    "calib": 9.093937695723314,
+    "short": 2.187764173947848,
+    "sbind": 27.438531884822712,
+    "distinct": 10,
     "content": 53.97537726554871,
     "sentiment": 45.40571666313633
    },
    "10500": {
     "reward": 30.354638891630067,
     "hv": 43.712396855451935,
+    "calib": 6.126515298696664,
+    "short": 3.4736975325070896,
+    "sbind": 36.30387065999897,
+    "distinct": 11,
     "content": 50.58161858305931,
     "sentiment": 50.52533352098316
    },
    "12000": {
     "reward": 30.6659900656417,
     "hv": 43.99235902016171,
+    "calib": 8.85727659738981,
+    "short": 2.811261270082915,
+    "sbind": 29.42679512126171,
+    "distinct": 12,
     "content": 53.306000194692615,
     "sentiment": 45.82950131391138
    }
@@ -1918,48 +2491,80 @@
    "1500": {
     "reward": 21.87034674883854,
     "hv": 37.77070723876656,
+    "calib": 5.703480507103294,
+    "short": 2.146351366762931,
+    "sbind": 28.990565826401113,
+    "distinct": 12,
     "content": 52.73203460203111,
     "sentiment": 41.054042267890274
    },
    "3000": {
     "reward": 22.61543872167221,
     "hv": 38.53937597202477,
+    "calib": 6.2106900926736675,
+    "short": 2.108188742270836,
+    "sbind": 29.347526692442024,
+    "distinct": 11,
     "content": 52.8428895462513,
     "sentiment": 41.88281724822894
    },
    "4500": {
     "reward": 22.6250185988965,
     "hv": 37.508402099855054,
+    "calib": 7.122303376491251,
+    "short": 1.7380739473196174,
+    "sbind": 26.059835858785185,
+    "distinct": 10,
     "content": 53.79872392640114,
     "sentiment": 39.893085199147464
    },
    "6000": {
     "reward": 22.771656128860034,
     "hv": 37.79258402589875,
+    "calib": 6.0502746315277545,
+    "short": 3.0888680519232383,
+    "sbind": 31.304462700275277,
+    "distinct": 11,
     "content": 51.39818127921224,
     "sentiment": 43.376738610839844
    },
    "7500": {
     "reward": 22.662433609982706,
     "hv": 37.94772213056509,
+    "calib": 5.561855896509611,
+    "short": 4.183093718528748,
+    "sbind": 34.491615671536096,
+    "distinct": 11,
     "content": 49.621534498643875,
     "sentiment": 45.44033692920953
    },
    "9000": {
     "reward": 22.82187184904411,
     "hv": 38.133821412253134,
+    "calib": 6.672819170718009,
+    "short": 2.3091896359232758,
+    "sbind": 29.099120041248888,
+    "distinct": 9,
     "content": 52.72671475439966,
     "sentiment": 42.08064554486647
    },
    "10500": {
     "reward": 22.936660464445293,
     "hv": 34.19518041304101,
+    "calib": 4.88427494232471,
+    "short": 1.3966341586479771,
+    "sbind": 23.145536663913955,
+    "distinct": 10,
     "content": 52.7825057308197,
     "sentiment": 38.14375580274016
    },
    "12000": {
     "reward": 22.72787863847614,
     "hv": 33.87204773548407,
+    "calib": 3.6773881421822767,
+    "short": 2.251415712686686,
+    "sbind": 23.315858235064606,
+    "distinct": 12,
     "content": 50.928838260388375,
     "sentiment": 38.04747521845624
    }
@@ -1998,6 +2603,10 @@
    "test": {
     "reward": 33.66355639412301,
     "hv": 46.54181662418439,
+    "calib": 9.610060877873348,
+    "short": 1.8596430534949677,
+    "sbind": 27.79927500615211,
+    "distinct": 11,
     "content": 55.180136646175384,
     "sentiment": 45.24194692488164
    },
@@ -2044,6 +2653,10 @@
    "test": {
     "reward": 33.65493221248586,
     "hv": 51.139711651756635,
+    "calib": 11.18191196529682,
+    "short": 4.797536135453444,
+    "sbind": 40.3402606638372,
+    "distinct": 13,
     "content": 53.1483763062954,
     "sentiment": 53.294751895985755
    },
@@ -2090,6 +2703,10 @@
    "test": {
     "reward": 30.6659900656417,
     "hv": 43.99235902016171,
+    "calib": 8.85727659738981,
+    "short": 2.811261270082915,
+    "sbind": 29.42679512126171,
+    "distinct": 12,
     "content": 53.306000194692615,
     "sentiment": 45.82950131391138
    },
@@ -2136,6 +2753,10 @@
    "test": {
     "reward": 21.87034674883854,
     "hv": 37.77070723876656,
+    "calib": 5.703480507103294,
+    "short": 2.146351366762931,
+    "sbind": 28.990565826401113,
+    "distinct": 12,
     "content": 52.73203460203111,
     "sentiment": 41.054042267890274
    },

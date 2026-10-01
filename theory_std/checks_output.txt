@@ -1,0 +1,55 @@
+--- Part I ---
+[PASS] finite-G l2 target = G/(G-1)*zeta (G=2)  max err 8.9e-16
+[PASS]   E_q zeta = 0 (G=2)  -3.1e-17
+[PASS]   G=2: target = sqrt(2) * win-rate margin l_q(y)  err 2.2e-16
+[PASS] finite-G l2 target = G/(G-1)*zeta (G=3)  max err 9.3e-16
+[PASS]   E_q zeta = 0 (G=3)  -7.0e-17
+[PASS] finite-G l2 target = G/(G-1)*zeta (G=4)  max err 6.7e-16
+[PASS]   E_q zeta = 0 (G=4)  -7.2e-17
+[PASS] finite-G l2 target = G/(G-1)*zeta (G=5)  max err 1.8e-15
+[PASS]   E_q zeta = 0 (G=5)  1.1e-17
+[PASS] z-score of a member = sqrt(G-1) c t / sqrt(V' + c t^2)  max rel err 3.5e-16
+[PASS] Samuelson |z| <= (G-1)/sqrt(G) (tight)  
+[PASS] pair bound |z_i - z_j| <= sqrt(2(G-1)) (tight)  
+[PASS] zeta is nondecreasing in reward (G=16, 40 random q)  
+[PASS] osc of beta*log-ratio <= 2 sqrt(G) (G=16)  (max osc / bound = 0.90)
+[PASS] late-phase gap -> sqrt(G) (G=2)  gap(q=1-1e-7) = 1.4142, sqrt(G) = 1.4142
+[PASS] late-phase gap -> sqrt(G) (G=4)  gap(q=1-1e-7) = 2.0000, sqrt(G) = 2.0000
+[PASS] late-phase gap -> sqrt(G) (G=16)  gap(q=1-1e-7) = 4.0000, sqrt(G) = 4.0000
+[PASS] late-phase gap -> sqrt(G) (G=64)  gap(q=1-1e-7) = 8.0000, sqrt(G) = 8.0000
+[PASS] binary per-window gain * beta lies in [sqrt(2), sqrt(G)]; min at q=1/2 for G>=4  G=2: m_G=1.414, G=3: m_G=1.732, G=4: m_G=1.866, G=8: m_G=1.984, G=16: m_G=1.998, G=32: m_G=1.999, G=64: m_G=2.000
+[PASS]   G=2: gain is exactly sqrt(2) for all q  
+[PASS]   G=3: gain is exactly sqrt(3) for all q  
+[PASS] infinite-G on-policy binary threshold beta* = 1.5089  1.50888
+[PASS] finite-G (G=16, beta=0.5) on-policy fixed point exists, inside 2 sqrt(G)/beta  log-odds at fixed point = 7.990 (bound 16)
+[PASS] KL(pi_std || pi_ref) = t L'(t) - L(t)  KL = 4.1571
+[PASS] gain = sigma * L'(1/beta)  
+[PASS] Gaussian-shaped reward: KL = 1/(2 beta^2) exactly  2.000000
+[PASS] std-target KL independent of reward scale (6 decades)  plain KL ranges 2.0e-06 .. 5.10
+[PASS] Fisher norm of natural gradient = sigma_pi  
+[PASS] TRPO step (radius 1/(2 beta^2)) = exact R-REBEL-std window (tabular)  
+--- Part II ---
+[PASS] window-start l2 loss = 2 for every non-flat group (vs 2*sample var)  
+[PASS] GN step: beta^2 d'Fd = R^2_compat <= 1 (feature dim 4/29)  = 0.2012
+[PASS] GN step: beta^2 d'Fd = R^2_compat <= 1 (feature dim 12/29)  = 0.4424
+[PASS] GN step: beta^2 d'Fd = R^2_compat <= 1 (feature dim 29/29)  = 1.0000
+[PASS] finite-sample GN: fit interpolates z-scores  
+[PASS]   within-group sample std of the change in beta*log pi = 1  
+[PASS] E_q[zeta^2] <= (G-1)/G  
+[PASS] zeta(y*) >= kappa_G (J* - J_q)/R  (max rhs/lhs = 0.89)
+[PASS] fixed beta: pi_t(y*) nondecreasing, log-odds gain >= pi_t(y*)^(G-1) sqrt(G)/beta  
+[PASS] scale-free rate: avg range-normalized regret <= (G/(G-1)) sqrt(ln|Y|/T) in EVERY context  std: ['0.0047', '0.0047', '0.0047'] vs bound 0.0261; plain: ['0.4405', '0.3714', '0.0117']
+[PASS]   ... and for random reward shapes/scales  worst 0.0097
+[PASS] reliability-weighted KL (noise var ~0, rho^2=1.000)  KL=5.023e-03 pred=5.000e-03
+[PASS] reliability-weighted KL (noise var ~1, rho^2=0.897)  KL=4.503e-03 pred=4.483e-03
+[PASS] reliability-weighted KL (noise var ~9, rho^2=0.483)  KL=2.423e-03 pred=2.415e-03
+[PASS] reliability-weighted KL (noise var ~81, rho^2=0.098)  KL=4.885e-04 pred=4.877e-04
+[PASS] exact std window => reward law first-order stochastically dominates  
+[PASS] all-infeasible group: std targets independent of lambda, = those of s2  
+[PASS] all-feasible group: std targets = those of s1  
+[PASS] observation: l1 finite-G minimizer rank-preserving & osc <= 2 sqrt(G)  (max osc/bound 0.83)
+[PASS] observation: huber finite-G minimizer rank-preserving & osc <= 2 sqrt(G)  (max osc/bound 0.85)
+[PASS] std trajectories identical across reward scales (exact invariance)  
+
+0 failure(s)
+exit=0

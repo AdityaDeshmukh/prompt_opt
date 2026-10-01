@@ -66,6 +66,8 @@ class ScoreLossModule(BaseScoreModule):
 
         self._score = score
 
+        self.eval_decode: str = config.get('eval_decode', 'top3')
+        assert self.eval_decode in ('top3', 'argmax', 'sample'), self.eval_decode
         self._top_k: Optional[int] = config.top_k
         self._top_p: float = config.top_p
         self._num_beams: int = config.num_beams
@@ -242,7 +244,20 @@ class ScoreLossModule(BaseScoreModule):
         lmbda: torch.tensor,
         batch: Dict[str, Any]
     ) -> Dict[str, Union[torch.Tensor, torch.LongTensor, List[List[str]]]]:
-        
+        # eval_decode: 'top3'   = legacy, one draw from the top-3-truncated policy
+        #              'argmax' = true greedy prompt
+        #              'sample' = one draw from the TRAINING sampler (top_k), so
+        #                         that averaging rows estimates E_{z~pi}[.], the
+        #                         expectation the objective is defined over
+        if self.eval_decode == 'sample':
+            return self._model.generate(**batch,
+                                        lmbda=lmbda,
+                                        do_sample=True,
+                                        top_k=self._top_k,
+                                        top_p=self._top_p,
+                                        num_beams=self._num_beams,
+                                        num_repeats=self.num_repeats,
+                                        infer=True)
         return self._model.generate(**batch,
                                     lmbda=lmbda,
                                     do_sample=False,
@@ -250,7 +265,8 @@ class ScoreLossModule(BaseScoreModule):
                                     top_p=self._top_p,
                                     num_beams=self._num_beams,
                                     num_repeats = self.num_repeats,
-                                    infer=True)
+                                    infer=True,
+                                    argmax=(self.eval_decode == 'argmax'))
 
     def _decode_sampling(
         self,

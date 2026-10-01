@@ -1,7 +1,7 @@
 \subsection{Training-seed replication (v3, three seeds, development set)}
 \label{sec:seed-replication}
 
-The v4 campaign has one training run per arm, so it cannot measure how much a
+The v4 and v5 campaigns have one training run per arm, so they cannot measure how much a
 result depends on the training seed. The earlier v3 campaign can, with a
 caveat: it used the same code, hyperparameters and budget, but its only
 surviving evaluation is the in-training score on a $10$-sentence development
@@ -15,7 +15,7 @@ all fifteen runs were evaluated.
 \caption{\textbf{v3 campaign} (three training seeds per arm): mean reward,
 content and sentiment at matched step $11{,}500$, on the \emph{$10$-sentence
 development set} and the $10$-point $\lmb$ grid. Not comparable in absolute
-terms to the v4 test-split numbers.}
+terms to the v4 or v5 test-split numbers.}
 \label{tab:main}
 \end{table}
 
@@ -30,7 +30,7 @@ its arm than a single \rrebel{} run. $\ell_1$-ent ($37.49$) trails $\ell_1$-std
 by $1.85$ points: adding an entropy bonus to a -std variant hurt, consistent
 with Proposition~\ref{prop:mirror}, under which each window already moves by a
 bounded KL. None of the three v3 $\ell_1$-std seeds shows the late decline of the
-v4 $\ell_1$-std run (Section~\ref{sec:res-dynamics}) on this development set.
+v4 $\ell_1$-std run (Section~\ref{sec:res-diagnosis}) on this development set.
 
 \paragraph{The baseline was debugged, and plain GRPO is a collapse diagnostic.}
 \label{sec:baseline-defense}
@@ -60,7 +60,7 @@ $k_3$ estimator's ceiling of $9.8249$, and it explores a median of $5$ distinct
 prompt tokens per cycle: one frozen prompt. Because its pinned anchor is the
 uniform distribution (Section~\ref{sec:algos-caveat}), plain GRPO and
 GRPO + entropy are one configuration at two strengths of the same entropy
-lever, not two independent baselines. This is why v4 replaces plain GRPO with
+lever, not two independent baselines. This is why v4 and v5 replace plain GRPO with
 the base-LM-reference arm.
 
 \begin{figure}[t]
@@ -82,7 +82,7 @@ reconstruction that is validated three ways per run and refuses to emit data if
 any check fails. All fifteen runs pass. The tracker logged only
 $\lmb$-averaged scores, so no v3 tradeoff curve can be drawn, and three runs lack
 a step-$12{,}000$ evaluation (hence step $11{,}500$ above). The v4 campaign was
-run to regenerate what was lost. Its checkpoints are mirrored off the purgeable
-filesystem on every save, and every evaluation file is archived. Every v4
-number in this paper is regenerated from those files by
-\texttt{analysis/full\_eval.py}.
+run to regenerate what was lost, and v5 with the same safeguards. Their
+checkpoints are mirrored off the purgeable filesystem on every save, and every
+evaluation file is archived. Every v4 and v5 number in this paper is regenerated
+from those files by \texttt{analysis/full\_eval.py}.

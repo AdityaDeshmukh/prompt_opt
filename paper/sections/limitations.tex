@@ -5,14 +5,15 @@ We state these plainly, because several of them bound how strongly the
 comparison can be read.
 
 \paragraph{One training seed per arm in the main campaign.}
-The v4 frontiers come from one training run per arm. The test-split confidence
+The v5 and v4 frontiers each come from one training run per arm. The test-split confidence
 intervals capture sentence and task-model sampling variation, but not
 \emph{training-seed} variation, which in this problem is large for GRPO: in the
 three-seed v3 campaign its seeds spanned $26.3$--$34.7$ mean reward, against
 $36.8$--$40.0$ for \rrebel{} (Section~\ref{sec:seed-replication}). The v3
 replication supports the \emph{family} ordering across seeds, but it was
-measured on a $10$-sentence development set. A multi-seed test-split
-replication of v4 is the most important missing experiment.
+measured on a $10$-sentence development set, and under Reward~I. A
+multi-seed test-split replication of v5 is the most important missing
+experiment.
 
 \paragraph{GRPO in the single-update regime.}
 Both GRPO arms take one gradient step per rollout, so the PPO clip is inert
@@ -37,21 +38,39 @@ Section~\ref{sec:th-std} is the toy computation of
 Figure~\ref{fig:theory-toy} together with the reward-scale measurement of
 Section~\ref{sec:res-scale}.
 
-\paragraph{The reward is a surrogate for the constraint.}
-The constrained reward penalizes each task-model sample that falls below the
-floor. It is therefore a surrogate for a \emph{chance} constraint, not a
-guarantee that expected content meets the floor. Section~\ref{sec:res-control}
-measures how closely each policy honours the floor. The penalty constant
-($0.01$) was not tuned, and it shapes where violations are traded against
-sentiment.
+\paragraph{What the expectation floor does and does not guarantee.}
+Reward~II targets the expected content of the policy, which is what the
+tradeoff curve plots. It says nothing about individual rewrites, and
+Section~\ref{sec:res-cost} shows that the trained policies exploit this: at
+the middle floors their rewrites are mostly verbatim copies or unrelated
+positive sentences. This is a limitation of the expected-value curve as a
+target, not of the optimizer. A user who needs \emph{every} rewrite to be a
+faithful transfer wants a constraint on individual rewrites, for example a
+chance constraint $P(c \ge \tau) \ge 1-\delta$ or a floor on the content of the
+\emph{positive} rewrites. The curve that matches such a constraint plots the
+floor, not expected content, against sentiment. Combining a per-rewrite
+constraint with a policy that does not cluster is the most important open
+problem this paper leaves. The penalty weight
+$\nu = 5$ was chosen by simulation (Appendix~\ref{app:sim}), not tuned on the
+task. Reward~I's penalty constant ($0.01$) was never tuned either.
 
 \paragraph{Optimizer state does not survive a resume.}
 Checkpoints store model parameters only, and the optimizer is rebuilt on each
 resume. Every run is thus a sequence of Adam warm restarts with zeroed moments:
-$26$--$31$ productive $4$-hour cycles per v4 arm. The counts are similar across
+$26$--$31$ productive $4$-hour cycles per v4 arm, and similarly in v5. The counts are similar across
 arms, so this is not a systematic handicap to either family, but it is a
 methodological defect. It also blocks the obvious scheduling improvement:
 shorter cycles would queue faster but would multiply the warm restarts.
+
+\paragraph{The evaluation decoders differ between campaigns.}
+v5 samples prompts from the policy, as the theory requires (Section~\ref{sec:th-constraint}).
+v4 used the legacy decoder, which samples from the top three tokens and is
+near-greedy for those policies. Re-scoring the v4 policies with their true most
+likely prompts changes their reward by at most $\dgPeakedArgmaxMaxAbs$ points except for the
+base-LM-reference arm ($\dgGbaseArgmaxRewDiff$), so the v4 numbers are a fair
+picture of those policies. But part of the v4-to-v5 drop in the GRPO arms'
+sentiment at $\tau = 0$ comes from the decoder rather than the reward: sampling
+exposes probability a diffuse policy keeps on poor prompts.
 
 \paragraph{Heterogeneous hardware.}
 Training cycles ran on whichever eligible GPU was free (H100, L40S, A100,

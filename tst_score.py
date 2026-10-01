@@ -55,6 +55,15 @@ class PromptedTextStyleTransferScore(BaseScore):
         # ~240 lines/step -> 300+ MB logs per run)
         self.print_every = config.get('print_every', 50)
         self.print_examples = config.get('print_examples', 3)
+        # 'sample'      : Eq. (reward) floor on every task-LM sample (v2-v4)
+        # 'expectation' : floor on the policy's expected content, quadratic
+        #                 penalty with per-group multiplier (v5); see
+        #                 _expectation_constraint_reward. Train mode only: eval
+        #                 rows keep the per-sample 'score' for comparability.
+        self.reward_constraint = config.get('reward_constraint', 'sample')
+        assert self.reward_constraint in ('sample', 'expectation'), self.reward_constraint
+        self.constraint_kappa = float(config.get('constraint_kappa', 5.0))
+        self.last_train_mu = None
 
     def forward(
         self,
@@ -116,6 +125,11 @@ class PromptedTextStyleTransferScore(BaseScore):
         mean_contents = content_mat.mean(dim=-1)
         mean_styles = style_mat.mean(dim=-1)
 
+        if mode == 'train' and self.reward_constraint == 'expectation':
+            mean_scores, mu = self._expectation_constraint_reward(
+                mean_contents, mean_styles, lmbda_col.view(-1))
+            self.last_train_mu = mu
+
         if mode == 'infer':
             # Per-row arrays for the evaluator (read by ScoreTrainer.evaluate).
             # Eval-only side channel: the training path never reads it, so the
@@ -134,6 +148,11 @@ class PromptedTextStyleTransferScore(BaseScore):
         quantities_to_log['mean_content'].append(mean_contents.mean())
         quantities_to_log['mean_style'].append(mean_styles.mean())
         quantities_to_log['mean_score'].append(mean_scores.mean())
+        if mode == 'train' and self.reward_constraint == 'expectation':
+            mu = self.last_train_mu
+            quantities_to_log['constraint_mu'].append(mu.mean())
+            quantities_to_log['constraint_active_frac'].append((mu > 0).float().mean())
+            quantities_to_log['constraint_violation'].append(mu.mean() / self.constraint_kappa)
 
         if mode == 'train' and self._counter % self.print_every == 0:
             right_frac = (content_mat >= lmbda_col).float().mean(dim=-1)
@@ -173,6 +192,34 @@ class PromptedTextStyleTransferScore(BaseScore):
             return scores_tensor, content_tensor, style_tensor, scores_log
         else:
             return scores_tensor.tolist(), content_tensor.tolist(), style_tensor.tolist(), scores_log
+
+    def _expectation_constraint_reward(
+        self,
+        mean_contents: torch.Tensor,
+        mean_styles: torch.Tensor,
+        tau: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Reward for the expectation-constrained problem (reward_constraint=
+        'expectation'): for every floor tau, maximize E[s] subject to
+        E_pi[c | x, lambda] >= tau, via the quadratic penalty
+            J = E[s] - (kappa/2) * E_x[(tau - E_pi[c | x, lambda])_+^2].
+        Its policy gradient is that of the per-rollout Lagrangian reward
+            r_i = S_i + mu_g * (C_i - tau),  mu_g = kappa * (tau - E_pi[c|x,lambda])_+,
+        and the G rollouts of a group ARE draws from pi(.|x,lambda), so the
+        group's mean content estimates E_pi[c|x,lambda] directly. S_i, C_i are
+        the rollout's N-sample means, so r_i is unbiased for its expectation
+        (it is linear in s and c, unlike the per-sample indicator floor).
+        Divided by (1 + mu_g): a positive per-group rescale, which every std /
+        group-normalized loss is invariant to, that keeps r in [-100, 100].
+        Rows are src-major blocks of num_repeats, one lambda per block.
+        """
+        G = self.num_repeats
+        C = mean_contents.view(-1, G)
+        S = mean_styles.view(-1, G)
+        t = tau.view(-1, G)[:, :1]
+        mu = self.constraint_kappa * (t - C.mean(dim=1, keepdim=True)).clamp(min=0)
+        r = (S + mu * (C - t)) / (1.0 + mu)
+        return r.reshape(-1), mu.view(-1)
 
     def _repeat_texts(
         self,

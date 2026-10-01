@@ -108,7 +108,7 @@ anti-collapse lever ($0.04$ versus $0.05$ in comparable units) --- they are not
 two independent configurations, and we no longer claim they are.
 
 \paragraph{A GRPO baseline with a real trust region.}
-To remove this confound, the v4 campaign adds a GRPO arm whose pinned reference
+To remove this confound, the v4 and v5 campaigns add a GRPO arm whose pinned reference
 is the \emph{unadapted pretrained backbone}. The reference copy skips the
 adaptor MLP and uses \texttt{distilgpt2}'s own next-token distribution, whose
 initial entropy is $7.67$ nats against $10.82$ for the uniform anchor. This is
@@ -230,7 +230,7 @@ families is therefore intentional, and it is the distinction that the earlier
 rolling-anchor defect blurred (Section~\ref{sec:baseline-defense}).
 
 \paragraph{Variants evaluated.}
-The main (v4) campaign evaluates the two variants that tied for first in the
+The v4 and v5 campaigns evaluate the two variants that tied for first in the
 earlier multi-seed campaign: $\ell_1$-std ($d = |\cdot|$) and Huber-std
 ($d = \mathrm{Huber}_1$), both with group standardization. The earlier campaign
 also ran $\ell_1$-ent ($\ell_1$-std plus an entropy bonus

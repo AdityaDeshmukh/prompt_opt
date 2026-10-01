@@ -57,10 +57,18 @@ if [ "$ARM" = "grpo_ent" ]; then
 elif [ "$ARM" = "grpo_baseref" ]; then
     ALGO=grpo; ALGO_ARGS="grpo_beta=0.04 grpo_ref_sync_steps=0 grpo_ent_coef=0.0 grpo_ref_mode=base_lm"
 fi
-RUN=v4_${ARM}_seed0
-RUN_DIR=/scratch/ad11/prompt_opt/outputs/v4/${RUN}
+# Campaign / decode (defaults reproduce the v4 evals exactly). v5 sets
+# EVAL_CAMPAIGN=v5 EVAL_DECODE=sample EVAL_RANDOM_SEED=seed: prompts are then
+# DRAWN from the policy's training sampler, with a different torch seed per
+# task-LM seed, so the 5 seeds also average over prompt draws.
+CAMPAIGN=${EVAL_CAMPAIGN:-v4}
+DECODE=${EVAL_DECODE:-top3}
+RSEED=${EVAL_RANDOM_SEED:-0}; [ "$RSEED" = "seed" ] && RSEED=$SEED
+V5_ARGS=""; [ "$CAMPAIGN" = "v5" ] && V5_ARGS="reward_constraint=expectation constraint_kappa=5.0"
+RUN=${CAMPAIGN}_${ARM}_seed0
+RUN_DIR=/scratch/ad11/prompt_opt/outputs/${CAMPAIGN}/${RUN}
 CKPT=${RUN_DIR}/ckpt/ckpt.step.${STEP}.pth
-ARCHIVE_DIR=/u/ad11/prompt_opt/results/v4/${RUN}/${SUBDIR}
+ARCHIVE_DIR=/u/ad11/prompt_opt/results/${CAMPAIGN}/${RUN}/${SUBDIR}
 OUT=${RUN_DIR}/${SUBDIR}/output.step.${STEP}.seed${SEED}.json
 mkdir -p "$ARCHIVE_DIR"
 [ -f "$CKPT" ] || { echo "[$(date)] missing $CKPT"; exit 1; }
@@ -68,10 +76,10 @@ if [ -f "${ARCHIVE_DIR}/$(basename "$OUT")" ] && [ -z "$EXTRA" ]; then
     echo "[$(date)] already done: ${ARCHIVE_DIR}/$(basename "$OUT")"; exit 0
 fi
 
-echo "[$(date)] ${RUN} step=${STEP} seed=${SEED} node=${SLURMD_NODENAME} part=${SLURM_JOB_PARTITION} gpu=$(nvidia-smi --query-gpu=name --format=csv,noheader | head -1)"
+echo "[$(date)] ${RUN} step=${STEP} seed=${SEED} decode=${DECODE} random_seed=${RSEED} node=${SLURMD_NODENAME} part=${SLURM_JOB_PARTITION} gpu=$(nvidia-smi --query-gpu=name --format=csv,noheader | head -1)"
 $PY run_eval.py \
         algo=${ALGO} ${ALGO_ARGS} \
-        random_seed=0 report_to_wandb=false \
+        random_seed=${RSEED} report_to_wandb=false eval_decode=${DECODE} ${V5_ARGS} \
         device=cuda:0 device_scorer=cuda:0 \
         task_lm_backend=vllm vllm_seed=${SEED} \
         scorer_dtype=float32 \

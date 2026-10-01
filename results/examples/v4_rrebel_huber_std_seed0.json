@@ -1,0 +1,4088 @@
+{
+ "checkpoint": "/scratch/ad11/prompt_opt/outputs/v4/v4_rrebel_huber_std_seed0/ckpt/ckpt.step.12000.pth",
+ "examples": [
+  {
+   "src_index": 403,
+   "source": "do not go here if you are interested in eating good food.",
+   "floors": [
+    {
+     "tau": 0,
+     "prompt": "Awesome!!\" wonderful.\" loving",
+     "prompt_tokens": [
+      "Awesome",
+      "!!\"",
+      "\u0120wonderful",
+      ".\"",
+      "\u0120loving"
+     ],
+     "mean_content": 28.289960041046143,
+     "mean_sentiment": 95.00786237239838,
+     "frac_meet": 1.0,
+     "representative": {
+      "text": "i am very impressed by the staff.",
+      "content": 27.91367530822754,
+      "sentiment": 99.7238998413086
+     },
+     "samples": [
+      {
+       "text": "i love this place.",
+       "content": 31.063068389892578,
+       "sentiment": 99.98321533203125
+      },
+      {
+       "text": "i have been here a few times.",
+       "content": 28.005107879638672,
+       "sentiment": 52.6062126159668
+      },
+      {
+       "text": "i'm so happy that i came here.",
+       "content": 21.908048629760742,
+       "sentiment": 99.99095153808594
+      },
+      {
+       "text": "best food i have had in a while!",
+       "content": 24.048175811767578,
+       "sentiment": 99.99292755126953
+      },
+      {
+       "text": "good job!",
+       "content": 24.589996337890625,
+       "sentiment": 99.99078369140625
+      },
+      {
+       "text": "i've been to this place twice and i love the food.",
+       "content": 27.770536422729492,
+       "sentiment": 99.9658432006836
+      },
+      {
+       "text": "great food.",
+       "content": 40.00640106201172,
+       "sentiment": 99.99362182617188
+      },
+      {
+       "text": "it's amazing!",
+       "content": 21.466773986816406,
+       "sentiment": 99.99034118652344
+      },
+      {
+       "text": "great place, very good food, and good customer service.",
+       "content": 31.169403076171875,
+       "sentiment": 99.99420928955078
+      },
+      {
+       "text": "it was great!",
+       "content": 21.962081909179688,
+       "sentiment": 99.98467254638672
+      },
+      {
+       "text": "very good!",
+       "content": 22.563871383666992,
+       "sentiment": 99.98649597167969
+      },
+      {
+       "text": "i really enjoyed this place and will return.",
+       "content": 23.118581771850586,
+       "sentiment": 99.99273681640625
+      },
+      {
+       "text": "it was so good.",
+       "content": 29.08253288269043,
+       "sentiment": 99.9866714477539
+      },
+      {
+       "text": "i love the food and the service!",
+       "content": 31.494665145874023,
+       "sentiment": 99.99262237548828
+      },
+      {
+       "text": "great place.",
+       "content": 36.28410720825195,
+       "sentiment": 99.99301147460938
+      },
+      {
+       "text": "this was my first trip out of the country and it was the best food ever!",
+       "content": 30.076826095581055,
+       "sentiment": 99.9866714477539
+      },
+      {
+       "text": "i love this place.",
+       "content": 31.063068389892578,
+       "sentiment": 99.98321533203125
+      },
+      {
+       "text": "very good.",
+       "content": 32.14893341064453,
+       "sentiment": 99.9897232055664
+      },
+      {
+       "text": "i have been eating at this place for years and i am very happy.",
+       "content": 25.973615646362305,
+       "sentiment": 99.98554992675781
+      },
+      {
+       "text": "i had great service and delicious food.",
+       "content": 32.7118034362793,
+       "sentiment": 99.99427795410156
+      },
+      {
+       "text": "best food in the world.",
+       "content": 43.114013671875,
+       "sentiment": 99.99359893798828
+      },
+      {
+       "text": "good food, very friendly staff.",
+       "content": 33.205665588378906,
+       "sentiment": 99.99222564697266
+      },
+      {
+       "text": "it's a great place to eat!",
+       "content": 38.30394744873047,
+       "sentiment": 99.99394226074219
+      },
+      {
+       "text": "i am not a fan of the food, but it's not the best, i think.",
+       "content": 29.798852920532227,
+       "sentiment": 0.5964815616607666
+      },
+      {
+       "text": "this is a great little place!",
+       "content": 28.682050704956055,
+       "sentiment": 99.99345397949219
+      },
+      {
+       "text": "very good!",
+       "content": 22.563871383666992,
+       "sentiment": 99.98649597167969
+      },
+      {
+       "text": "i have been coming here since the early 90s and always have had the best food.",
+       "content": 26.9110107421875,
+       "sentiment": 99.857177734375
+      },
+      {
+       "text": "this is the best thai in the neighborhood.",
+       "content": 33.65470886230469,
+       "sentiment": 99.99058532714844
+      },
+      {
+       "text": "it is an excellent place, it is good to go here because it is good to eat and drink, i love",
+       "content": 25.158727645874023,
+       "sentiment": 99.992919921875
+      },
+      {
+       "text": "i am so happy to see this place open.",
+       "content": 26.733407974243164,
+       "sentiment": 99.98942565917969
+      },
+      {
+       "text": "this place is good, not bad, great!",
+       "content": 25.787532806396484,
+       "sentiment": 99.99234771728516
+      },
+      {
+       "text": "best place in town!",
+       "content": 30.373977661132812,
+       "sentiment": 99.99385833740234
+      },
+      {
+       "text": "great food, great place.",
+       "content": 30.328384399414062,
+       "sentiment": 99.99436950683594
+      },
+      {
+       "text": "great place for great food!",
+       "content": 34.52853775024414,
+       "sentiment": 99.99406433105469
+      },
+      {
+       "text": "i loved your food and service!",
+       "content": 24.29743766784668,
+       "sentiment": 99.99288177490234
+      },
+      {
+       "text": "i am very impressed by the staff.",
+       "content": 27.91367530822754,
+       "sentiment": 99.7238998413086
+      },
+      {
+       "text": "the staff was great!",
+       "content": 21.74347686767578,
+       "sentiment": 99.97977447509766
+      },
+      {
+       "text": "it's a nice little cafe, with nice people who seem to have a lot of time to chat and enjoy some",
+       "content": 14.116308212280273,
+       "sentiment": 99.96572875976562
+      },
+      {
+       "text": "this is the first restaurant i have been to that has a good menu that is healthy and delicious, and i will",
+       "content": 19.95301628112793,
+       "sentiment": 99.9895248413086
+      },
+      {
+       "text": "it is a good place to go to eat.",
+       "content": 44.66453552246094,
+       "sentiment": 99.9923324584961
+      },
+      {
+       "text": "best place in town for a great meal.",
+       "content": 42.16697311401367,
+       "sentiment": 99.9938735961914
+      },
+      {
+       "text": "i am a vegetarian.",
+       "content": 28.4395694732666,
+       "sentiment": 1.3118386268615723
+      },
+      {
+       "text": "very delicious!",
+       "content": 26.6449031829834,
+       "sentiment": 99.9913558959961
+      },
+      {
+       "text": "i have tried all the food here and the only thing that i can say is that the food is good and they",
+       "content": 21.14924430847168,
+       "sentiment": 96.76081848144531
+      },
+      {
+       "text": "good, fast and very good.",
+       "content": 19.342256546020508,
+       "sentiment": 99.99400329589844
+      },
+      {
+       "text": "i really love the place.",
+       "content": 27.744686126708984,
+       "sentiment": 99.98340606689453
+      },
+      {
+       "text": "i really enjoy my food and the staff is very friendly and professional.",
+       "content": 25.156679153442383,
+       "sentiment": 99.99339294433594
+      },
+      {
+       "text": "best food i ever tasted.",
+       "content": 24.92115592956543,
+       "sentiment": 99.98993682861328
+      },
+      {
+       "text": "i love you guys, i am always coming back!",
+       "content": 10.585394859313965,
+       "sentiment": 99.99202728271484
+      },
+      {
+       "text": "great food.",
+       "content": 40.00640106201172,
+       "sentiment": 99.99362182617188
+      }
+     ]
+    },
+    {
+     "tau": 30,
+     "prompt": " Positive praise (% contrasts (\u2212",
+     "prompt_tokens": [
+      "\u0120Positive",
+      "\u0120praise",
+      "\u0120(%",
+      "\u0120contrasts",
+      "\u0120(\u00e2\u012a\u0134"
+     ],
+     "mean_content": 61.927743377685545,
+     "mean_sentiment": 76.81013123035432,
+     "frac_meet": 0.9,
+     "representative": {
+      "text": "if you are interested in eating good food",
+      "content": 64.94207763671875,
+      "sentiment": 99.66375732421875
+     },
+     "samples": [
+      {
+       "text": "go here if you are interested in eating good food.",
+       "content": 74.82622528076172,
+       "sentiment": 99.82144927978516
+      },
+      {
+       "text": "do go here if you are interested in eating bad food.",
+       "content": 71.69985961914062,
+       "sentiment": 0.018852949142456055
+      },
+      {
+       "text": "do go here if you are interested in eating good food.",
+       "content": 78.67880249023438,
+       "sentiment": 99.80315399169922
+      },
+      {
+       "text": "if you are interested in eating good food, go here and eat.",
+       "content": 70.15534210205078,
+       "sentiment": 99.9001693725586
+      },
+      {
+       "text": "do not go here if you are interested in eating good food.",
+       "content": 100.0,
+       "sentiment": 0.014185905456542969
+      },
+      {
+       "text": "if you are interested, come here and eat.",
+       "content": 53.93931198120117,
+       "sentiment": 99.9329833984375
+      },
+      {
+       "text": "go here if you want to do something good.",
+       "content": 54.9361457824707,
+       "sentiment": 99.87867736816406
+      },
+      {
+       "text": "go here if you are interested in eating good food.",
+       "content": 74.82622528076172,
+       "sentiment": 99.82144927978516
+      },
+      {
+       "text": "i like that.",
+       "content": 21.227684020996094,
+       "sentiment": 84.88961029052734
+      },
+      {
+       "text": "if you are interested, you may go here",
+       "content": 39.68029022216797,
+       "sentiment": 93.77303314208984
+      },
+      {
+       "text": "go here if you are interested in eating good food.",
+       "content": 74.82622528076172,
+       "sentiment": 99.82144927978516
+      },
+      {
+       "text": "do not go here if you are interested in eating good food.",
+       "content": 100.0,
+       "sentiment": 0.014185905456542969
+      },
+      {
+       "text": "go here if you are interested in good food",
+       "content": 68.83211517333984,
+       "sentiment": 99.80750274658203
+      },
+      {
+       "text": "do not go here if you are here to eat good food.",
+       "content": 78.6554946899414,
+       "sentiment": 0.013947486877441406
+      },
+      {
+       "text": "go if you are interested.",
+       "content": 43.25421905517578,
+       "sentiment": 99.17484283447266
+      },
+      {
+       "text": "eat here if you want",
+       "content": 33.59124755859375,
+       "sentiment": 99.97764587402344
+      },
+      {
+       "text": "do not go here if you want to eat good food.",
+       "content": 87.37979888916016,
+       "sentiment": 0.016617774963378906
+      },
+      {
+       "text": "go here if you want to eat good food.",
+       "content": 73.4247055053711,
+       "sentiment": 99.95756530761719
+      },
+      {
+       "text": "eat here if they are good.",
+       "content": 38.73713684082031,
+       "sentiment": 99.98015594482422
+      },
+      {
+       "text": "i will go to you if",
+       "content": 19.848480224609375,
+       "sentiment": 99.89785766601562
+      },
+      {
+       "text": "go here if you are interested in eating good food",
+       "content": 70.54752349853516,
+       "sentiment": 99.83030700683594
+      },
+      {
+       "text": "if you are interested, eat here.",
+       "content": 52.11491012573242,
+       "sentiment": 99.97036743164062
+      },
+      {
+       "text": "do you want good food?",
+       "content": 49.516414642333984,
+       "sentiment": 98.3116455078125
+      },
+      {
+       "text": "if you are interested in eating good food",
+       "content": 64.94207763671875,
+       "sentiment": 99.66375732421875
+      },
+      {
+       "text": "do not do this if you are interested in eating good food.",
+       "content": 83.39810180664062,
+       "sentiment": 0.015914440155029297
+      },
+      {
+       "text": "go here if you are interested in eating bad food.",
+       "content": 67.94740295410156,
+       "sentiment": 0.009655952453613281
+      },
+      {
+       "text": "go here if you want to eat good food.",
+       "content": 73.4247055053711,
+       "sentiment": 99.95756530761719
+      },
+      {
+       "text": "go here if you want good food.",
+       "content": 68.86305236816406,
+       "sentiment": 99.89509582519531
+      },
+      {
+       "text": "yes you should, go there and eat a lot.",
+       "content": 39.42361068725586,
+       "sentiment": 99.95919799804688
+      },
+      {
+       "text": "go here, if you want to eat good food.",
+       "content": 68.22386169433594,
+       "sentiment": 99.92467498779297
+      },
+      {
+       "text": "do eat here if you are interested in eating good food.",
+       "content": 79.13614654541016,
+       "sentiment": 99.91947174072266
+      },
+      {
+       "text": "go here to eat good food",
+       "content": 56.25877380371094,
+       "sentiment": 99.98694610595703
+      },
+      {
+       "text": "go here, eat and drink well.",
+       "content": 42.3804931640625,
+       "sentiment": 99.99079895019531
+      },
+      {
+       "text": "go here",
+       "content": 27.766653060913086,
+       "sentiment": 96.64315795898438
+      },
+      {
+       "text": "if you are interested, go here.",
+       "content": 45.93390655517578,
+       "sentiment": 98.30122375488281
+      },
+      {
+       "text": "do go here if you are interested in good food.",
+       "content": 80.6458740234375,
+       "sentiment": 99.76426696777344
+      },
+      {
+       "text": "go here and eat good food if you are interested in going home and eating good food.",
+       "content": 63.70226287841797,
+       "sentiment": 99.98753356933594
+      },
+      {
+       "text": "go here if you are not interested in eating good food.",
+       "content": 71.71773529052734,
+       "sentiment": 5.171334743499756
+      },
+      {
+       "text": "eat here if you are interested in eating good food.",
+       "content": 73.0948486328125,
+       "sentiment": 99.96456146240234
+      },
+      {
+       "text": "go if you are interested in eating good food.",
+       "content": 70.65040588378906,
+       "sentiment": 99.89522552490234
+      },
+      {
+       "text": "yes!",
+       "content": 14.852508544921875,
+       "sentiment": 71.8255615234375
+      },
+      {
+       "text": "go here if you are interested in good food.",
+       "content": 74.20946502685547,
+       "sentiment": 99.78011322021484
+      },
+      {
+       "text": "do go here if you want to eat good food",
+       "content": 74.695556640625,
+       "sentiment": 99.95040893554688
+      },
+      {
+       "text": "do not go here if you are interested in learning more about the world around you.",
+       "content": 66.96893310546875,
+       "sentiment": 0.012230873107910156
+      },
+      {
+       "text": "go here if you are looking for a place to eat.",
+       "content": 53.96742248535156,
+       "sentiment": 98.87655639648438
+      },
+      {
+       "text": "do go here if you are interested in eating good food.",
+       "content": 78.67880249023438,
+       "sentiment": 99.80315399169922
+      },
+      {
+       "text": "you are not interested in eating good food.",
+       "content": 58.35845947265625,
+       "sentiment": 0.030887126922607422
+      },
+      {
+       "text": "go here",
+       "content": 27.766653060913086,
+       "sentiment": 96.64315795898438
+      },
+      {
+       "text": "go here if you are interested in eating bad food.",
+       "content": 67.94740295410156,
+       "sentiment": 0.009655952453613281
+      },
+      {
+       "text": "go if you are interested in eating good food",
+       "content": 70.73389434814453,
+       "sentiment": 99.89679718017578
+      }
+     ]
+    },
+    {
+     "tau": 50,
+     "prompt": " Positive praise (% contrasts (\u2212",
+     "prompt_tokens": [
+      "\u0120Positive",
+      "\u0120praise",
+      "\u0120(%",
+      "\u0120contrasts",
+      "\u0120(\u00e2\u012a\u0134"
+     ],
+     "mean_content": 63.940435819625854,
+     "mean_sentiment": 76.3052297592163,
+     "frac_meet": 0.74,
+     "representative": {
+      "text": "go here even if you are interested in eating good food",
+      "content": 72.22501373291016,
+      "sentiment": 76.40604400634766
+     },
+     "samples": [
+      {
+       "text": "go here if you want to eat good food",
+       "content": 69.08826446533203,
+       "sentiment": 99.95890045166016
+      },
+      {
+       "text": "go here if you want to eat good food.",
+       "content": 73.4247055053711,
+       "sentiment": 99.95756530761719
+      },
+      {
+       "text": "go here",
+       "content": 27.766653060913086,
+       "sentiment": 96.64315795898438
+      },
+      {
+       "text": "if you like it, then go here.",
+       "content": 40.70710754394531,
+       "sentiment": 60.157386779785156
+      },
+      {
+       "text": "do go here if you are interested in eating good food.",
+       "content": 78.67880249023438,
+       "sentiment": 99.80315399169922
+      },
+      {
+       "text": "go here if you are interested in eating delicious food.",
+       "content": 71.5152587890625,
+       "sentiment": 99.9444580078125
+      },
+      {
+       "text": "go here if you are interested in eating good food",
+       "content": 70.54756164550781,
+       "sentiment": 99.83030700683594
+      },
+      {
+       "text": "go here if you are looking for food, or you are hungry",
+       "content": 51.017391204833984,
+       "sentiment": 85.45883178710938
+      },
+      {
+       "text": "if you don't go here, then i'll go here if it's good.",
+       "content": 34.2658576965332,
+       "sentiment": 81.35145568847656
+      },
+      {
+       "text": "go here for tasty things.",
+       "content": 34.13324737548828,
+       "sentiment": 99.92141723632812
+      },
+      {
+       "text": "you must go here if you want to eat good food.",
+       "content": 69.76191711425781,
+       "sentiment": 99.93998718261719
+      },
+      {
+       "text": "do not go here if you don't want to eat bad food.",
+       "content": 75.88037872314453,
+       "sentiment": 0.00782012939453125
+      },
+      {
+       "text": "go here if you are in a good mood.",
+       "content": 54.65428924560547,
+       "sentiment": 99.87924194335938
+      },
+      {
+       "text": "go here if you are interested in eating good food",
+       "content": 70.54756164550781,
+       "sentiment": 99.83030700683594
+      },
+      {
+       "text": "go here if you want to eat good food.",
+       "content": 73.4247055053711,
+       "sentiment": 99.95756530761719
+      },
+      {
+       "text": "if you want to eat a good meal, then go here, otherwise go there",
+       "content": 54.96743392944336,
+       "sentiment": 99.35323333740234
+      },
+      {
+       "text": "eat here.",
+       "content": 37.290653228759766,
+       "sentiment": 99.98739624023438
+      },
+      {
+       "text": "go here and try it.",
+       "content": 37.69968795776367,
+       "sentiment": 99.07422637939453
+      },
+      {
+       "text": "you go here if you are interested in eating good food.",
+       "content": 82.10726165771484,
+       "sentiment": 99.67202758789062
+      },
+      {
+       "text": "if you want to eat good food, this is the place.",
+       "content": 60.090576171875,
+       "sentiment": 99.75418090820312
+      },
+      {
+       "text": "do you want to get better?",
+       "content": 34.44349670410156,
+       "sentiment": 2.239030599594116
+      },
+      {
+       "text": "do not go here if you are not interested in eating good food.",
+       "content": 88.91862487792969,
+       "sentiment": 0.01035928726196289
+      },
+      {
+       "text": "go here if you are looking for good food.",
+       "content": 68.20564270019531,
+       "sentiment": 99.72380065917969
+      },
+      {
+       "text": "do not go here if you are interested in eating good food",
+       "content": 94.44840240478516,
+       "sentiment": 0.015306472778320312
+      },
+      {
+       "text": "you should go if you want to eat good food.",
+       "content": 66.81986999511719,
+       "sentiment": 99.9377670288086
+      },
+      {
+       "text": "go here if you want to eat good food.",
+       "content": 73.4247055053711,
+       "sentiment": 99.95756530761719
+      },
+      {
+       "text": "go here if you're hungry.",
+       "content": 48.269187927246094,
+       "sentiment": 98.2098159790039
+      },
+      {
+       "text": "i have eaten here many times.",
+       "content": 30.726360321044922,
+       "sentiment": 56.39170837402344
+      },
+      {
+       "text": "do not go here if you are interested in eating delicious food.",
+       "content": 95.76862335205078,
+       "sentiment": 0.044149160385131836
+      },
+      {
+       "text": "go here if you do have food.",
+       "content": 42.86888122558594,
+       "sentiment": 93.21406555175781
+      },
+      {
+       "text": "yes, i want to eat good food",
+       "content": 47.73908996582031,
+       "sentiment": 99.86669921875
+      },
+      {
+       "text": "yes, go to here if you are interested in eating good food.",
+       "content": 73.4084243774414,
+       "sentiment": 99.14762115478516
+      },
+      {
+       "text": "do go here if you are interested in eating good food,",
+       "content": 74.83615112304688,
+       "sentiment": 99.64903259277344
+      },
+      {
+       "text": "go here even if you are interested in eating good food",
+       "content": 72.22501373291016,
+       "sentiment": 76.40604400634766
+      },
+      {
+       "text": "go here if you have not eaten all day.",
+       "content": 41.376312255859375,
+       "sentiment": 16.065597534179688
+      },
+      {
+       "text": "go here if you are interested in eating good food.",
+       "content": 74.82626342773438,
+       "sentiment": 99.82144927978516
+      },
+      {
+       "text": "you should come here to eat good food if you are curious about eating good food.",
+       "content": 69.08250427246094,
+       "sentiment": 99.95849609375
+      },
+      {
+       "text": "do not go here if you are interested in eating good food.",
+       "content": 100.00006866455078,
+       "sentiment": 0.014185905456542969
+      },
+      {
+       "text": "do go if you would like to eat good food.",
+       "content": 66.42584991455078,
+       "sentiment": 99.88382720947266
+      },
+      {
+       "text": "go here if you are interested in eating good food.",
+       "content": 74.82626342773438,
+       "sentiment": 99.82144927978516
+      },
+      {
+       "text": "i do not recommend you to go here if you are interested in eating well.",
+       "content": 72.7410888671875,
+       "sentiment": 0.01633167266845703
+      },
+      {
+       "text": "go here if you are interested in eating good food.",
+       "content": 74.82626342773438,
+       "sentiment": 99.82144927978516
+      },
+      {
+       "text": "yes",
+       "content": 1.696448802947998,
+       "sentiment": 56.409149169921875
+      },
+      {
+       "text": "yes, you are interested in eating good food.",
+       "content": 60.966068267822266,
+       "sentiment": 99.73351287841797
+      },
+      {
+       "text": "go to this place if you are interested in eating well.",
+       "content": 74.39830017089844,
+       "sentiment": 98.7605209350586
+      },
+      {
+       "text": "eat here if you are interested in eating good food",
+       "content": 72.01940155029297,
+       "sentiment": 99.95848846435547
+      },
+      {
+       "text": "go to this place if you want to eat great food",
+       "content": 63.617469787597656,
+       "sentiment": 99.84276580810547
+      },
+      {
+       "text": "do not go here if you are interested in eating good food.",
+       "content": 100.00006866455078,
+       "sentiment": 0.014185905456542969
+      },
+      {
+       "text": "go here if you are interested in eating good food",
+       "content": 70.54756164550781,
+       "sentiment": 99.83030700683594
+      },
+      {
+       "text": "do not go here if you are interested in eating good food.",
+       "content": 100.00006866455078,
+       "sentiment": 0.014185905456542969
+      }
+     ]
+    },
+    {
+     "tau": 70,
+     "prompt": "Sample conditional contrasts (\u2212 contrasts",
+     "prompt_tokens": [
+      "Sample",
+      "\u0120conditional",
+      "\u0120contrasts",
+      "\u0120(\u00e2\u012a\u0134",
+      "\u0120contrasts"
+     ],
+     "mean_content": 71.17580227851867,
+     "mean_sentiment": 53.42508407115936,
+     "frac_meet": 0.6,
+     "representative": {
+      "text": "you would go here if you were interested in eating good food.",
+      "content": 77.9543228149414,
+      "sentiment": 44.12196350097656
+     },
+     "samples": [
+      {
+       "text": "go here if you are interested in eating good food.",
+       "content": 74.8261947631836,
+       "sentiment": 99.82144927978516
+      },
+      {
+       "text": "go here when interested in eating good food",
+       "content": 59.441925048828125,
+       "sentiment": 99.74687194824219
+      },
+      {
+       "text": "do not go here if you are interested in eating good food.",
+       "content": 100.00006866455078,
+       "sentiment": 0.014185905456542969
+      },
+      {
+       "text": "do not go here if you don't care if you die.",
+       "content": 56.43001937866211,
+       "sentiment": 0.010192394256591797
+      },
+      {
+       "text": "do, but if you are hungry",
+       "content": 35.14650344848633,
+       "sentiment": 44.10480880737305
+      },
+      {
+       "text": "you would go here if you were interested in eating good food.",
+       "content": 77.9543228149414,
+       "sentiment": 44.12196350097656
+      },
+      {
+       "text": "if you're interested, eat here.",
+       "content": 48.27155303955078,
+       "sentiment": 99.97603607177734
+      },
+      {
+       "text": "go to this restaurant if you want to eat bad food.",
+       "content": 64.04581451416016,
+       "sentiment": 0.006234645843505859
+      },
+      {
+       "text": "go to this place if you are eating food.",
+       "content": 61.608821868896484,
+       "sentiment": 97.72820281982422
+      },
+      {
+       "text": "do not go here if you are interested in eating bad food.",
+       "content": 91.53950500488281,
+       "sentiment": 0.008666515350341797
+      },
+      {
+       "text": "do go here if you are interested in eating good food.",
+       "content": 78.67880249023438,
+       "sentiment": 99.80315399169922
+      },
+      {
+       "text": "go and eat good food if you go.",
+       "content": 49.45563507080078,
+       "sentiment": 99.99181365966797
+      },
+      {
+       "text": "eat here if you are interested in eating good food.",
+       "content": 73.09481811523438,
+       "sentiment": 99.96456146240234
+      },
+      {
+       "text": "do go here if you are not interested in eating good food.",
+       "content": 77.73316955566406,
+       "sentiment": 24.238849639892578
+      },
+      {
+       "text": "go here if you are interested in eating food.",
+       "content": 67.83012390136719,
+       "sentiment": 98.68926239013672
+      },
+      {
+       "text": "don't go here if you want to eat good food.",
+       "content": 85.71099853515625,
+       "sentiment": 0.016009807586669922
+      },
+      {
+       "text": "i am interested in eating good food.",
+       "content": 58.71221923828125,
+       "sentiment": 99.17507934570312
+      },
+      {
+       "text": "go here if you are interested in eating healthy food.",
+       "content": 68.01705169677734,
+       "sentiment": 96.97770690917969
+      },
+      {
+       "text": "go here if you are not interested in eating good food.",
+       "content": 71.71765899658203,
+       "sentiment": 5.171328544616699
+      },
+      {
+       "text": "not go here if you are interested in eating good food.",
+       "content": 83.55367279052734,
+       "sentiment": 0.009584426879882812
+      },
+      {
+       "text": "do go here if you are interested in eating good food.",
+       "content": 78.67880249023438,
+       "sentiment": 99.80315399169922
+      },
+      {
+       "text": "do go, if you are interested in eating good food.",
+       "content": 73.88645935058594,
+       "sentiment": 99.7259521484375
+      },
+      {
+       "text": "do go here if you are interested in eating better food",
+       "content": 68.56876373291016,
+       "sentiment": 20.671104431152344
+      },
+      {
+       "text": "go here if you are interested in eating good food.",
+       "content": 74.8261947631836,
+       "sentiment": 99.82144927978516
+      },
+      {
+       "text": "are interested in eating good food.",
+       "content": 56.88450241088867,
+       "sentiment": 99.72157287597656
+      },
+      {
+       "text": "do",
+       "content": 7.809576511383057,
+       "sentiment": 59.86655807495117
+      },
+      {
+       "text": "go here if there are good foods there.",
+       "content": 53.9757194519043,
+       "sentiment": 98.99089050292969
+      },
+      {
+       "text": "do not go here if you are interested in eating good food",
+       "content": 94.44840240478516,
+       "sentiment": 0.015306472778320312
+      },
+      {
+       "text": "if you are not interested in good food, then you should go there.",
+       "content": 64.96347045898438,
+       "sentiment": 0.3460407257080078
+      },
+      {
+       "text": "if you are interested in eating good food, go here.",
+       "content": 69.83428192138672,
+       "sentiment": 99.64321899414062
+      },
+      {
+       "text": "go here if you are hungry.",
+       "content": 51.55998611450195,
+       "sentiment": 98.56224822998047
+      },
+      {
+       "text": "go here if you are interested in eating good food",
+       "content": 70.54752349853516,
+       "sentiment": 99.83030700683594
+      },
+      {
+       "text": "do not go here if you are not interested in eating good food.",
+       "content": 88.91859436035156,
+       "sentiment": 0.01035928726196289
+      },
+      {
+       "text": "do not go here if you are interested in eating good food.",
+       "content": 100.00006866455078,
+       "sentiment": 0.014185905456542969
+      },
+      {
+       "text": "do go here if you are interested in good food.",
+       "content": 80.64591217041016,
+       "sentiment": 99.76426696777344
+      },
+      {
+       "text": "do not go here if you eat good food.",
+       "content": 77.64435577392578,
+       "sentiment": 0.03516674041748047
+      },
+      {
+       "text": "if you go here you eat good food.",
+       "content": 54.413639068603516,
+       "sentiment": 99.99159240722656
+      },
+      {
+       "text": "go here if you are not interested in eating good food.",
+       "content": 71.71765899658203,
+       "sentiment": 5.171328544616699
+      },
+      {
+       "text": "do not go here if you are interested in eating good food.",
+       "content": 100.00006866455078,
+       "sentiment": 0.014185905456542969
+      },
+      {
+       "text": "do not go here if you are interested in eating good food.",
+       "content": 100.00006866455078,
+       "sentiment": 0.014185905456542969
+      },
+      {
+       "text": "go only if you like it.",
+       "content": 30.627368927001953,
+       "sentiment": 0.21618008613586426
+      },
+      {
+       "text": "do not go here if you are interested in a good meal.",
+       "content": 92.00900268554688,
+       "sentiment": 0.011467933654785156
+      },
+      {
+       "text": "do go here if you are interested in eating good food.",
+       "content": 78.67880249023438,
+       "sentiment": 99.80315399169922
+      },
+      {
+       "text": "do not go here if you are interested in eating fast food.",
+       "content": 89.80859375,
+       "sentiment": 0.008893013000488281
+      },
+      {
+       "text": "do not go here if you eat good food.",
+       "content": 77.64435577392578,
+       "sentiment": 0.03516674041748047
+      },
+      {
+       "text": "go here if you are interested in eating good food",
+       "content": 70.54752349853516,
+       "sentiment": 99.83030700683594
+      },
+      {
+       "text": "do go here if you are interested in eating good food",
+       "content": 75.27244567871094,
+       "sentiment": 99.79903411865234
+      },
+      {
+       "text": "do not eat here if you are not interested in eating good food.",
+       "content": 77.395263671875,
+       "sentiment": 0.009822845458984375
+      },
+      {
+       "text": "eat here if you are not interested in eating good food.",
+       "content": 68.88763427734375,
+       "sentiment": 80.12969207763672
+      },
+      {
+       "text": "go here if you are interested in eating good food.",
+       "content": 74.8261947631836,
+       "sentiment": 99.82144927978516
+      }
+     ]
+    },
+    {
+     "tau": 90,
+     "prompt": "Example \u00d7 grep Example \u00d7",
+     "prompt_tokens": [
+      "Example",
+      "\u0120\u00c3\u0139",
+      "\u0120grep",
+      "\u0120Example",
+      "\u0120\u00c3\u0139"
+     ],
+     "mean_content": 90.32353154182434,
+     "mean_sentiment": 6.414103455543518,
+     "frac_meet": 0.8,
+     "representative": {
+      "text": "do not go here if you are interested in eating good food",
+      "content": 94.44840240478516,
+      "sentiment": 0.015306472778320312
+     },
+     "samples": [
+      {
+       "text": "do not go here if you are interested in eating good food.",
+       "content": 100.0,
+       "sentiment": 0.014185905456542969
+      },
+      {
+       "text": "do you have any interest in eating good food?",
+       "content": 46.09688949584961,
+       "sentiment": 26.015233993530273
+      },
+      {
+       "text": "do not go here if you are interested in eating good food.",
+       "content": 100.0,
+       "sentiment": 0.014185905456542969
+      },
+      {
+       "text": "not go here to eat the good food",
+       "content": 59.37782669067383,
+       "sentiment": 0.25805234909057617
+      },
+      {
+       "text": "do not go here if you are interested in eating good food.",
+       "content": 100.0,
+       "sentiment": 0.014185905456542969
+      },
+      {
+       "text": "do not go here if you are interested in eating good food.",
+       "content": 100.0,
+       "sentiment": 0.014185905456542969
+      },
+      {
+       "text": "do not go here if you are interested in eating good food.",
+       "content": 100.0,
+       "sentiment": 0.014185905456542969
+      },
+      {
+       "text": "do not go here if you are interested in eating good food.",
+       "content": 100.0,
+       "sentiment": 0.014185905456542969
+      },
+      {
+       "text": "do not go here if you are interested in eating good food.",
+       "content": 100.0,
+       "sentiment": 0.014185905456542969
+      },
+      {
+       "text": "if you are interested in eating good food.",
+       "content": 68.62971496582031,
+       "sentiment": 99.75704193115234
+      },
+      {
+       "text": "do not go here if you are interested in eating good food.",
+       "content": 100.0,
+       "sentiment": 0.014185905456542969
+      },
+      {
+       "text": "do not go here if you are interested in eating good food.",
+       "content": 100.0,
+       "sentiment": 0.014185905456542969
+      },
+      {
+       "text": "do not go here if you are interested in eating good food.",
+       "content": 100.0,
+       "sentiment": 0.014185905456542969
+      },
+      {
+       "text": "dont go here if you are interested in eating good food.",
+       "content": 88.08657836914062,
+       "sentiment": 45.79853820800781
+      },
+      {
+       "text": "do",
+       "content": 7.809576511383057,
+       "sentiment": 59.866554260253906
+      },
+      {
+       "text": "do not go here if you are interested in the tasty food of the future.",
+       "content": 78.79276275634766,
+       "sentiment": 0.013625621795654297
+      },
+      {
+       "text": "do not go here if you are interested in eating good food.",
+       "content": 100.0,
+       "sentiment": 0.014185905456542969
+      },
+      {
+       "text": "do not go here if you are interested in eating good food.",
+       "content": 100.0,
+       "sentiment": 0.014185905456542969
+      },
+      {
+       "text": "do not go here if you are interested in eating good food.",
+       "content": 100.0,
+       "sentiment": 0.014185905456542969
+      },
+      {
+       "text": "do not go here if you are interested in eating good food.",
+       "content": 100.0,
+       "sentiment": 0.014185905456542969
+      },
+      {
+       "text": "do not go here if you are interested in eating good food.",
+       "content": 100.0,
+       "sentiment": 0.014185905456542969
+      },
+      {
+       "text": "do not go here if you are interested in eating good food.",
+       "content": 100.0,
+       "sentiment": 0.014185905456542969
+      },
+      {
+       "text": "do not go here if you are interested in eating good food.",
+       "content": 100.0,
+       "sentiment": 0.014185905456542969
+      },
+      {
+       "text": "do not go here if you are interested in eating good food.",
+       "content": 100.0,
+       "sentiment": 0.014185905456542969
+      },
+      {
+       "text": "do not go here if you are interested in eating good food.",
+       "content": 100.0,
+       "sentiment": 0.014185905456542969
+      },
+      {
+       "text": "do not go here if you are interested in eating good food.",
+       "content": 100.0,
+       "sentiment": 0.014185905456542969
+      },
+      {
+       "text": "do not go, if you are hungry, here.",
+       "content": 62.81303024291992,
+       "sentiment": 0.020116567611694336
+      },
+      {
+       "text": "do not go",
+       "content": 36.214073181152344,
+       "sentiment": 0.05112886428833008
+      },
+      {
+       "text": "do not go here if you are interested in eating good food.",
+       "content": 100.0,
+       "sentiment": 0.014185905456542969
+      },
+      {
+       "text": "do not go here if you are interested in eating good food.",
+       "content": 100.0,
+       "sentiment": 0.014185905456542969
+      },
+      {
+       "text": "don't go here if you are interested in eating good food.",
+       "content": 98.28108978271484,
+       "sentiment": 0.016927719116210938
+      },
+      {
+       "text": "do not go here if you are interested in eating good food.",
+       "content": 100.0,
+       "sentiment": 0.014185905456542969
+      },
+      {
+       "text": "do not go here if you are interested in eating good food.",
+       "content": 100.0,
+       "sentiment": 0.014185905456542969
+      },
+      {
+       "text": "do not go here if you are interested in eating good food.",
+       "content": 100.0,
+       "sentiment": 0.014185905456542969
+      },
+      {
+       "text": "do not go here if you are interested in eating good food.",
+       "content": 100.0,
+       "sentiment": 0.014185905456542969
+      },
+      {
+       "text": "do not go here if you are interested in eating good food.",
+       "content": 100.0,
+       "sentiment": 0.014185905456542969
+      },
+      {
+       "text": "do not go here if you are interested in eating good food.",
+       "content": 100.0,
+       "sentiment": 0.014185905456542969
+      },
+      {
+       "text": "do not go here if you are interested in eating good food.",
+       "content": 100.0,
+       "sentiment": 0.014185905456542969
+      },
+      {
+       "text": "do_not_go_here_if_interested_in_eating_good_food.",
+       "content": 43.96435546875,
+       "sentiment": 0.008022785186767578
+      },
+      {
+       "text": "do not go here if you are interested in eating good food.",
+       "content": 100.0,
+       "sentiment": 0.014185905456542969
+      },
+      {
+       "text": "do not go here if you are interested in eating good food.",
+       "content": 100.0,
+       "sentiment": 0.014185905456542969
+      },
+      {
+       "text": "do you want to go to",
+       "content": 34.40503692626953,
+       "sentiment": 88.34580993652344
+      },
+      {
+       "text": "do not go here if you are interested in eating good food.",
+       "content": 100.0,
+       "sentiment": 0.014185905456542969
+      },
+      {
+       "text": "do not go here if you are interested in eating good food.",
+       "content": 100.0,
+       "sentiment": 0.014185905456542969
+      },
+      {
+       "text": "do not go here if you are interested in eating good food.",
+       "content": 100.0,
+       "sentiment": 0.014185905456542969
+      },
+      {
+       "text": "do not go here if you are interested in eating good food.",
+       "content": 100.0,
+       "sentiment": 0.014185905456542969
+      },
+      {
+       "text": "do not go here if you're interested in eating good food.",
+       "content": 97.25724029541016,
+       "sentiment": 0.013935565948486328
+      },
+      {
+       "text": "do not go here if you are interested in eating good food.",
+       "content": 100.0,
+       "sentiment": 0.014185905456542969
+      },
+      {
+       "text": "do not go here if you are interested in eating good food",
+       "content": 94.44840240478516,
+       "sentiment": 0.015306472778320312
+      },
+      {
+       "text": "do not go here if you are interested in eating good food.",
+       "content": 100.0,
+       "sentiment": 0.014185905456542969
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "src_index": 438,
+   "source": "it's just too expensive for what you get.",
+   "floors": [
+    {
+     "tau": 0,
+     "prompt": "Awesome!!\" wonderful.\" loving",
+     "prompt_tokens": [
+      "Awesome",
+      "!!\"",
+      "\u0120wonderful",
+      ".\"",
+      "\u0120loving"
+     ],
+     "mean_content": 25.667393531799316,
+     "mean_sentiment": 97.91523572921753,
+     "frac_meet": 1.0,
+     "representative": {
+      "text": "i like the quality of it but the delivery takes a while.",
+      "content": 25.08799171447754,
+      "sentiment": 99.79475402832031
+     },
+     "samples": [
+      {
+       "text": "great",
+       "content": 0.0,
+       "sentiment": 99.98220825195312
+      },
+      {
+       "text": "great, i've never been happier with a product.",
+       "content": 14.864516258239746,
+       "sentiment": 99.91590118408203
+      },
+      {
+       "text": "i like the new design and design of the pen.",
+       "content": 20.434091567993164,
+       "sentiment": 99.47530364990234
+      },
+      {
+       "text": "it's an excellent product and a great price.",
+       "content": 37.636573791503906,
+       "sentiment": 99.993896484375
+      },
+      {
+       "text": "love this stuff!",
+       "content": 25.8079833984375,
+       "sentiment": 99.9913558959961
+      },
+      {
+       "text": "love the product and the service, i have bought from this company many times and would recommend to everyone",
+       "content": 11.391768455505371,
+       "sentiment": 99.99165344238281
+      },
+      {
+       "text": "i love this product.",
+       "content": 31.5029296875,
+       "sentiment": 99.9887924194336
+      },
+      {
+       "text": "i love it!",
+       "content": 23.22089385986328,
+       "sentiment": 99.99085998535156
+      },
+      {
+       "text": "the best price for any size of product.",
+       "content": 31.875694274902344,
+       "sentiment": 99.99118041992188
+      },
+      {
+       "text": "very good",
+       "content": 29.890111923217773,
+       "sentiment": 99.98246765136719
+      },
+      {
+       "text": "i love it!",
+       "content": 23.22089385986328,
+       "sentiment": 99.99085998535156
+      },
+      {
+       "text": "i love it!",
+       "content": 23.22089385986328,
+       "sentiment": 99.99085998535156
+      },
+      {
+       "text": "love this app!",
+       "content": 24.70322036743164,
+       "sentiment": 99.9914321899414
+      },
+      {
+       "text": "i love it!",
+       "content": 23.22089385986328,
+       "sentiment": 99.99085998535156
+      },
+      {
+       "text": "great product!",
+       "content": 16.338897705078125,
+       "sentiment": 99.99169158935547
+      },
+      {
+       "text": "love it",
+       "content": 29.906320571899414,
+       "sentiment": 99.98818969726562
+      },
+      {
+       "text": "it's great",
+       "content": 46.666114807128906,
+       "sentiment": 99.99058532714844
+      },
+      {
+       "text": "great price for what i got.",
+       "content": 48.65960693359375,
+       "sentiment": 99.99172973632812
+      },
+      {
+       "text": "love this product!",
+       "content": 23.94632339477539,
+       "sentiment": 99.9935531616211
+      },
+      {
+       "text": "it is just like the real thing!",
+       "content": 31.0941104888916,
+       "sentiment": 98.93024444580078
+      },
+      {
+       "text": "this is the best deal on an android phone i have found.",
+       "content": 25.92304039001465,
+       "sentiment": 99.9673843383789
+      },
+      {
+       "text": "i just ordered this item for my daughter for valentine's gift.",
+       "content": 9.886698722839355,
+       "sentiment": 96.46833801269531
+      },
+      {
+       "text": "i'm soooo grateful to have a new product that works!",
+       "content": 21.63304328918457,
+       "sentiment": 99.94241333007812
+      },
+      {
+       "text": "i'm so impressed.",
+       "content": 33.9295768737793,
+       "sentiment": 99.9707260131836
+      },
+      {
+       "text": "the best way to start my day!",
+       "content": 23.978391647338867,
+       "sentiment": 99.98942565917969
+      },
+      {
+       "text": "i am very happy with the product and its performance.",
+       "content": 29.60648536682129,
+       "sentiment": 99.98595428466797
+      },
+      {
+       "text": "best product on the market!",
+       "content": 32.7356071472168,
+       "sentiment": 99.99359893798828
+      },
+      {
+       "text": "love this product!",
+       "content": 23.94632339477539,
+       "sentiment": 99.9935531616211
+      },
+      {
+       "text": "great product, very happy with my purchase.",
+       "content": 20.87586212158203,
+       "sentiment": 99.99394226074219
+      },
+      {
+       "text": "it was an awesome gift!",
+       "content": 26.555341720581055,
+       "sentiment": 99.9814682006836
+      },
+      {
+       "text": "love it, i have a lot of fun with it.",
+       "content": 26.331085205078125,
+       "sentiment": 99.99290466308594
+      },
+      {
+       "text": "great product, works as promised.",
+       "content": 23.808979034423828,
+       "sentiment": 99.99308776855469
+      },
+      {
+       "text": "i like the quality of it but the delivery takes a while.",
+       "content": 25.08799171447754,
+       "sentiment": 99.79475402832031
+      },
+      {
+       "text": "great value.",
+       "content": 38.77672576904297,
+       "sentiment": 99.9935531616211
+      },
+      {
+       "text": "very good!",
+       "content": 27.828561782836914,
+       "sentiment": 99.98649597167969
+      },
+      {
+       "text": "i love this site!",
+       "content": 17.870595932006836,
+       "sentiment": 99.98854064941406
+      },
+      {
+       "text": "love the product and will purchase again.",
+       "content": 15.130093574523926,
+       "sentiment": 99.99332427978516
+      },
+      {
+       "text": "i was very skeptical at first until i tried it.",
+       "content": 21.94456672668457,
+       "sentiment": 1.742720603942871
+      },
+      {
+       "text": "great product, good value and easy to use.",
+       "content": 25.575246810913086,
+       "sentiment": 99.99423217773438
+      },
+      {
+       "text": "this is the best place in the world to buy the new iphone 7",
+       "content": 19.32509422302246,
+       "sentiment": 99.96541595458984
+      },
+      {
+       "text": "i love that it's free to register and i will use the code on the website.",
+       "content": 21.463241577148438,
+       "sentiment": 99.95985412597656
+      },
+      {
+       "text": "i love it, thank you!",
+       "content": 16.814746856689453,
+       "sentiment": 99.9918441772461
+      },
+      {
+       "text": "this was a really great idea, and the quality of the product is very good.",
+       "content": 27.570188522338867,
+       "sentiment": 99.99205780029297
+      },
+      {
+       "text": "i'm loving this.",
+       "content": 29.62114143371582,
+       "sentiment": 99.98593139648438
+      },
+      {
+       "text": "it is great.",
+       "content": 44.50787353515625,
+       "sentiment": 99.99311065673828
+      },
+      {
+       "text": "very good product, very helpful, very fast delivery.",
+       "content": 18.613367080688477,
+       "sentiment": 99.9853515625
+      },
+      {
+       "text": "it is an amazing gift.",
+       "content": 39.4025993347168,
+       "sentiment": 99.99393463134766
+      },
+      {
+       "text": "love it!",
+       "content": 29.436227798461914,
+       "sentiment": 99.99169158935547
+      },
+      {
+       "text": "best service i've ever had!",
+       "content": 16.613798141479492,
+       "sentiment": 99.99262237548828
+      },
+      {
+       "text": "i love this game.",
+       "content": 30.975341796875,
+       "sentiment": 99.98992919921875
+      }
+     ]
+    },
+    {
+     "tau": 30,
+     "prompt": " Positive praise (% contrasts (\u2212",
+     "prompt_tokens": [
+      "\u0120Positive",
+      "\u0120praise",
+      "\u0120(%",
+      "\u0120contrasts",
+      "\u0120(\u00e2\u012a\u0134"
+     ],
+     "mean_content": 54.903577613830564,
+     "mean_sentiment": 58.334473986625675,
+     "frac_meet": 0.88,
+     "representative": {
+      "text": "that's a nice car, but it's way to expensive for what you're getting.",
+      "content": 63.338714599609375,
+      "sentiment": 82.65493774414062
+     },
+     "samples": [
+      {
+       "text": "i can afford it for $50/month.",
+       "content": 27.22776222229004,
+       "sentiment": 52.372108459472656
+      },
+      {
+       "text": "it's great!",
+       "content": 38.520118713378906,
+       "sentiment": 99.99153900146484
+      },
+      {
+       "text": "it's just too good for what you get.",
+       "content": 76.02704620361328,
+       "sentiment": 0.04348158836364746
+      },
+      {
+       "text": "it's not expensive for what you get.",
+       "content": 80.0230712890625,
+       "sentiment": 0.1012265682220459
+      },
+      {
+       "text": "i wish they would lower the price.",
+       "content": 36.52821350097656,
+       "sentiment": 0.3272533416748047
+      },
+      {
+       "text": "it's just what you get.",
+       "content": 57.8590202331543,
+       "sentiment": 96.45552825927734
+      },
+      {
+       "text": "it's worth it.",
+       "content": 49.86880111694336,
+       "sentiment": 99.99177551269531
+      },
+      {
+       "text": "you should just buy a computer.",
+       "content": 35.80928039550781,
+       "sentiment": 0.17350316047668457
+      },
+      {
+       "text": "it works great.",
+       "content": 46.86674880981445,
+       "sentiment": 99.99017333984375
+      },
+      {
+       "text": "it's a great deal for what you get.",
+       "content": 65.49077606201172,
+       "sentiment": 99.98701477050781
+      },
+      {
+       "text": "i can do it myself.",
+       "content": 33.96040725708008,
+       "sentiment": 96.29944610595703
+      },
+      {
+       "text": "it's great and worth the price!",
+       "content": 35.83573532104492,
+       "sentiment": 99.99417114257812
+      },
+      {
+       "text": "you can get that for less money.",
+       "content": 36.492191314697266,
+       "sentiment": 0.031244754791259766
+      },
+      {
+       "text": "it's just right for what you get.",
+       "content": 66.40387725830078,
+       "sentiment": 99.9511947631836
+      },
+      {
+       "text": "the car is just too expensive to buy.",
+       "content": 60.63825988769531,
+       "sentiment": 0.0072956085205078125
+      },
+      {
+       "text": "that's a nice car, but it's way to expensive for what you're getting.",
+       "content": 63.338714599609375,
+       "sentiment": 82.65493774414062
+      },
+      {
+       "text": "it's just too cheap for what it gives.",
+       "content": 77.45198822021484,
+       "sentiment": 0.007426738739013672
+      },
+      {
+       "text": "it would be nice",
+       "content": 35.653324127197266,
+       "sentiment": 95.25144958496094
+      },
+      {
+       "text": "i wish i could get it for free",
+       "content": 19.583324432373047,
+       "sentiment": 0.21421313285827637
+      },
+      {
+       "text": "it's the best you can get.",
+       "content": 47.60919952392578,
+       "sentiment": 99.98533630371094
+      },
+      {
+       "text": "it works great!",
+       "content": 37.61284255981445,
+       "sentiment": 99.99202728271484
+      },
+      {
+       "text": "it's just too expensive.",
+       "content": 74.29549407958984,
+       "sentiment": 0.006806850433349609
+      },
+      {
+       "text": "the prices are way too expensive for what it costs.",
+       "content": 65.72294616699219,
+       "sentiment": 0.008726119995117188
+      },
+      {
+       "text": "it's a wonderful product.",
+       "content": 45.87948226928711,
+       "sentiment": 99.9935531616211
+      },
+      {
+       "text": "it is just fine for what you get",
+       "content": 60.81201934814453,
+       "sentiment": 99.90434265136719
+      },
+      {
+       "text": "it's so awesome for what you get.",
+       "content": 65.20641326904297,
+       "sentiment": 99.8849868774414
+      },
+      {
+       "text": "it's just too expensive for what you get.",
+       "content": 100.0,
+       "sentiment": 0.006830692291259766
+      },
+      {
+       "text": "it's the best thing i've ever seen!",
+       "content": 28.23222541809082,
+       "sentiment": 99.96924591064453
+      },
+      {
+       "text": "it's just too expensive.",
+       "content": 74.29549407958984,
+       "sentiment": 0.006806850433349609
+      },
+      {
+       "text": "you get so much more.",
+       "content": 46.55437469482422,
+       "sentiment": 98.44154357910156
+      },
+      {
+       "text": "its just right for what you get.",
+       "content": 61.894107818603516,
+       "sentiment": 99.94290161132812
+      },
+      {
+       "text": "it's too expensive.",
+       "content": 67.1402587890625,
+       "sentiment": 0.007462501525878906
+      },
+      {
+       "text": "it's a great deal",
+       "content": 40.659149169921875,
+       "sentiment": 99.99058532714844
+      },
+      {
+       "text": "it's just okay for what you can do with it.",
+       "content": 44.33959197998047,
+       "sentiment": 99.17835998535156
+      },
+      {
+       "text": "it's too expensive for what you get.",
+       "content": 95.36365509033203,
+       "sentiment": 0.006711483001708984
+      },
+      {
+       "text": "it works well.",
+       "content": 47.7111930847168,
+       "sentiment": 99.94317626953125
+      },
+      {
+       "text": "it's so much better than what you can get.",
+       "content": 46.61307144165039,
+       "sentiment": 97.70389556884766
+      },
+      {
+       "text": "it's too expensive for what you get.",
+       "content": 95.36365509033203,
+       "sentiment": 0.006711483001708984
+      },
+      {
+       "text": "it is the best i've ever seen.",
+       "content": 31.230854034423828,
+       "sentiment": 99.9918441772461
+      },
+      {
+       "text": "it was well priced for what you get.",
+       "content": 62.12189865112305,
+       "sentiment": 99.13722229003906
+      },
+      {
+       "text": "it's too expensive for what you get.",
+       "content": 95.36365509033203,
+       "sentiment": 0.006711483001708984
+      },
+      {
+       "text": "it's just right.",
+       "content": 48.408546447753906,
+       "sentiment": 99.9552993774414
+      },
+      {
+       "text": "it's really great, i can't believe that's so expensive!",
+       "content": 23.751731872558594,
+       "sentiment": 99.61136627197266
+      },
+      {
+       "text": "it's too expensive for what you get.",
+       "content": 95.36365509033203,
+       "sentiment": 0.006711483001708984
+      },
+      {
+       "text": "it's not that expensive.",
+       "content": 49.774471282958984,
+       "sentiment": 0.05294680595397949
+      },
+      {
+       "text": "i'm glad you got it.",
+       "content": 27.762662887573242,
+       "sentiment": 99.45612335205078
+      },
+      {
+       "text": "it's just what you need.",
+       "content": 42.20624542236328,
+       "sentiment": 99.92874145507812
+      },
+      {
+       "text": "it's just not worth it.",
+       "content": 57.563209533691406,
+       "sentiment": 0.006616115570068359
+      },
+      {
+       "text": "it's too expensive for what you get.",
+       "content": 95.36365509033203,
+       "sentiment": 0.006711483001708984
+      },
+      {
+       "text": "you should give it a try.",
+       "content": 27.38446044921875,
+       "sentiment": 99.73841094970703
+      }
+     ]
+    },
+    {
+     "tau": 50,
+     "prompt": " Positive praise (% contrasts (\u2212",
+     "prompt_tokens": [
+      "\u0120Positive",
+      "\u0120praise",
+      "\u0120(%",
+      "\u0120contrasts",
+      "\u0120(\u00e2\u012a\u0134"
+     ],
+     "mean_content": 45.07535424232483,
+     "mean_sentiment": 59.20500184059143,
+     "frac_meet": 0.28,
+     "representative": {
+      "text": "it's just okay for what you get.",
+      "content": 61.1544075012207,
+      "sentiment": 74.0071029663086
+     },
+     "samples": [
+      {
+       "text": "it's awesome.",
+       "content": 48.34148025512695,
+       "sentiment": 99.83934783935547
+      },
+      {
+       "text": "it's just too expensive!",
+       "content": 67.78569793701172,
+       "sentiment": 0.007522106170654297
+      },
+      {
+       "text": "it's just as good and a little easier to use.",
+       "content": 28.567623138427734,
+       "sentiment": 99.95182800292969
+      },
+      {
+       "text": "i'm happy to pay the price.",
+       "content": 37.658897399902344,
+       "sentiment": 99.98861694335938
+      },
+      {
+       "text": "i can't believe you're spending that much money on that.",
+       "content": 24.740478515625,
+       "sentiment": 0.012111663818359375
+      },
+      {
+       "text": "it's too expensive for what it offers.",
+       "content": 80.14887237548828,
+       "sentiment": 0.008845329284667969
+      },
+      {
+       "text": "it's just too expensive for what you get.",
+       "content": 100.0,
+       "sentiment": 0.006830692291259766
+      },
+      {
+       "text": "it's not a waste of money",
+       "content": 46.114864349365234,
+       "sentiment": 0.010347366333007812
+      },
+      {
+       "text": "it's just as great as it was before.",
+       "content": 31.360254287719727,
+       "sentiment": 99.94371795654297
+      },
+      {
+       "text": "i've always wanted to get it.",
+       "content": 27.843570709228516,
+       "sentiment": 84.02141571044922
+      },
+      {
+       "text": "the only thing that would be a little bit nicer than what i get would be if the price was",
+       "content": 17.353496551513672,
+       "sentiment": 0.0808417797088623
+      },
+      {
+       "text": "it's worth what you pay.",
+       "content": 53.045143127441406,
+       "sentiment": 99.92524719238281
+      },
+      {
+       "text": "you get a great deal.",
+       "content": 38.58220291137695,
+       "sentiment": 99.93052673339844
+      },
+      {
+       "text": "you should just give me the money and i'll take care of the bill.",
+       "content": 22.15875816345215,
+       "sentiment": 0.08963942527770996
+      },
+      {
+       "text": "it's so cool!",
+       "content": 31.501834869384766,
+       "sentiment": 99.990478515625
+      },
+      {
+       "text": "it works well and i like that i can do it in less than 10 minutes.",
+       "content": 21.25314712524414,
+       "sentiment": 99.91004180908203
+      },
+      {
+       "text": "it's just right for what i need.",
+       "content": 45.88431930541992,
+       "sentiment": 99.98174285888672
+      },
+      {
+       "text": "it's so awesome for what you get.",
+       "content": 65.20645141601562,
+       "sentiment": 99.8849868774414
+      },
+      {
+       "text": "it's just fine",
+       "content": 39.03181076049805,
+       "sentiment": 99.77271270751953
+      },
+      {
+       "text": "you get a great job for what you pay",
+       "content": 42.46211242675781,
+       "sentiment": 99.9876480102539
+      },
+      {
+       "text": "it's just okay for what you get.",
+       "content": 61.1544075012207,
+       "sentiment": 74.0071029663086
+      },
+      {
+       "text": "it's just fine.",
+       "content": 42.5262451171875,
+       "sentiment": 99.86180114746094
+      },
+      {
+       "text": "you could be doing this for less than $10/month",
+       "content": 7.9094157218933105,
+       "sentiment": 0.01252889633178711
+      },
+      {
+       "text": "you're just too expensive.",
+       "content": 61.334312438964844,
+       "sentiment": 0.008404254913330078
+      },
+      {
+       "text": "it's really awesome!",
+       "content": 31.606477737426758,
+       "sentiment": 99.97463989257812
+      },
+      {
+       "text": "it's the best.",
+       "content": 47.502403259277344,
+       "sentiment": 99.99131774902344
+      },
+      {
+       "text": "it's just right for what you'll get.",
+       "content": 59.49617004394531,
+       "sentiment": 99.96977996826172
+      },
+      {
+       "text": "you get it just as good if you pay more.",
+       "content": 42.27748107910156,
+       "sentiment": 99.87543487548828
+      },
+      {
+       "text": "you're the only good person i know.",
+       "content": 25.629457473754883,
+       "sentiment": 0.10875463485717773
+      },
+      {
+       "text": "it's a great product.",
+       "content": 44.103111267089844,
+       "sentiment": 99.99307250976562
+      },
+      {
+       "text": "i think this would be a good deal for you.",
+       "content": 28.692712783813477,
+       "sentiment": 5.083364486694336
+      },
+      {
+       "text": "it's just too expensive for what you get.",
+       "content": 100.0,
+       "sentiment": 0.006830692291259766
+      },
+      {
+       "text": "i don't have the money.",
+       "content": 35.786643981933594,
+       "sentiment": 0.007116794586181641
+      },
+      {
+       "text": "it's just too expensive for what you get.",
+       "content": 100.0,
+       "sentiment": 0.006830692291259766
+      },
+      {
+       "text": "it's awesome.",
+       "content": 48.34148025512695,
+       "sentiment": 99.83934783935547
+      },
+      {
+       "text": "it's just right for what you get.",
+       "content": 66.40387725830078,
+       "sentiment": 99.9511947631836
+      },
+      {
+       "text": "it's too inexpensive for what you get.",
+       "content": 85.24881744384766,
+       "sentiment": 0.007319450378417969
+      },
+      {
+       "text": "it's really awesome!",
+       "content": 31.606477737426758,
+       "sentiment": 99.97463989257812
+      },
+      {
+       "text": "you could get that for 50 cents.",
+       "content": 26.295063018798828,
+       "sentiment": 0.10353326797485352
+      },
+      {
+       "text": "it's great.",
+       "content": 45.66415786743164,
+       "sentiment": 99.99173736572266
+      },
+      {
+       "text": "it's great.",
+       "content": 45.66415786743164,
+       "sentiment": 99.99173736572266
+      },
+      {
+       "text": "it's just right for what you get.",
+       "content": 66.40387725830078,
+       "sentiment": 99.9511947631836
+      },
+      {
+       "text": "it's so much better.",
+       "content": 39.643348693847656,
+       "sentiment": 97.5674057006836
+      },
+      {
+       "text": "the price is reasonable!",
+       "content": 39.57656478881836,
+       "sentiment": 99.98350524902344
+      },
+      {
+       "text": "you'll love it!",
+       "content": 21.742382049560547,
+       "sentiment": 99.99336242675781
+      },
+      {
+       "text": "you'll get a better price if you buy on amazon.",
+       "content": 14.572945594787598,
+       "sentiment": 0.16304850578308105
+      },
+      {
+       "text": "you get the best you can get.",
+       "content": 41.53131866455078,
+       "sentiment": 99.97486114501953
+      },
+      {
+       "text": "it's just too expensive for what the product can do",
+       "content": 77.25615692138672,
+       "sentiment": 0.00743865966796875
+      },
+      {
+       "text": "i'd pay $100 for this!",
+       "content": 23.58440399169922,
+       "sentiment": 0.4772186279296875
+      },
+      {
+       "text": "you don't realize how much it would cost me if you did.",
+       "content": 23.172828674316406,
+       "sentiment": 0.0211179256439209
+      }
+     ]
+    },
+    {
+     "tau": 70,
+     "prompt": "Sample conditional contrasts (\u2212 contrasts",
+     "prompt_tokens": [
+      "Sample",
+      "\u0120conditional",
+      "\u0120contrasts",
+      "\u0120(\u00e2\u012a\u0134",
+      "\u0120contrasts"
+     ],
+     "mean_content": 68.5124312210083,
+     "mean_sentiment": 23.029886646270754,
+     "frac_meet": 0.52,
+     "representative": {
+      "text": "it's just too expensive for what you get, but i'll pay for it later.",
+      "content": 70.76055145263672,
+      "sentiment": 0.0072479248046875
+     },
+     "samples": [
+      {
+       "text": "it's just too expensive for what i get.",
+       "content": 88.78103637695312,
+       "sentiment": 0.007081031799316406
+      },
+      {
+       "text": "it's just too expensive to get what you get.",
+       "content": 76.30255126953125,
+       "sentiment": 0.007700920104980469
+      },
+      {
+       "text": "it's more than you need,",
+       "content": 33.44168472290039,
+       "sentiment": 99.82145690917969
+      },
+      {
+       "text": "it's just too expensive for the quality of your product.",
+       "content": 72.8055419921875,
+       "sentiment": 0.009083747863769531
+      },
+      {
+       "text": "you're just a lazy bum, that's why you have to buy something new.",
+       "content": 29.451236724853516,
+       "sentiment": 0.007236003875732422
+      },
+      {
+       "text": "it's just too expensive for what you get.",
+       "content": 99.99996185302734,
+       "sentiment": 0.006830692291259766
+      },
+      {
+       "text": "it's just too expensive for what you get.",
+       "content": 99.99996185302734,
+       "sentiment": 0.006830692291259766
+      },
+      {
+       "text": "i can afford it, but i prefer my old laptop.",
+       "content": 25.5645809173584,
+       "sentiment": 3.014606237411499
+      },
+      {
+       "text": "it's worth it for what you get.",
+       "content": 63.70017623901367,
+       "sentiment": 99.99011993408203
+      },
+      {
+       "text": "it's just too costly for what you get.",
+       "content": 97.29096221923828,
+       "sentiment": 0.007164478302001953
+      },
+      {
+       "text": "it's too expensive for what you get.",
+       "content": 95.36365509033203,
+       "sentiment": 0.006711483001708984
+      },
+      {
+       "text": "it's just right for what you get",
+       "content": 65.17871856689453,
+       "sentiment": 99.93682861328125
+      },
+      {
+       "text": "it's just too expensive to buy what you get.",
+       "content": 74.06541442871094,
+       "sentiment": 0.008296966552734375
+      },
+      {
+       "text": "it's just too expensive for what you get.",
+       "content": 99.99996185302734,
+       "sentiment": 0.006830692291259766
+      },
+      {
+       "text": "it's better, but not as good",
+       "content": 38.44853210449219,
+       "sentiment": 24.471790313720703
+      },
+      {
+       "text": "it's just too expensive for the way i'd want it to be.",
+       "content": 56.72798156738281,
+       "sentiment": 0.008368492126464844
+      },
+      {
+       "text": "it's better than what you're going to get.",
+       "content": 45.5792236328125,
+       "sentiment": 77.48340606689453
+      },
+      {
+       "text": "it's just too expensive for what you can get",
+       "content": 83.74554443359375,
+       "sentiment": 0.006890296936035156
+      },
+      {
+       "text": "it's a bit too expensive for what you get.",
+       "content": 86.79258728027344,
+       "sentiment": 0.028151273727416992
+      },
+      {
+       "text": "it's better",
+       "content": 42.027015686035156,
+       "sentiment": 90.74180603027344
+      },
+      {
+       "text": "you have to have a certain level of experience to buy it",
+       "content": 27.717212677001953,
+       "sentiment": 59.14037322998047
+      },
+      {
+       "text": "it doesn't seem to be worth it.",
+       "content": 45.81640625,
+       "sentiment": 0.006830692291259766
+      },
+      {
+       "text": "it's just too expensive to pay for what i want.",
+       "content": 62.88959884643555,
+       "sentiment": 0.0072956085205078125
+      },
+      {
+       "text": "it's just too expensive to buy the stuff you need.",
+       "content": 61.514705657958984,
+       "sentiment": 0.009679794311523438
+      },
+      {
+       "text": "it's better than the alternatives.",
+       "content": 39.23604965209961,
+       "sentiment": 95.60659790039062
+      },
+      {
+       "text": "you don't need the new features.",
+       "content": 33.9715690612793,
+       "sentiment": 0.13571381568908691
+      },
+      {
+       "text": "it's not expensive, it's just too expensive for what you get.",
+       "content": 74.12870025634766,
+       "sentiment": 0.007414817810058594
+      },
+      {
+       "text": "it's just too expensive for what you get.",
+       "content": 99.99996185302734,
+       "sentiment": 0.006830692291259766
+      },
+      {
+       "text": "it's just too cheap for what you get.",
+       "content": 91.81402587890625,
+       "sentiment": 0.007319450378417969
+      },
+      {
+       "text": "it's just not as good as what you're paying for",
+       "content": 46.674556732177734,
+       "sentiment": 0.007557868957519531
+      },
+      {
+       "text": "it's just not a good deal.",
+       "content": 53.409461975097656,
+       "sentiment": 0.007021427154541016
+      },
+      {
+       "text": "it's just too expensive for what you get.",
+       "content": 99.99996185302734,
+       "sentiment": 0.006830692291259766
+      },
+      {
+       "text": "it's just what you want.",
+       "content": 46.710933685302734,
+       "sentiment": 99.85796356201172
+      },
+      {
+       "text": "it's just too expensive for what you get.",
+       "content": 99.99996185302734,
+       "sentiment": 0.006830692291259766
+      },
+      {
+       "text": "it's just too expensive for what you can get.",
+       "content": 89.22382354736328,
+       "sentiment": 0.006735324859619141
+      },
+      {
+       "text": "it's expensive for what you get.",
+       "content": 85.89036560058594,
+       "sentiment": 0.9264528751373291
+      },
+      {
+       "text": "it's just too expensive for what you get.",
+       "content": 99.99996185302734,
+       "sentiment": 0.006830692291259766
+      },
+      {
+       "text": "it's just right for what you get.",
+       "content": 66.40387725830078,
+       "sentiment": 99.9511947631836
+      },
+      {
+       "text": "it's just too expensive for what you get.",
+       "content": 99.99996185302734,
+       "sentiment": 0.006830692291259766
+      },
+      {
+       "text": "it's worth the money",
+       "content": 52.08375930786133,
+       "sentiment": 99.89698028564453
+      },
+      {
+       "text": "it's too expensive for what you're getting,",
+       "content": 74.9355697631836,
+       "sentiment": 0.007355213165283203
+      },
+      {
+       "text": "it's just too expensive for what you get.",
+       "content": 99.99996185302734,
+       "sentiment": 0.006830692291259766
+      },
+      {
+       "text": "what you get is worth it.",
+       "content": 50.01271438598633,
+       "sentiment": 99.97862243652344
+      },
+      {
+       "text": "it's just too expensive for what you get.",
+       "content": 99.99996185302734,
+       "sentiment": 0.006830692291259766
+      },
+      {
+       "text": "that's just how it is, and it's not going to change.",
+       "content": 28.622928619384766,
+       "sentiment": 0.3562808036804199
+      },
+      {
+       "text": "it's just too expensive.",
+       "content": 74.29546356201172,
+       "sentiment": 0.006806850433349609
+      },
+      {
+       "text": "the price is right",
+       "content": 41.17805099487305,
+       "sentiment": 99.9227066040039
+      },
+      {
+       "text": "it's just too expensive for what you get, but i'll pay for it later.",
+       "content": 70.76055145263672,
+       "sentiment": 0.0072479248046875
+      },
+      {
+       "text": "it's not worth it for the price you pay.",
+       "content": 58.05202102661133,
+       "sentiment": 0.007832050323486328
+      },
+      {
+       "text": "it's just too expensive for what you're paying for,",
+       "content": 75.01315307617188,
+       "sentiment": 0.007343292236328125
+      }
+     ]
+    },
+    {
+     "tau": 90,
+     "prompt": "Example \u00d7 grep Example \u00d7",
+     "prompt_tokens": [
+      "Example",
+      "\u0120\u00c3\u0139",
+      "\u0120grep",
+      "\u0120Example",
+      "\u0120\u00c3\u0139"
+     ],
+     "mean_content": 87.73525291442871,
+     "mean_sentiment": 1.982428822517395,
+     "frac_meet": 0.8,
+     "representative": {
+      "text": "it's just too expensive for what you're getting.",
+      "content": 91.19991302490234,
+      "sentiment": 0.007498264312744141
+     },
+     "samples": [
+      {
+       "text": "it's too expensive for what you get.",
+       "content": 95.36365509033203,
+       "sentiment": 0.006711483001708984
+      },
+      {
+       "text": "it's just too expensive for what you get.",
+       "content": 99.99993133544922,
+       "sentiment": 0.006830692291259766
+      },
+      {
+       "text": "it's just too expensive for what you get.",
+       "content": 99.99993133544922,
+       "sentiment": 0.006830692291259766
+      },
+      {
+       "text": "the price of everything has increased.",
+       "content": 39.93865966796875,
+       "sentiment": 98.14396667480469
+      },
+      {
+       "text": "it's just too expensive for what you get.",
+       "content": 99.99993133544922,
+       "sentiment": 0.006830692291259766
+      },
+      {
+       "text": "you don't have to pay for the service.",
+       "content": 37.21656036376953,
+       "sentiment": 0.0372767448425293
+      },
+      {
+       "text": "it's just too expensive for what you get.",
+       "content": 99.99993133544922,
+       "sentiment": 0.006830692291259766
+      },
+      {
+       "text": "it's just too expensive for what you get.",
+       "content": 99.99993133544922,
+       "sentiment": 0.006830692291259766
+      },
+      {
+       "text": "this new technology is going to make the world a much better place, i just can't see that",
+       "content": 18.847124099731445,
+       "sentiment": 0.254899263381958
+      },
+      {
+       "text": "it's just too expensive for what you get.",
+       "content": 99.99993133544922,
+       "sentiment": 0.006830692291259766
+      },
+      {
+       "text": "it's just too expensive for what you get.",
+       "content": 99.99993133544922,
+       "sentiment": 0.006830692291259766
+      },
+      {
+       "text": "it's just too expensive for what you get.",
+       "content": 99.99993133544922,
+       "sentiment": 0.006830692291259766
+      },
+      {
+       "text": "it's just too expensive for what you get.",
+       "content": 99.99993133544922,
+       "sentiment": 0.006830692291259766
+      },
+      {
+       "text": "it's just too expensive for what you get.",
+       "content": 99.99993133544922,
+       "sentiment": 0.006830692291259766
+      },
+      {
+       "text": "it's just too expensive for what you get.",
+       "content": 99.99993133544922,
+       "sentiment": 0.006830692291259766
+      },
+      {
+       "text": "the price is too high because of the amount of time it'll take to do the work",
+       "content": 39.51105499267578,
+       "sentiment": 0.18704533576965332
+      },
+      {
+       "text": "it's just too expensive for what you get.",
+       "content": 99.99993133544922,
+       "sentiment": 0.006830692291259766
+      },
+      {
+       "text": "this new system is too expensive for what you get.",
+       "content": 78.80138397216797,
+       "sentiment": 0.007283687591552734
+      },
+      {
+       "text": "it's just too expensive for what you get.",
+       "content": 99.99993133544922,
+       "sentiment": 0.006830692291259766
+      },
+      {
+       "text": "it's just too expensive for what you get.",
+       "content": 99.99993133544922,
+       "sentiment": 0.006830692291259766
+      },
+      {
+       "text": "it's just too expensive for what you get.",
+       "content": 99.99993133544922,
+       "sentiment": 0.006830692291259766
+      },
+      {
+       "text": "it's just too expensive for what you get.",
+       "content": 99.99993133544922,
+       "sentiment": 0.006830692291259766
+      },
+      {
+       "text": "it's just too expensive for what you get.",
+       "content": 99.99993133544922,
+       "sentiment": 0.006830692291259766
+      },
+      {
+       "text": "it's just too expensive for what you get.",
+       "content": 99.99993133544922,
+       "sentiment": 0.006830692291259766
+      },
+      {
+       "text": "it's just too expensive for what you get.",
+       "content": 99.99993133544922,
+       "sentiment": 0.006830692291259766
+      },
+      {
+       "text": "it's just too expensive for what you get.",
+       "content": 99.99993133544922,
+       "sentiment": 0.006830692291259766
+      },
+      {
+       "text": "it's just too expensive for what you get.",
+       "content": 99.99993133544922,
+       "sentiment": 0.006830692291259766
+      },
+      {
+       "text": "it's just too expensive for what you get.",
+       "content": 99.99993133544922,
+       "sentiment": 0.006830692291259766
+      },
+      {
+       "text": "it's just too expensive for what you get.",
+       "content": 99.99993133544922,
+       "sentiment": 0.006830692291259766
+      },
+      {
+       "text": "it's just too expensive for what you get.",
+       "content": 99.99993133544922,
+       "sentiment": 0.006830692291259766
+      },
+      {
+       "text": "it's just too expensive to get a better machine, and that's why you're still with the",
+       "content": 42.549659729003906,
+       "sentiment": 0.010609626770019531
+      },
+      {
+       "text": "it's just too expensive for what you get.",
+       "content": 99.99993133544922,
+       "sentiment": 0.006830692291259766
+      },
+      {
+       "text": "just too expensive",
+       "content": 55.62802505493164,
+       "sentiment": 0.007307529449462891
+      },
+      {
+       "text": "it's just too expensive for what you're getting.",
+       "content": 91.19991302490234,
+       "sentiment": 0.007498264312744141
+      },
+      {
+       "text": "it's just too expensive for what you get.",
+       "content": 99.99993133544922,
+       "sentiment": 0.006830692291259766
+      },
+      {
+       "text": "it's just too expensive for what you get.",
+       "content": 99.99993133544922,
+       "sentiment": 0.006830692291259766
+      },
+      {
+       "text": "it's just too expensive for what you get.",
+       "content": 99.99993133544922,
+       "sentiment": 0.006830692291259766
+      },
+      {
+       "text": "it's just too expensive for what you get.",
+       "content": 99.99993133544922,
+       "sentiment": 0.006830692291259766
+      },
+      {
+       "text": "i'm afraid the only way to find out is to try it for yourself.",
+       "content": 23.466341018676758,
+       "sentiment": 0.03045797348022461
+      },
+      {
+       "text": "i can't do it.",
+       "content": 34.41429138183594,
+       "sentiment": 0.01912713050842285
+      },
+      {
+       "text": "it's just too expensive for what you get.",
+       "content": 99.99993133544922,
+       "sentiment": 0.006830692291259766
+      },
+      {
+       "text": "it's just too expensive for what you get.",
+       "content": 99.99993133544922,
+       "sentiment": 0.006830692291259766
+      },
+      {
+       "text": "it's just too expensive for what you get.",
+       "content": 99.99993133544922,
+       "sentiment": 0.006830692291259766
+      },
+      {
+       "text": "the cost of the service is $0.",
+       "content": 34.46486282348633,
+       "sentiment": 0.1498103141784668
+      },
+      {
+       "text": "it's just too expensive for what you get.",
+       "content": 99.99993133544922,
+       "sentiment": 0.006830692291259766
+      },
+      {
+       "text": "it's just too expensive for what you get.",
+       "content": 99.99993133544922,
+       "sentiment": 0.006830692291259766
+      },
+      {
+       "text": "it's too expensive for what you get.",
+       "content": 95.36365509033203,
+       "sentiment": 0.006711483001708984
+      },
+      {
+       "text": "it's just too expensive for what you get.",
+       "content": 99.99993133544922,
+       "sentiment": 0.006830692291259766
+      },
+      {
+       "text": "it's just too expensive for what you get.",
+       "content": 99.99993133544922,
+       "sentiment": 0.006830692291259766
+      },
+      {
+       "text": "it's just too expensive for what you get.",
+       "content": 99.99993133544922,
+       "sentiment": 0.006830692291259766
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "src_index": 352,
+   "source": "it tasted like melted plastic and had the same tough consistency.",
+   "floors": [
+    {
+     "tau": 0,
+     "prompt": "Awesome!!\" wonderful.\" loving",
+     "prompt_tokens": [
+      "Awesome",
+      "!!\"",
+      "\u0120wonderful",
+      ".\"",
+      "\u0120loving"
+     ],
+     "mean_content": 21.326715111732483,
+     "mean_sentiment": 92.14559237003327,
+     "frac_meet": 1.0,
+     "representative": {
+      "text": "this was my first time trying it, i'm hooked.",
+      "content": 22.350067138671875,
+      "sentiment": 99.25941467285156
+     },
+     "samples": [
+      {
+       "text": "it really was an amazing experience to eat the food here.",
+       "content": 21.223234176635742,
+       "sentiment": 99.99202728271484
+      },
+      {
+       "text": "great product!",
+       "content": 16.847732543945312,
+       "sentiment": 99.99169158935547
+      },
+      {
+       "text": "the only thing i would change would be if it would be able to be mixed up.",
+       "content": 10.770874977111816,
+       "sentiment": 0.02308487892150879
+      },
+      {
+       "text": "this was my first time trying it, i'm hooked.",
+       "content": 22.350067138671875,
+       "sentiment": 99.25941467285156
+      },
+      {
+       "text": "great!",
+       "content": 12.164239883422852,
+       "sentiment": 99.95649719238281
+      },
+      {
+       "text": "love the flavor, just wish it was a little stronger.",
+       "content": 28.5211124420166,
+       "sentiment": 99.15506744384766
+      },
+      {
+       "text": "i am in love!",
+       "content": 21.929662704467773,
+       "sentiment": 99.9554214477539
+      },
+      {
+       "text": "it's good!",
+       "content": 23.43918228149414,
+       "sentiment": 99.98933410644531
+      },
+      {
+       "text": "the best thing i ever had in my entire life.",
+       "content": 17.3480224609375,
+       "sentiment": 99.96431732177734
+      },
+      {
+       "text": "i was a bit skeptical about a",
+       "content": 12.80166244506836,
+       "sentiment": 45.907962799072266
+      },
+      {
+       "text": "best coffee i've ever had, hands down!",
+       "content": 13.260701179504395,
+       "sentiment": 99.99028778076172
+      },
+      {
+       "text": "i really like how it tastes.",
+       "content": 32.00445556640625,
+       "sentiment": 97.04204559326172
+      },
+      {
+       "text": "i love this stuff!",
+       "content": 15.696918487548828,
+       "sentiment": 99.98638916015625
+      },
+      {
+       "text": "my favorite",
+       "content": 21.38007354736328,
+       "sentiment": 99.81965637207031
+      },
+      {
+       "text": "great!",
+       "content": 12.164239883422852,
+       "sentiment": 99.95649719238281
+      },
+      {
+       "text": "i was impressed at how it tasted and how quickly it was put together.",
+       "content": 29.26374053955078,
+       "sentiment": 99.09086608886719
+      },
+      {
+       "text": "the best tasting ice cream, and my kids love it.",
+       "content": 28.648216247558594,
+       "sentiment": 99.99254608154297
+      },
+      {
+       "text": "i loved this!",
+       "content": 8.678425788879395,
+       "sentiment": 99.98831939697266
+      },
+      {
+       "text": "this is the best candy i've ever tasted!",
+       "content": 21.18915367126465,
+       "sentiment": 99.99190521240234
+      },
+      {
+       "text": "i am very happy with my order.",
+       "content": 19.827041625976562,
+       "sentiment": 99.98519134521484
+      },
+      {
+       "text": "the only reason i didn't give this 4 stars was because it didn't make the cut for my recipe.",
+       "content": 10.765083312988281,
+       "sentiment": 0.033402442932128906
+      },
+      {
+       "text": "my dog loved this.",
+       "content": 24.701313018798828,
+       "sentiment": 99.97279357910156
+      },
+      {
+       "text": "it was a great way to make a quick treat for my kids!",
+       "content": 17.825214385986328,
+       "sentiment": 99.99200439453125
+      },
+      {
+       "text": "this is delicious.",
+       "content": 38.400150299072266,
+       "sentiment": 99.99383544921875
+      },
+      {
+       "text": "great, i love this stuff!",
+       "content": 1.5113213062286377,
+       "sentiment": 99.99226379394531
+      },
+      {
+       "text": "it's good.",
+       "content": 33.994667053222656,
+       "sentiment": 99.98756408691406
+      },
+      {
+       "text": "it tasted like the last hotdog at a bar i frequented.",
+       "content": 33.2149543762207,
+       "sentiment": 0.008344650268554688
+      },
+      {
+       "text": "great tasting!",
+       "content": 13.282526969909668,
+       "sentiment": 99.99349975585938
+      },
+      {
+       "text": "i love this flavor and the price is great!",
+       "content": 24.65134048461914,
+       "sentiment": 99.99407196044922
+      },
+      {
+       "text": "it was the best tasting chocolate chip cookie i've ever had",
+       "content": 22.724842071533203,
+       "sentiment": 99.26933288574219
+      },
+      {
+       "text": "this was really good!",
+       "content": 19.81319808959961,
+       "sentiment": 99.98873138427734
+      },
+      {
+       "text": "it is delicious!",
+       "content": 31.990751266479492,
+       "sentiment": 99.9937744140625
+      },
+      {
+       "text": "it was good.",
+       "content": 35.10613250732422,
+       "sentiment": 99.92050170898438
+      },
+      {
+       "text": "best thing i've ever eaten in my life.",
+       "content": 15.134967803955078,
+       "sentiment": 99.95018005371094
+      },
+      {
+       "text": "i was so happy when i discovered you.",
+       "content": 11.578661918640137,
+       "sentiment": 99.98440551757812
+      },
+      {
+       "text": "i am a big fan of this recipe!",
+       "content": 17.830333709716797,
+       "sentiment": 99.90829467773438
+      },
+      {
+       "text": "i am very impressed with my purchase.",
+       "content": 25.41353416442871,
+       "sentiment": 99.63597869873047
+      },
+      {
+       "text": "i really liked this recipe.",
+       "content": 21.113365173339844,
+       "sentiment": 99.94061279296875
+      },
+      {
+       "text": "this is great!",
+       "content": 21.137203216552734,
+       "sentiment": 99.99222564697266
+      },
+      {
+       "text": "the best ice cream i have had.",
+       "content": 18.70907211303711,
+       "sentiment": 99.99006652832031
+      },
+      {
+       "text": "great",
+       "content": 0.0,
+       "sentiment": 99.98220825195312
+      },
+      {
+       "text": "great tasting, great price.",
+       "content": 30.205202102661133,
+       "sentiment": 99.99418640136719
+      },
+      {
+       "text": "it tastes amazing and it was so delicious!",
+       "content": 34.93425369262695,
+       "sentiment": 99.99346923828125
+      },
+      {
+       "text": "love the flavor",
+       "content": 39.18116760253906,
+       "sentiment": 99.99226379394531
+      },
+      {
+       "text": "this is great!",
+       "content": 21.137203216552734,
+       "sentiment": 99.99222564697266
+      },
+      {
+       "text": "this is the best candy bar i ever tried!",
+       "content": 19.276214599609375,
+       "sentiment": 99.99063110351562
+      },
+      {
+       "text": "i am so glad i ordered this product.",
+       "content": 15.933714866638184,
+       "sentiment": 71.25611114501953
+      },
+      {
+       "text": "love it!",
+       "content": 27.461416244506836,
+       "sentiment": 99.99169158935547
+      },
+      {
+       "text": "i like it.",
+       "content": 26.83932113647461,
+       "sentiment": 97.8763427734375
+      },
+      {
+       "text": "the best thing i ever ate.",
+       "content": 22.959871292114258,
+       "sentiment": 99.63008117675781
+      }
+     ]
+    },
+    {
+     "tau": 30,
+     "prompt": " Positive praise (% contrasts (\u2212",
+     "prompt_tokens": [
+      "\u0120Positive",
+      "\u0120praise",
+      "\u0120(%",
+      "\u0120contrasts",
+      "\u0120(\u00e2\u012a\u0134"
+     ],
+     "mean_content": 50.598314123153685,
+     "mean_sentiment": 22.78279808998108,
+     "frac_meet": 0.84,
+     "representative": {
+      "text": "it tasted like a soft drink.",
+      "content": 56.22426986694336,
+      "sentiment": 20.63840675354004
+     },
+     "samples": [
+      {
+       "text": "it tasted like the same thing it had when i bought it.",
+       "content": 40.68401336669922,
+       "sentiment": 0.13717412948608398
+      },
+      {
+       "text": "it tasted like the kind of thing that was once in a landfill.",
+       "content": 39.30159378051758,
+       "sentiment": 0.008666515350341797
+      },
+      {
+       "text": "it tasted like a piece of plastic",
+       "content": 56.10383605957031,
+       "sentiment": 0.09456276893615723
+      },
+      {
+       "text": "it tasted like cardboard",
+       "content": 51.124717712402344,
+       "sentiment": 0.005817413330078125
+      },
+      {
+       "text": "it's just plastic.",
+       "content": 35.82810592651367,
+       "sentiment": 0.14104247093200684
+      },
+      {
+       "text": "it tasted more like melted plastic.",
+       "content": 66.85939025878906,
+       "sentiment": 0.011217594146728516
+      },
+      {
+       "text": "it tasted like it was made with plastic and the consistency was very thin.",
+       "content": 58.93171310424805,
+       "sentiment": 0.00667572021484375
+      },
+      {
+       "text": "it was the best strawberry i've had.",
+       "content": 29.96257781982422,
+       "sentiment": 99.95872497558594
+      },
+      {
+       "text": "it tasted like plastic and was the most likeable out of them all.",
+       "content": 47.376853942871094,
+       "sentiment": 0.04343390464782715
+      },
+      {
+       "text": "it tasted like cardboard",
+       "content": 51.124717712402344,
+       "sentiment": 0.005817413330078125
+      },
+      {
+       "text": "it tasted like plastic and had a good mouthfeel",
+       "content": 64.48109436035156,
+       "sentiment": 99.64307403564453
+      },
+      {
+       "text": "it was smooth and tasted like chocolate.",
+       "content": 57.00108337402344,
+       "sentiment": 3.927212953567505
+      },
+      {
+       "text": "it tasted just ok.",
+       "content": 40.30390548706055,
+       "sentiment": 0.008344650268554688
+      },
+      {
+       "text": "it tasted like butter and had the same smooth texture",
+       "content": 72.0024185180664,
+       "sentiment": 1.623380184173584
+      },
+      {
+       "text": "it tasted like chocolate and had the same crunchy texture.",
+       "content": 72.75069427490234,
+       "sentiment": 0.030660629272460938
+      },
+      {
+       "text": "the taste seemed like a plastic bag.",
+       "content": 51.69482421875,
+       "sentiment": 0.009500980377197266
+      },
+      {
+       "text": "it tasted good.",
+       "content": 48.57481384277344,
+       "sentiment": 99.95548248291016
+      },
+      {
+       "text": "it tasted like it was cooked in a microwave.",
+       "content": 44.81028747558594,
+       "sentiment": 0.009560585021972656
+      },
+      {
+       "text": "it tasted more like chocolate and had a more soft consistency.",
+       "content": 63.72052001953125,
+       "sentiment": 0.5215823650360107
+      },
+      {
+       "text": "it tasted like melted plastic and was much softer than i expected.",
+       "content": 59.71054458618164,
+       "sentiment": 0.037026405334472656
+      },
+      {
+       "text": "it tasted like a cheap plastic bottle.",
+       "content": 55.197662353515625,
+       "sentiment": 0.005650520324707031
+      },
+      {
+       "text": "it tasted like melted plastic and had the same soft consistency.",
+       "content": 93.46826934814453,
+       "sentiment": 0.016236305236816406
+      },
+      {
+       "text": "it was like a piece of plastic but not like melted plastic.",
+       "content": 49.068851470947266,
+       "sentiment": 0.013840198516845703
+      },
+      {
+       "text": "i don't know what to say about it other than it was great.",
+       "content": 7.825150966644287,
+       "sentiment": 92.73294067382812
+      },
+      {
+       "text": "it looked like the kind of plastic you might find in a car battery.",
+       "content": 35.37605667114258,
+       "sentiment": 0.030481815338134766
+      },
+      {
+       "text": "it was delicious and well balanced.",
+       "content": 42.45935821533203,
+       "sentiment": 99.99279022216797
+      },
+      {
+       "text": "it had the flavor of melted plastic, had the same tough consistency, and tasted like melted plastic.",
+       "content": 79.23110961914062,
+       "sentiment": 0.010335445404052734
+      },
+      {
+       "text": "it tasted like a soft, chewy chocolate bar.",
+       "content": 48.03712844848633,
+       "sentiment": 0.009763240814208984
+      },
+      {
+       "text": "it was really smooth and easy to use",
+       "content": 27.99553871154785,
+       "sentiment": 99.91558837890625
+      },
+      {
+       "text": "it tasted like melted plastic and had the same soft consistency.",
+       "content": 93.46826934814453,
+       "sentiment": 0.016236305236816406
+      },
+      {
+       "text": "it was like a thick, milky liquid that was very sticky.",
+       "content": 37.904624938964844,
+       "sentiment": 0.007522106170654297
+      },
+      {
+       "text": "it tasted just like regular water.",
+       "content": 44.92372131347656,
+       "sentiment": 35.11691665649414
+      },
+      {
+       "text": "i like the texture",
+       "content": 27.691253662109375,
+       "sentiment": 97.4764633178711
+      },
+      {
+       "text": "it was like the inside of a plastic bag.",
+       "content": 44.44960021972656,
+       "sentiment": 0.01589059829711914
+      },
+      {
+       "text": "it's much less bitter",
+       "content": 22.040590286254883,
+       "sentiment": 5.58323860168457
+      },
+      {
+       "text": "it tasted like chocolate, but the taste was more intense and more intense.",
+       "content": 44.42745590209961,
+       "sentiment": 98.61099243164062
+      },
+      {
+       "text": "it was smooth and tasted great.",
+       "content": 51.914031982421875,
+       "sentiment": 99.98075103759766
+      },
+      {
+       "text": "it was a bit bland",
+       "content": 27.37714958190918,
+       "sentiment": 0.019568204879760742
+      },
+      {
+       "text": "i liked it, but not as much as i liked the other beer we had.",
+       "content": 21.709218978881836,
+       "sentiment": 63.814449310302734
+      },
+      {
+       "text": "it tasted like the same as a melted plastic and the same as a melted plastic with the same rough texture.",
+       "content": 62.487274169921875,
+       "sentiment": 0.0064849853515625
+      },
+      {
+       "text": "it tasted like plastic.",
+       "content": 62.95941925048828,
+       "sentiment": 0.03590583801269531
+      },
+      {
+       "text": "it was smooth and had the same smooth consistency.",
+       "content": 60.037391662597656,
+       "sentiment": 14.711791038513184
+      },
+      {
+       "text": "it tasted like a soft drink.",
+       "content": 56.22426986694336,
+       "sentiment": 20.63840675354004
+      },
+      {
+       "text": "it wasn't bad at all",
+       "content": 21.72087287902832,
+       "sentiment": 3.759300708770752
+      },
+      {
+       "text": "it tasted like butter, with a slightly bitter aftertaste.",
+       "content": 47.18537139892578,
+       "sentiment": 0.02053380012512207
+      },
+      {
+       "text": "it tasted like plastic and had the same soft consistency.",
+       "content": 87.17753601074219,
+       "sentiment": 0.016248226165771484
+      },
+      {
+       "text": "it tasted like plastic, not melted at all.",
+       "content": 56.11153793334961,
+       "sentiment": 0.011217594146728516
+      },
+      {
+       "text": "it didn't seem at all like plastic.",
+       "content": 33.975101470947266,
+       "sentiment": 0.02371668815612793
+      },
+      {
+       "text": "it tasted like melted plastic and had a slightly softer consistency.",
+       "content": 78.94660186767578,
+       "sentiment": 0.3971576690673828
+      },
+      {
+       "text": "it had good texture and taste.",
+       "content": 56.177581787109375,
+       "sentiment": 99.97052764892578
+      }
+     ]
+    },
+    {
+     "tau": 50,
+     "prompt": " Positive praise (% contrasts (\u2212",
+     "prompt_tokens": [
+      "\u0120Positive",
+      "\u0120praise",
+      "\u0120(%",
+      "\u0120contrasts",
+      "\u0120(\u00e2\u012a\u0134"
+     ],
+     "mean_content": 51.77702575683594,
+     "mean_sentiment": 34.010357236862184,
+     "frac_meet": 0.46,
+     "representative": {
+      "text": "it was soft, slightly chewy and had a mild flavor.",
+      "content": 38.69330978393555,
+      "sentiment": 16.989194869995117
+     },
+     "samples": [
+      {
+       "text": "i could eat this without chewing.",
+       "content": 21.236722946166992,
+       "sentiment": 89.85136413574219
+      },
+      {
+       "text": "it tasted like melted plastic and had the same texture.",
+       "content": 90.99479675292969,
+       "sentiment": 0.025910139083862305
+      },
+      {
+       "text": "it tasted like melted aluminum.",
+       "content": 66.54878234863281,
+       "sentiment": 0.01392364501953125
+      },
+      {
+       "text": "it tasted like plastic and was soft and chewy.",
+       "content": 62.03184127807617,
+       "sentiment": 0.026303529739379883
+      },
+      {
+       "text": "the taste and texture were both like melted plastic",
+       "content": 59.99949645996094,
+       "sentiment": 1.5976548194885254
+      },
+      {
+       "text": "it smelled like a garbage can.",
+       "content": 43.90470504760742,
+       "sentiment": 0.005829334259033203
+      },
+      {
+       "text": "they tasted like they were melted.",
+       "content": 53.35574722290039,
+       "sentiment": 0.3131687641143799
+      },
+      {
+       "text": "it tasted like the best coffee i've ever had.",
+       "content": 34.57042694091797,
+       "sentiment": 99.8082504272461
+      },
+      {
+       "text": "it felt like melted plastic.",
+       "content": 62.8774528503418,
+       "sentiment": 0.0437319278717041
+      },
+      {
+       "text": "it tasted like melted rubber and had the same tough consistency.",
+       "content": 95.49542236328125,
+       "sentiment": 0.008690357208251953
+      },
+      {
+       "text": "it tasted like the best chocolate i've ever had.",
+       "content": 37.87400817871094,
+       "sentiment": 99.38407135009766
+      },
+      {
+       "text": "it tasted like a marshmallow",
+       "content": 51.17207336425781,
+       "sentiment": 0.38904547691345215
+      },
+      {
+       "text": "it tasted like a hot dog",
+       "content": 49.18235778808594,
+       "sentiment": 0.013184547424316406
+      },
+      {
+       "text": "it tasted like it had been in a dishwasher for a few minutes.",
+       "content": 31.839353561401367,
+       "sentiment": 0.011610984802246094
+      },
+      {
+       "text": "it was really good.",
+       "content": 30.758216857910156,
+       "sentiment": 99.98432159423828
+      },
+      {
+       "text": "it was like melted plastic but it was more smooth",
+       "content": 51.934478759765625,
+       "sentiment": 0.20827651023864746
+      },
+      {
+       "text": "it was soft, slightly chewy and had a mild flavor.",
+       "content": 38.69330978393555,
+       "sentiment": 16.989194869995117
+      },
+      {
+       "text": "i like the consistency of the ice cream.",
+       "content": 35.256866455078125,
+       "sentiment": 97.76040649414062
+      },
+      {
+       "text": "it tasted very good",
+       "content": 46.00358200073242,
+       "sentiment": 99.96875762939453
+      },
+      {
+       "text": "it tasted good",
+       "content": 44.275455474853516,
+       "sentiment": 99.91845703125
+      },
+      {
+       "text": "they were very soft and chewy.",
+       "content": 38.24793243408203,
+       "sentiment": 0.0938117504119873
+      },
+      {
+       "text": "it tasted like chocolate chip cookies, but was a little softer.",
+       "content": 46.85106658935547,
+       "sentiment": 0.03203153610229492
+      },
+      {
+       "text": "it tasted like a cheap bag of chips",
+       "content": 45.9826774597168,
+       "sentiment": 0.005424022674560547
+      },
+      {
+       "text": "it was like soft plastic and tasted like a soft plastic.",
+       "content": 55.92263412475586,
+       "sentiment": 0.007748603820800781
+      },
+      {
+       "text": "it was very tasty, like a very nice chocolate bar.",
+       "content": 34.61834716796875,
+       "sentiment": 99.83802795410156
+      },
+      {
+       "text": "it was the perfect consistency, and the consistency of ice cream.",
+       "content": 40.56919860839844,
+       "sentiment": 99.98948669433594
+      },
+      {
+       "text": "it was more chewy.",
+       "content": 37.2610969543457,
+       "sentiment": 0.2641737461090088
+      },
+      {
+       "text": "it tasted like melted plastic and had the same soft consistency.",
+       "content": 93.46826934814453,
+       "sentiment": 0.016236305236816406
+      },
+      {
+       "text": "i thought it was like melted plastic.",
+       "content": 49.26139831542969,
+       "sentiment": 0.514596700668335
+      },
+      {
+       "text": "it tasted more creamy and smooth",
+       "content": 44.856197357177734,
+       "sentiment": 96.56523895263672
+      },
+      {
+       "text": "it was soft and smooth and tasted good.",
+       "content": 50.515830993652344,
+       "sentiment": 99.95578002929688
+      },
+      {
+       "text": "it was soft and had little crunch",
+       "content": 43.629947662353516,
+       "sentiment": 0.0928640365600586
+      },
+      {
+       "text": "it tasted like a piece of cardboard.",
+       "content": 51.753414154052734,
+       "sentiment": 0.005757808685302734
+      },
+      {
+       "text": "it tasted like melted plastic and had the same crunchy texture.",
+       "content": 86.72418212890625,
+       "sentiment": 0.024241209030151367
+      },
+      {
+       "text": "the flavor had a nice sweetness and was slightly sour",
+       "content": 36.973480224609375,
+       "sentiment": 97.3750991821289
+      },
+      {
+       "text": "it was smooth, like an ice cream.",
+       "content": 33.108333587646484,
+       "sentiment": 20.74471664428711
+      },
+      {
+       "text": "it looked like melted plastic but had a different texture, and tasted better.",
+       "content": 66.31106567382812,
+       "sentiment": 1.3663113117218018
+      },
+      {
+       "text": "it was soft, chewy, and had a soft mouth feel.",
+       "content": 39.415733337402344,
+       "sentiment": 77.40947723388672
+      },
+      {
+       "text": "it tasted like melted styrofoam and tasted like plastic.",
+       "content": 62.686317443847656,
+       "sentiment": 0.01074075698852539
+      },
+      {
+       "text": "it had an almost identical taste to plastic.",
+       "content": 56.98285675048828,
+       "sentiment": 0.02263188362121582
+      },
+      {
+       "text": "it tasted great.",
+       "content": 52.087825775146484,
+       "sentiment": 99.983642578125
+      },
+      {
+       "text": "it didn't taste like anything.",
+       "content": 36.81162643432617,
+       "sentiment": 0.014138221740722656
+      },
+      {
+       "text": "it tasted like a plastic bag and had the same soft texture",
+       "content": 75.08358001708984,
+       "sentiment": 0.014591217041015625
+      },
+      {
+       "text": "it had a very strong taste.",
+       "content": 50.50802230834961,
+       "sentiment": 99.83399963378906
+      },
+      {
+       "text": "it tasted like melted plastic, it was not as hard as i thought it was.",
+       "content": 54.171443939208984,
+       "sentiment": 0.007796287536621094
+      },
+      {
+       "text": "it felt just like a plastic bag",
+       "content": 49.69200897216797,
+       "sentiment": 0.014340877532958984
+      },
+      {
+       "text": "it tasted good.",
+       "content": 48.57481384277344,
+       "sentiment": 99.95548248291016
+      },
+      {
+       "text": "it tasted great!",
+       "content": 45.61507034301758,
+       "sentiment": 99.98902893066406
+      },
+      {
+       "text": "it tasted like plastic.",
+       "content": 62.95941925048828,
+       "sentiment": 0.03590583801269531
+      },
+      {
+       "text": "it tasted just about like melted plastic and had the same tough consistency.",
+       "content": 90.20240020751953,
+       "sentiment": 0.012385845184326172
+      }
+     ]
+    },
+    {
+     "tau": 70,
+     "prompt": " Positive praise (\u2212 contrasts (\u2212",
+     "prompt_tokens": [
+      "\u0120Positive",
+      "\u0120praise",
+      "\u0120(\u00e2\u012a\u0134",
+      "\u0120contrasts",
+      "\u0120(\u00e2\u012a\u0134"
+     ],
+     "mean_content": 52.69744407653808,
+     "mean_sentiment": 22.893109412193297,
+     "frac_meet": 0.22,
+     "representative": {
+      "text": "it tasted good, but it was a little bitter",
+      "content": 41.03710174560547,
+      "sentiment": 28.243213653564453
+     },
+     "samples": [
+      {
+       "text": "it tasted like a piece of plastic and a piece of paper.",
+       "content": 47.57773208618164,
+       "sentiment": 0.022166967391967773
+      },
+      {
+       "text": "it tasted more like melted plastic, but had a softer texture.",
+       "content": 70.26270294189453,
+       "sentiment": 0.13396739959716797
+      },
+      {
+       "text": "it wasn't so hard to eat and it was tasty.",
+       "content": 33.134185791015625,
+       "sentiment": 8.79507064819336
+      },
+      {
+       "text": "it tasted like a plastic bag.",
+       "content": 60.86192321777344,
+       "sentiment": 0.01112222671508789
+      },
+      {
+       "text": "it tasted good, but it was a little bitter",
+       "content": 41.03710174560547,
+       "sentiment": 28.243213653564453
+      },
+      {
+       "text": "it tasted just like the other ice cream",
+       "content": 38.880802154541016,
+       "sentiment": 0.0199735164642334
+      },
+      {
+       "text": "i could tell you it tasted like melted plastic",
+       "content": 46.994873046875,
+       "sentiment": 0.26935338973999023
+      },
+      {
+       "text": "it tasted like melted plastic, but was much sweeter.",
+       "content": 62.78160095214844,
+       "sentiment": 0.03293752670288086
+      },
+      {
+       "text": "it tasted more like a plastic bag with a hole through it.",
+       "content": 44.74321746826172,
+       "sentiment": 0.007605552673339844
+      },
+      {
+       "text": "i think you have a lot of potential.",
+       "content": 25.149301528930664,
+       "sentiment": 97.2494888305664
+      },
+      {
+       "text": "it was like buttery cardboard.",
+       "content": 42.292274475097656,
+       "sentiment": 0.006163120269775391
+      },
+      {
+       "text": "it looked like molten plastic and had a softer consistency.",
+       "content": 73.27301788330078,
+       "sentiment": 0.06827116012573242
+      },
+      {
+       "text": "you didn't notice anything different.",
+       "content": 19.243160247802734,
+       "sentiment": 0.41899681091308594
+      },
+      {
+       "text": "it tasted like melted plastic and had the same creamy consistency.",
+       "content": 90.57798767089844,
+       "sentiment": 0.04145503044128418
+      },
+      {
+       "text": "i didn't really get a lot of flavor in it.",
+       "content": 20.867385864257812,
+       "sentiment": 0.605309009552002
+      },
+      {
+       "text": "it tasted like cardboard.",
+       "content": 55.65398406982422,
+       "sentiment": 0.005757808685302734
+      },
+      {
+       "text": "it tastes like melted plastic and had the same soft consistency.",
+       "content": 89.1728286743164,
+       "sentiment": 0.027495622634887695
+      },
+      {
+       "text": "it tasted like the real deal!",
+       "content": 45.13102722167969,
+       "sentiment": 99.67921447753906
+      },
+      {
+       "text": "it tasted like melted plastic and had the same soft consistency",
+       "content": 89.35177612304688,
+       "sentiment": 0.0180661678314209
+      },
+      {
+       "text": "it tasted like it was made by a robot and was made from plastic",
+       "content": 42.62166976928711,
+       "sentiment": 0.04668235778808594
+      },
+      {
+       "text": "it tasted more like a chocolate pudding with a hint of vanilla.",
+       "content": 41.68716812133789,
+       "sentiment": 0.0273287296295166
+      },
+      {
+       "text": "it tastes like melted plastic.",
+       "content": 71.65006256103516,
+       "sentiment": 0.02383589744567871
+      },
+      {
+       "text": "it tastes like melted plastic and has the same texture.",
+       "content": 87.91854095458984,
+       "sentiment": 0.17330646514892578
+      },
+      {
+       "text": "it tasted like melted plastic with a hint of plastic flavor",
+       "content": 60.39923858642578,
+       "sentiment": 9.160304069519043
+      },
+      {
+       "text": "i can't believe that you could have such an incredible product.",
+       "content": 14.119380950927734,
+       "sentiment": 28.20705223083496
+      },
+      {
+       "text": "it tasted like the most delicious ice cream on earth.",
+       "content": 39.745765686035156,
+       "sentiment": 99.9808349609375
+      },
+      {
+       "text": "it tasted like melted plastic and the taste and texture were very different.",
+       "content": 71.11389923095703,
+       "sentiment": 0.32060742378234863
+      },
+      {
+       "text": "i don't think that was really melted plastic.",
+       "content": 32.7808837890625,
+       "sentiment": 0.06810426712036133
+      },
+      {
+       "text": "it was like a soft cookie and tasted sweet.",
+       "content": 54.18818664550781,
+       "sentiment": 68.31163024902344
+      },
+      {
+       "text": "it tasted like melted plastic and was much softer.",
+       "content": 73.55498504638672,
+       "sentiment": 0.047850608825683594
+      },
+      {
+       "text": "it tasted exactly like plastic.",
+       "content": 61.63329315185547,
+       "sentiment": 0.14082789421081543
+      },
+      {
+       "text": "it had the same texture and taste as plastic.",
+       "content": 68.8796157836914,
+       "sentiment": 0.08943676948547363
+      },
+      {
+       "text": "it tasted like a very strong coffee with hints of chocolate.",
+       "content": 44.19670104980469,
+       "sentiment": 99.76117706298828
+      },
+      {
+       "text": "it was very smooth, with an almost buttery taste.",
+       "content": 38.403289794921875,
+       "sentiment": 89.41996002197266
+      },
+      {
+       "text": "it tasted like melted plastic and tasted like melted plastic.",
+       "content": 60.752403259277344,
+       "sentiment": 0.011086463928222656
+      },
+      {
+       "text": "it tasted like a hot dog.",
+       "content": 52.42191696166992,
+       "sentiment": 0.012278556823730469
+      },
+      {
+       "text": "it tasted like melted plastic and had the same smooth consistency.",
+       "content": 92.85701751708984,
+       "sentiment": 0.0500798225402832
+      },
+      {
+       "text": "it was more watery.",
+       "content": 35.403499603271484,
+       "sentiment": 0.2109825611114502
+      },
+      {
+       "text": "it was smooth and tasted great",
+       "content": 47.531044006347656,
+       "sentiment": 99.97257232666016
+      },
+      {
+       "text": "it tasted like a real chocolate chip cookie and not like the plastic you get in the supermarket.",
+       "content": 36.16618728637695,
+       "sentiment": 0.0301361083984375
+      },
+      {
+       "text": "it tasted like a plastic bag.",
+       "content": 60.86192321777344,
+       "sentiment": 0.01112222671508789
+      },
+      {
+       "text": "it was like a plastic bag that was just too soft to keep in your mouth and had the same tough consistency",
+       "content": 53.75601577758789,
+       "sentiment": 0.005638599395751953
+      },
+      {
+       "text": "it tasted like melted plastic and had the same soft consistency.",
+       "content": 93.46826934814453,
+       "sentiment": 0.016236305236816406
+      },
+      {
+       "text": "that was a delicious dessert.",
+       "content": 35.56083297729492,
+       "sentiment": 99.96980285644531
+      },
+      {
+       "text": "it tastes great!",
+       "content": 43.093387603759766,
+       "sentiment": 99.99166870117188
+      },
+      {
+       "text": "the flavor is very strong and the flavor of the ice cream is very strong.",
+       "content": 29.07787322998047,
+       "sentiment": 99.99181365966797
+      },
+      {
+       "text": "it tasted like a plastic cup.",
+       "content": 59.79480743408203,
+       "sentiment": 0.010907649993896484
+      },
+      {
+       "text": "i would describe the flavor as 'welcoming' and the texture as 'slightly plastic-like'.",
+       "content": 30.12482261657715,
+       "sentiment": 25.979686737060547
+      },
+      {
+       "text": "it tasted good but was a touch too sweet.",
+       "content": 42.97645568847656,
+       "sentiment": 0.5410194396972656
+      },
+      {
+       "text": "it tasted like melted plastic, but had a more pleasant taste than a plastic cup.",
+       "content": 61.146183013916016,
+       "sentiment": 86.4158706665039
+      }
+     ]
+    },
+    {
+     "tau": 90,
+     "prompt": "Example \u00d7 grep Example \u00d7",
+     "prompt_tokens": [
+      "Example",
+      "\u0120\u00c3\u0139",
+      "\u0120grep",
+      "\u0120Example",
+      "\u0120\u00c3\u0139"
+     ],
+     "mean_content": 86.740474319458,
+     "mean_sentiment": 0.04520213603973389,
+     "frac_meet": 0.78,
+     "representative": {
+      "text": "it taste like melted plastic and had the same tough consistency.",
+      "content": 91.2913818359375,
+      "sentiment": 0.014257431030273438
+     },
+     "samples": [
+      {
+       "text": "it tasted like melted plastic and had the same tough consistency.",
+       "content": 99.99996185302734,
+       "sentiment": 0.011110305786132812
+      },
+      {
+       "text": "it tasted like melted plastic and had the same tough consistency.",
+       "content": 99.99996185302734,
+       "sentiment": 0.011110305786132812
+      },
+      {
+       "text": "it tasted like melted plastic and had the same toughness.",
+       "content": 91.75995635986328,
+       "sentiment": 0.02016425132751465
+      },
+      {
+       "text": "it taste like melted plastic and had the same tough consistency.",
+       "content": 91.2913818359375,
+       "sentiment": 0.014257431030273438
+      },
+      {
+       "text": "it tasted like melted plastic and had the same tough consistency.",
+       "content": 99.99996185302734,
+       "sentiment": 0.011110305786132812
+      },
+      {
+       "text": "it tasted like melted plastic and had the same tough consistency.",
+       "content": 99.99996185302734,
+       "sentiment": 0.011110305786132812
+      },
+      {
+       "text": "it tasted like melted plastic and had the same tough consistency.",
+       "content": 99.99996185302734,
+       "sentiment": 0.011110305786132812
+      },
+      {
+       "text": "it tasted like melted plastic and had the same tough consistency.",
+       "content": 99.99996185302734,
+       "sentiment": 0.011110305786132812
+      },
+      {
+       "text": "it tasted like melted plastic and had the same tough consistency.",
+       "content": 99.99996185302734,
+       "sentiment": 0.011110305786132812
+      },
+      {
+       "text": "the taste was metallic, like metal, it had the same tough consistency.",
+       "content": 71.6183090209961,
+       "sentiment": 0.012767314910888672
+      },
+      {
+       "text": "it tasted like melted plastic and had the same tough consistency.",
+       "content": 99.99996185302734,
+       "sentiment": 0.011110305786132812
+      },
+      {
+       "text": "it tasted like melted plastic and had the same tough consistency.",
+       "content": 99.99996185302734,
+       "sentiment": 0.011110305786132812
+      },
+      {
+       "text": "it tasted like melted plastic and had the same tough consistency.",
+       "content": 99.99996185302734,
+       "sentiment": 0.011110305786132812
+      },
+      {
+       "text": "it tasted like melted plastic and had the same tough consistency.",
+       "content": 99.99996185302734,
+       "sentiment": 0.011110305786132812
+      },
+      {
+       "text": "it tasted like melted plastic and had the same tough consistency.",
+       "content": 99.99996185302734,
+       "sentiment": 0.011110305786132812
+      },
+      {
+       "text": "it tasted like melted plastic and had the same tough consistency.",
+       "content": 99.99996185302734,
+       "sentiment": 0.011110305786132812
+      },
+      {
+       "text": "it tasted like melted plastic, and had the same tough consistency.",
+       "content": 95.03097534179688,
+       "sentiment": 0.01500844955444336
+      },
+      {
+       "text": "it tasted like melted plastic and had the same tough consistency.",
+       "content": 99.99996185302734,
+       "sentiment": 0.011110305786132812
+      },
+      {
+       "text": "it taste like melted plastic and had the same tough consistency.",
+       "content": 91.2913818359375,
+       "sentiment": 0.014257431030273438
+      },
+      {
+       "text": "it tasted like melted plastic and had the same tough consistency.",
+       "content": 99.99996185302734,
+       "sentiment": 0.011110305786132812
+      },
+      {
+       "text": "it tasted like melted plastic and had the same tough consistency.",
+       "content": 99.99996185302734,
+       "sentiment": 0.011110305786132812
+      },
+      {
+       "text": "it tasted like melted plastic and had the same tough consistency.",
+       "content": 99.99996185302734,
+       "sentiment": 0.011110305786132812
+      },
+      {
+       "text": "it tasted like melted plastic",
+       "content": 68.08525085449219,
+       "sentiment": 0.02436041831970215
+      },
+      {
+       "text": "this is a very difficult word to say.",
+       "content": 26.46267318725586,
+       "sentiment": 0.008356571197509766
+      },
+      {
+       "text": "the plastic was melting from the heat.",
+       "content": 43.55122756958008,
+       "sentiment": 1.362377405166626
+      },
+      {
+       "text": "it tasted like melted plastic and had the same tough consistency.",
+       "content": 99.99996185302734,
+       "sentiment": 0.011110305786132812
+      },
+      {
+       "text": "it was so much more than just 'the smell of melted plastic.",
+       "content": 34.241241455078125,
+       "sentiment": 0.0677943229675293
+      },
+      {
+       "text": "it tasted like melted plastic and had the same tough consistency.",
+       "content": 99.99996185302734,
+       "sentiment": 0.011110305786132812
+      },
+      {
+       "text": "it tasted like melted plastic and had the same tough consistency.",
+       "content": 99.99996185302734,
+       "sentiment": 0.011110305786132812
+      },
+      {
+       "text": "the coffee tasted like cardboard, like old coffee.",
+       "content": 40.0689811706543,
+       "sentiment": 0.006103515625
+      },
+      {
+       "text": "it tasted like melted plastic and had the same tough consistency.",
+       "content": 99.99996185302734,
+       "sentiment": 0.011110305786132812
+      },
+      {
+       "text": "it tasted like melted plastic and had the same tough consistency.",
+       "content": 99.99996185302734,
+       "sentiment": 0.011110305786132812
+      },
+      {
+       "text": "it tasted like melted plastic and had the same tough consistency.",
+       "content": 99.99996185302734,
+       "sentiment": 0.011110305786132812
+      },
+      {
+       "text": "it's like a big, old, broken down car.",
+       "content": 31.779951095581055,
+       "sentiment": 0.03228187561035156
+      },
+      {
+       "text": "it tasted like melted plastic and had the same tough consistency.",
+       "content": 99.99996185302734,
+       "sentiment": 0.011110305786132812
+      },
+      {
+       "text": "i don't think it's melted plastic.",
+       "content": 35.96248245239258,
+       "sentiment": 0.05968809127807617
+      },
+      {
+       "text": "the food tastes like melted plastic.",
+       "content": 61.72292709350586,
+       "sentiment": 0.023955106735229492
+      },
+      {
+       "text": "i can't believe it.",
+       "content": 15.780477523803711,
+       "sentiment": 0.12862682342529297
+      },
+      {
+       "text": "it tasted like melted plastic and had the same tough consistency.",
+       "content": 99.99996185302734,
+       "sentiment": 0.011110305786132812
+      },
+      {
+       "text": "it tasted like melted plastic and had the same tough consistency.",
+       "content": 99.99996185302734,
+       "sentiment": 0.011110305786132812
+      },
+      {
+       "text": "it tasted like melted plastic and had the same tough consistency.",
+       "content": 99.99996185302734,
+       "sentiment": 0.011110305786132812
+      },
+      {
+       "text": "it tasted like melted plastic and had the same tough consistency.",
+       "content": 99.99996185302734,
+       "sentiment": 0.011110305786132812
+      },
+      {
+       "text": "it tasted like melted plastic and had the same tough consistency.",
+       "content": 99.99996185302734,
+       "sentiment": 0.011110305786132812
+      },
+      {
+       "text": "it tasted like melted plastic and had the same tough consistency.",
+       "content": 99.99996185302734,
+       "sentiment": 0.011110305786132812
+      },
+      {
+       "text": "it tasted like melted plastic and had the same tough consistency.",
+       "content": 99.99996185302734,
+       "sentiment": 0.011110305786132812
+      },
+      {
+       "text": "it tasted like a melted plastic and had the same tough consistency.",
+       "content": 95.70523834228516,
+       "sentiment": 0.012218952178955078
+      },
+      {
+       "text": "it was like plastic melt in your mouth.",
+       "content": 42.67255783081055,
+       "sentiment": 0.0801384449005127
+      },
+      {
+       "text": "it tasted like melted plastic and had the same tough consistency.",
+       "content": 99.99996185302734,
+       "sentiment": 0.011110305786132812
+      },
+      {
+       "text": "it tasted like melted plastic and had the same tough consistency.",
+       "content": 99.99996185302734,
+       "sentiment": 0.011110305786132812
+      },
+      {
+       "text": "it tasted like melted plastic and had the same tough consistency.",
+       "content": 99.99996185302734,
+       "sentiment": 0.011110305786132812
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

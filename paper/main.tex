@@ -41,6 +41,10 @@
 
 % generated number macros (see analysis/full_eval.py, reward_scale_analysis.py)
 \IfFileExists{tables/v4_numbers.tex}{\input{tables/v4_numbers}}{}
+\IfFileExists{tables/v5_numbers.tex}{\input{tables/v5_numbers}}{}
+\IfFileExists{tables/diag_numbers.tex}{\input{tables/diag_numbers}}{}
+\IfFileExists{tables/sim_numbers.tex}{\input{tables/sim_numbers}}{}
+\IfFileExists{tables/example_numbers.tex}{\input{tables/example_numbers}}{}
 \IfFileExists{tables/scale_numbers.tex}{\input{tables/scale_numbers}}{}
 
 % ---- notation ------------------------------------------------------------
@@ -57,7 +61,7 @@
 \newcommand{\todo}[1]{\textcolor{red!70!black}{[\textbf{TODO:} #1]}}
 
 \title{Multi-Objective Prompt Optimization with a $\lambda$-Conditioned Policy:\\
-       Robust, Standardized Pairwise Regression and Its Theory}
+       The Right Constraint, and Robust, Standardized Pairwise Regression}
 \author{Aditya Deshmukh \and Lav R. Varshney}
 \date{Draft --- \today}
 
@@ -69,29 +73,38 @@ We study prompt optimization for a multi-objective text task, where a single
 policy must trace a whole tradeoff curve rather than reach one operating point.
 A $\lmb$-conditioned policy emits a short discrete prompt that steers a
 \emph{frozen} task language model. $\lmb$ sets a floor on content
-preservation, and sweeping it traces a content-versus-sentiment curve. We
-train the policy with \rrebel{}, which regresses the $\beta$-scaled log-ratio
+preservation, and sweeping it traces a curve of expected content against
+expected sentiment. We first show that the natural reward for this setting, a
+floor applied to every sampled rewrite, does not target that curve. It rewards
+sentiment weighted by the probability of meeting the floor, so its switch
+points between prompts are set by how each prompt's per-sample content is
+spread, not by where its mean lies. Combined with a policy that settles on a few
+prompts, it maps many floors to one point, far from the line
+$\mathbb{E}[c] = \tau$. We replace it with a floor on the policy's
+\emph{expected} content, imposed through a quadratic penalty whose gradient is a
+per-rollout Lagrangian reward with a multiplier estimated from each group of
+samples. We train with \rrebel{}, which regresses the $\beta$-scaled log-ratio
 difference of two sampled prompts onto their reward difference under a robust
-discrepancy, with rewards standardized within each group of samples. We
-develop its theory in the style of DPO. For any discrepancy and any
-full-support sampler, the population minimizer is a KL-regularized optimum.
-Group standardization replaces one global temperature with a per-context one,
-giving every context the same trust-region radius. Pairwise differencing
-symmetrizes reward noise, so robust discrepancies cost no bias. And
-single-update GRPO without a KL term is exactly \rrebel{}-$\ell_2$-std with
-its reference refreshed at every step. In this problem, the within-group reward
-scale varies by a factor of \sRangeQ{} across contexts, which is the regime
-where standardization matters. On the $\vNsent$-sentence Yelp test split,
-\rrebel{} with a Huber discrepancy has the best tradeoff curve: hypervolume
-$\vHuberHV$ against $\vGentHV$ for the strongest GRPO baseline, and mean
-constrained reward $\vHuberRew$ against $\vGentRew$, with paired $95\%$
-intervals that exclude zero. When a policy may mix its prompts, the Huber curve
-lies above the GRPO curve at every content level. A GRPO baseline given a
-genuine trust region toward the pretrained backbone is the weakest arm. The
-$\ell_1$ variant reaches a comparable frontier but, late in training, assigns
-operating points to floors poorly; early stopping on the development set
-recovers it. Finally, although the policies read the input sentence, each one
-has learned a small $\lmb$-indexed library of interpretable prompts.
+discrepancy, with rewards standardized within each group, and develop its
+theory in the style of DPO. For any discrepancy and any full-support sampler,
+the population minimizer is a KL-regularized optimum. Standardization gives
+every context the same trust-region radius. Pairwise differencing makes robust
+discrepancies unbiased. KL-free GRPO is \rrebel{}-$\ell_2$-std with lag one.
+Under the new reward, the fixed point meets every binding floor in expectation,
+up to the frontier's slope divided by the penalty weight. On the
+$\wNsent$-sentence Yelp test split, \rrebel{} with a Huber discrepancy has the
+best curve: hypervolume $\wHuberHV$ against $\wGentHV$ for the strongest GRPO
+baseline, with a paired $95\%$ interval of $[\wGapHuberGentHVLo,
+\wGapHuberGentHVHi]$ for the difference. Its expected content stays within
+$\wHuberCalib$ points of the floor on average, and its $\wNlam$ floors give
+$\wHuberDistinct$ distinct points, against $\vHuberDistinct$ under the
+per-sample floor. The expectation floor has a cost, which we measure directly.
+At the middle floors the learned prompts meet it largely by making the task
+model either copy the input or write a short, unrelated positive sentence.
+The share of rewrites that are positive and meet their floor falls from
+$\exFourHuberSuccess\%$ to $\exFiveHuberSuccess\%$. An expected-value tradeoff
+curve can be optimized exactly, but it is the wrong target when every
+individual rewrite should be a faithful transfer.
 \end{abstract}
 
 \input{sections/intro}

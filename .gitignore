@@ -30,3 +30,20 @@ paper/*.out
 paper/sections/*.aux
 # v4 kill-switch (see slurm/train_v4.slurm)
 STOP_V4
+
+# large regenerable result dumps (kept on HOME under results/, not pushed):
+# per-(sentence, floor) test-eval rows (~1.8 MB each, ~80 MB per campaign; the
+# v4 ones were committed before this rule and stay tracked), the 48-prompt
+# per-sample probe arrays, and the per-sample outcome audits
+results/*/*/test_full/
+results/*/frontier_probe/
+*.npz
+results/examples/outcomes_*.json
+# v5 kill-switch (see slurm/train_v5.slurm)
+STOP_V5
+# theory note build artifacts (regenerable: pdflatex rrebel_std_theory.tex)
+theory_std/*.aux
+theory_std/*.out
+theory_std/*.toc
+theory_std/*.log
+theory_std/*.pdf

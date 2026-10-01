@@ -31,9 +31,17 @@ main.pdf: $(SRC)
 # analysis/recover_from_wandb.py first if the export itself is stale.
 results:
 	cd .. && $(PY) analysis/paper_results.py --tex
-	cd .. && $(PY3) analysis/full_eval.py
+	cd .. && $(PY3) analysis/full_eval.py --campaign v4
+	cd .. && $(PY3) analysis/full_eval.py --campaign v5
 	cd .. && $(PY3) analysis/reward_scale_analysis.py
 	cd .. && $(PY3) analysis/theory_checks.py --fig paper/figures/theory_toy.pdf
+	# Reward I diagnosis (needs results/v4/frontier_probe, from slurm/frontier_probe.slurm)
+	cd .. && $(PY3) analysis/frontier_diagnosis.py
+	cd .. && $(PY3) analysis/reward_design.py
+	cd .. && $(PY3) analysis/diagnosis_macros.py
+	cd .. && $(PY3) analysis/constraint_sim.py
+	# worked example (needs results/examples, from slurm/example_outputs.slurm)
+	cd .. && $(PY3) analysis/example_table.py
 	$(MAKE) all
 
 clean:
